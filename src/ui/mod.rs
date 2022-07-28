@@ -1,9 +1,10 @@
-use crate::ui::create_new_game_state::CreateNewGameState;
+use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState};
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
-use crate::{Configuration, GameState};
-use iced::{Application, Command, Element};
-use log::{debug, error, info};
+use crate::ui::running_state::{RunningMessage, RunningState};
+use crate::Configuration;
+use iced::{Application, Color, Command, Element, Settings, Subscription};
+use log::{debug, info};
 
 mod create_new_game_state;
 mod load_game_state;
@@ -14,6 +15,7 @@ mod running_state;
 pub struct ApplicationState {
     configuration: Configuration,
     ui_state: ApplicationUiState,
+    should_exit: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -21,14 +23,18 @@ pub enum ApplicationUiState {
     MainMenu(MainMenuState),
     Loading(LoadGameState),
     CreateNewGame(CreateNewGameState),
-    Running(GameState),
+    Running(RunningState),
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    NativeEvent(iced_native::Event),
     ChangeState(ApplicationUiState),
     MainMenuMessage(MainMenuMessage),
     LoadGameMessage(LoadGameMessage),
+    CreateNewGameMessage(CreateNewGameMessage),
+    RunningMessage(RunningMessage),
+    Quit,
 }
 
 impl Application for ApplicationState {
@@ -44,6 +50,7 @@ impl Application for ApplicationState {
                     None,
                 )),
                 configuration: flags,
+                should_exit: false,
             },
             Command::none(),
         )
@@ -55,12 +62,35 @@ impl Application for ApplicationState {
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {
         match (message, &mut self.ui_state) {
+            (Message::NativeEvent(event), ui_state) => match (event, ui_state) {
+                (
+                    iced_native::Event::Window(iced_native::window::Event::CloseRequested),
+                    ApplicationUiState::Running(game_state),
+                ) => {
+                    info!("Saving and exiting...");
+                    Command::perform(do_nothing(()), |()| RunningMessage::SaveAndQuit.into())
+                }
+                (
+                    iced_native::Event::Window(iced_native::window::Event::CloseRequested),
+                    ui_state,
+                ) => {
+                    info!("Exiting...");
+                    self.should_exit = true;
+                    Command::none()
+                }
+                _ => Command::none(),
+            },
             (Message::ChangeState(new_ui_state), ui_state) => {
                 *ui_state = new_ui_state;
                 debug!("Updated ui state to {ui_state:?}");
                 Command::perform(do_nothing(ui_state.init_message()), |init_message| {
                     init_message
                 })
+            }
+            (Message::Quit, ui_state) => {
+                info!("Exiting...");
+                self.should_exit = true;
+                Command::none()
             }
             (
                 Message::MainMenuMessage(main_menu_message),
@@ -70,6 +100,14 @@ impl Application for ApplicationState {
                 Message::LoadGameMessage(load_game_message),
                 ApplicationUiState::Loading(load_game_state),
             ) => load_game_state.update(&self.configuration, load_game_message),
+            (
+                Message::CreateNewGameMessage(create_new_game_message),
+                ApplicationUiState::CreateNewGame(create_new_game_state),
+            ) => create_new_game_state.update(&self.configuration, create_new_game_message),
+            (
+                Message::RunningMessage(running_message),
+                ApplicationUiState::Running(running_state),
+            ) => running_state.update(&self.configuration, running_message),
             (message, ui_state) => {
                 panic!("Illegal combination of message and ui state: {message:?}; {ui_state:?}");
             }
@@ -80,9 +118,19 @@ impl Application for ApplicationState {
         match &mut self.ui_state {
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
             ApplicationUiState::Loading(load_game_state) => load_game_state.view(),
-            ApplicationUiState::CreateNewGame(_) => todo!(),
-            ApplicationUiState::Running(_) => todo!(),
+            ApplicationUiState::CreateNewGame(create_new_game_state) => {
+                create_new_game_state.view()
+            }
+            ApplicationUiState::Running(running_state) => running_state.view(),
         }
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        iced_native::subscription::events().map(Message::NativeEvent)
+    }
+
+    fn should_exit(&self) -> bool {
+        self.should_exit
     }
 }
 
@@ -98,6 +146,18 @@ impl From<LoadGameMessage> for Message {
     }
 }
 
+impl From<CreateNewGameMessage> for Message {
+    fn from(create_new_game_message: CreateNewGameMessage) -> Self {
+        Self::CreateNewGameMessage(create_new_game_message)
+    }
+}
+
+impl From<RunningMessage> for Message {
+    fn from(running_message: RunningMessage) -> Self {
+        Self::RunningMessage(running_message)
+    }
+}
+
 async fn do_nothing<T>(t: T) -> T {
     t
 }
@@ -107,8 +167,8 @@ impl ApplicationUiState {
         match self {
             ApplicationUiState::MainMenu(_) => MainMenuMessage::Init.into(),
             ApplicationUiState::Loading(_) => LoadGameMessage::Init.into(),
-            ApplicationUiState::CreateNewGame(_) => todo!(),
-            ApplicationUiState::Running(_) => todo!(),
+            ApplicationUiState::CreateNewGame(_) => CreateNewGameMessage::Init.into(),
+            ApplicationUiState::Running(_) => RunningMessage::Init.into(),
         }
     }
 }

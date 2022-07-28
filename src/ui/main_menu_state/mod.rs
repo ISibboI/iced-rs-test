@@ -1,3 +1,4 @@
+use crate::ui::create_new_game_state::CreateNewGameState;
 use crate::ui::load_game_state::LoadGameState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::Configuration;
@@ -40,7 +41,13 @@ impl MainMenuState {
                     )))
                 });
             }
-            MainMenuMessage::NewGame => {}
+            MainMenuMessage::NewGame => {
+                return Command::perform(do_nothing(self.savegame_file.clone()), |savegame_file| {
+                    Message::ChangeState(ApplicationUiState::CreateNewGame(
+                        CreateNewGameState::new(savegame_file),
+                    ))
+                })
+            }
             MainMenuMessage::SavegameFileInputChanged(input) => self.savegame_file = input,
             MainMenuMessage::Init => {}
         }

@@ -1,13 +1,9 @@
 use crate::game_state::GameState;
 use crate::ui::ApplicationState;
 use clap::Parser;
-use iced::{Application, Command, Element, Settings};
+use iced::{Application, Settings};
 use log::{error, info, LevelFilter};
-use serde::{Deserialize, Serialize};
 use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
-use std::fs::File;
-use std::io::{BufReader, ErrorKind};
-use std::path::PathBuf;
 
 mod game_state;
 mod ui;
@@ -36,6 +32,8 @@ fn initialize_logging(log_level: LevelFilter) {
 fn main() {
     let configuration = Configuration::parse();
     initialize_logging(configuration.log_level);
-    ApplicationState::run(Settings::with_flags(configuration))
-        .unwrap_or_else(|err| error!("Error: {}", err));
+
+    let mut settings = Settings::with_flags(configuration);
+    settings.exit_on_close_request = false;
+    ApplicationState::run(settings).unwrap_or_else(|err| error!("Error: {err}"));
 }

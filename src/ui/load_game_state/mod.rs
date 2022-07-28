@@ -1,4 +1,5 @@
 use crate::ui::main_menu_state::MainMenuState;
+use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
 use async_std::fs::File;
@@ -33,26 +34,26 @@ impl LoadGameState {
             LoadGameMessage::Loaded(loaded) => match loaded {
                 Ok(game_state) => {
                     info!("Loaded game");
-                    Command::perform(do_nothing(game_state), |game_state| {
-                        Message::ChangeState(ApplicationUiState::Running(game_state))
+                    Command::perform(do_nothing(RunningState::new(game_state)), |running_state| {
+                        Message::ChangeState(ApplicationUiState::Running(running_state))
                     })
                 }
                 Err(error) => {
                     warn!("Error loading game: {error:?}");
                     Command::perform(
-                        do_nothing((configuration.savegame_file.clone(), error)),
-                        |(default_savegame_file, error)| {
-                            Message::ChangeState(ApplicationUiState::MainMenu(MainMenuState::new(
-                                default_savegame_file,
-                                Some(match error {
-                                    LoadError::IoError(error) => {
-                                        format!("IO error: {}", error.to_string())
-                                    }
-                                    LoadError::JsonError(error) => {
-                                        format!("Parsing error: {}", error.to_string())
-                                    }
-                                }),
-                            )))
+                        do_nothing(MainMenuState::new(
+                            configuration.savegame_file.clone(),
+                            Some(match error {
+                                LoadError::IoError(error) => {
+                                    format!("IO error: {}", error.to_string())
+                                }
+                                LoadError::JsonError(error) => {
+                                    format!("Parsing error: {}", error.to_string())
+                                }
+                            }),
+                        )),
+                        |main_menu_state| {
+                            Message::ChangeState(ApplicationUiState::MainMenu(main_menu_state))
                         },
                     )
                 }
