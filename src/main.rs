@@ -3,7 +3,7 @@ use crate::ui::ApplicationState;
 use clap::Parser;
 use iced::{Application, Settings};
 use log::{error, info, LevelFilter};
-use simplelog::{ColorChoice, CombinedLogger, Config, TermLogger, TerminalMode};
+use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 mod game_state;
 mod ui;
@@ -20,7 +20,9 @@ pub struct Configuration {
 fn initialize_logging(log_level: LevelFilter) {
     CombinedLogger::init(vec![TermLogger::new(
         log_level,
-        Config::default(),
+        ConfigBuilder::default()
+            .add_filter_allow_str("iced_rs_test")
+            .build(),
         TerminalMode::Mixed,
         ColorChoice::Auto,
     )])
