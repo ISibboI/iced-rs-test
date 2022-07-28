@@ -123,6 +123,13 @@ impl GameTime {
             time: ((self.time - 1) / SECONDS_PER_DAY + 1) * SECONDS_PER_DAY,
         }
     }
+
+    /// Modulo the length of a day, return the time as a clock would show it.
+    pub const fn time_of_day(&self) -> Self {
+        Self {
+            time: self.time % SECONDS_PER_DAY,
+        }
+    }
 }
 
 impl ops::Add for GameTime {

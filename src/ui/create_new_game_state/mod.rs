@@ -1,4 +1,4 @@
-use crate::game_state::CharacterRace;
+use crate::game_state::character::CharacterRace;
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
