@@ -1,4 +1,4 @@
-use crate::ui::{do_nothing, Message};
+use crate::ui::Message;
 use crate::{Configuration, GameState};
 use async_std::fs::File;
 use async_std::io::{BufWriter, WriteExt};
@@ -19,7 +19,7 @@ impl RunningState {
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        _configuration: &Configuration,
         message: RunningMessage,
     ) -> Command<Message> {
         match message {
@@ -92,8 +92,8 @@ impl From<serde_json::Error> for SaveError {
 impl ToString for SaveError {
     fn to_string(&self) -> String {
         match self {
-            SaveError::IoError(error) => format!("IO error: {}", error.to_string()),
-            SaveError::JsonError(error) => format!("Serialization error: {}", error.to_string()),
+            SaveError::IoError(error) => format!("IO error: {}", error),
+            SaveError::JsonError(error) => format!("Serialization error: {}", error),
         }
     }
 }

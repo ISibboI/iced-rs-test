@@ -29,7 +29,7 @@ impl CreateNewGameState {
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        _configuration: &Configuration,
         message: CreateNewGameMessage,
     ) -> Command<Message> {
         match message {

@@ -30,7 +30,7 @@ impl MainMenuState {
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        _configuration: &Configuration,
         message: MainMenuMessage,
     ) -> Command<Message> {
         match message {

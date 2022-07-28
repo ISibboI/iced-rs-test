@@ -43,14 +43,7 @@ impl LoadGameState {
                     Command::perform(
                         do_nothing(MainMenuState::new(
                             configuration.savegame_file.clone(),
-                            Some(match error {
-                                LoadError::IoError(error) => {
-                                    format!("IO error: {}", error.to_string())
-                                }
-                                LoadError::JsonError(error) => {
-                                    format!("Parsing error: {}", error.to_string())
-                                }
-                            }),
+                            Some(error.to_string()),
                         )),
                         |main_menu_state| {
                             Message::ChangeState(ApplicationUiState::MainMenu(main_menu_state))
@@ -102,5 +95,14 @@ impl From<std::io::Error> for LoadError {
 impl From<serde_json::Error> for LoadError {
     fn from(error: serde_json::Error) -> Self {
         Self::JsonError(Arc::new(error))
+    }
+}
+
+impl ToString for LoadError {
+    fn to_string(&self) -> String {
+        match self {
+            LoadError::IoError(error) => format!("IO error: {}", error),
+            LoadError::JsonError(error) => format!("Parsing error: {}", error),
+        }
     }
 }

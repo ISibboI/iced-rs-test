@@ -3,7 +3,7 @@ use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
 use crate::ui::running_state::{RunningMessage, RunningState};
 use crate::Configuration;
-use iced::{Application, Color, Command, Element, Settings, Subscription};
+use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
 mod create_new_game_state;
@@ -30,10 +30,10 @@ pub enum ApplicationUiState {
 pub enum Message {
     NativeEvent(iced_native::Event),
     ChangeState(ApplicationUiState),
-    MainMenuMessage(MainMenuMessage),
-    LoadGameMessage(LoadGameMessage),
-    CreateNewGameMessage(CreateNewGameMessage),
-    RunningMessage(RunningMessage),
+    MainMenu(MainMenuMessage),
+    LoadGame(LoadGameMessage),
+    CreateNewGame(CreateNewGameMessage),
+    Running(RunningMessage),
     Quit,
 }
 
@@ -65,15 +65,12 @@ impl Application for ApplicationState {
             (Message::NativeEvent(event), ui_state) => match (event, ui_state) {
                 (
                     iced_native::Event::Window(iced_native::window::Event::CloseRequested),
-                    ApplicationUiState::Running(game_state),
+                    ApplicationUiState::Running(_),
                 ) => {
                     info!("Saving and exiting...");
                     Command::perform(do_nothing(()), |()| RunningMessage::SaveAndQuit.into())
                 }
-                (
-                    iced_native::Event::Window(iced_native::window::Event::CloseRequested),
-                    ui_state,
-                ) => {
+                (iced_native::Event::Window(iced_native::window::Event::CloseRequested), _) => {
                     info!("Exiting...");
                     self.should_exit = true;
                     Command::none()
@@ -87,27 +84,26 @@ impl Application for ApplicationState {
                     init_message
                 })
             }
-            (Message::Quit, ui_state) => {
+            (Message::Quit, _) => {
                 info!("Exiting...");
                 self.should_exit = true;
                 Command::none()
             }
             (
-                Message::MainMenuMessage(main_menu_message),
+                Message::MainMenu(main_menu_message),
                 ApplicationUiState::MainMenu(main_menu_state),
             ) => main_menu_state.update(&self.configuration, main_menu_message),
             (
-                Message::LoadGameMessage(load_game_message),
+                Message::LoadGame(load_game_message),
                 ApplicationUiState::Loading(load_game_state),
             ) => load_game_state.update(&self.configuration, load_game_message),
             (
-                Message::CreateNewGameMessage(create_new_game_message),
+                Message::CreateNewGame(create_new_game_message),
                 ApplicationUiState::CreateNewGame(create_new_game_state),
             ) => create_new_game_state.update(&self.configuration, create_new_game_message),
-            (
-                Message::RunningMessage(running_message),
-                ApplicationUiState::Running(running_state),
-            ) => running_state.update(&self.configuration, running_message),
+            (Message::Running(running_message), ApplicationUiState::Running(running_state)) => {
+                running_state.update(&self.configuration, running_message)
+            }
             (message, ui_state) => {
                 panic!("Illegal combination of message and ui state: {message:?}; {ui_state:?}");
             }
@@ -136,25 +132,25 @@ impl Application for ApplicationState {
 
 impl From<MainMenuMessage> for Message {
     fn from(main_menu_message: MainMenuMessage) -> Self {
-        Self::MainMenuMessage(main_menu_message)
+        Self::MainMenu(main_menu_message)
     }
 }
 
 impl From<LoadGameMessage> for Message {
     fn from(load_game_message: LoadGameMessage) -> Self {
-        Self::LoadGameMessage(load_game_message)
+        Self::LoadGame(load_game_message)
     }
 }
 
 impl From<CreateNewGameMessage> for Message {
     fn from(create_new_game_message: CreateNewGameMessage) -> Self {
-        Self::CreateNewGameMessage(create_new_game_message)
+        Self::CreateNewGame(create_new_game_message)
     }
 }
 
 impl From<RunningMessage> for Message {
     fn from(running_message: RunningMessage) -> Self {
-        Self::RunningMessage(running_message)
+        Self::Running(running_message)
     }
 }
 
