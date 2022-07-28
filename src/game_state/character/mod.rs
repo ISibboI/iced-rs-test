@@ -79,8 +79,7 @@ impl Character {
     }
 
     pub fn required_attribute_progress(attribute_level: usize) -> f64 {
-        let attribute_level = attribute_level as f64;
-        attribute_level
+        attribute_level as f64
     }
 
     pub fn required_level_progress(&self) -> f64 {

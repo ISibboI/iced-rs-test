@@ -1,3 +1,4 @@
+use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::time::GameTime;
 use enum_iterator::Sequence;
 use serde::{Deserialize, Serialize};
@@ -35,7 +36,7 @@ impl Action {
             Action::WeightLift => (1.0, 0.0, 0.0, 0.0),
             Action::Jog => (0.0, 1.0, 0.0, 0.0),
             Action::Read => (0.0, 0.0, 1.0, 0.0),
-            Action::FightMonsters => (0.01, 0.01, 0.01, 0.0), // base progress, more progress is computed depending on combat style
+            Action::FightMonsters => (0.0, 0.0, 0.0, 0.0), // progress is computed depending on combat style
         }
     }
 }
@@ -60,20 +61,12 @@ pub struct ActionInProgress {
     pub action: Action,
     pub start: GameTime,
     pub end: GameTime,
+    pub attribute_progress: (f64, f64, f64, f64),
+    pub monster: Option<SpawnedMonster>,
 }
 
 impl ActionInProgress {
     pub fn length(&self) -> GameTime {
         self.end - self.start
-    }
-}
-
-impl Default for ActionInProgress {
-    fn default() -> Self {
-        Self {
-            action: Action::Wait,
-            start: GameTime::from_seconds(0),
-            end: GameTime::from_seconds(0),
-        }
     }
 }

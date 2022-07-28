@@ -28,10 +28,10 @@ impl LoadGameState {
             LoadGameMessage::Init => {
                 info!("Loading '{}'", self.path);
                 Command::perform(load_game(self.path.clone()), |loaded| {
-                    LoadGameMessage::Loaded(loaded).into()
+                    LoadGameMessage::Loaded(Box::new(loaded)).into()
                 })
             }
-            LoadGameMessage::Loaded(loaded) => match loaded {
+            LoadGameMessage::Loaded(loaded) => match *loaded {
                 Ok(game_state) => {
                     info!("Loaded game");
                     Command::perform(do_nothing(RunningState::new(game_state)), |running_state| {
@@ -68,7 +68,7 @@ impl LoadGameState {
 #[derive(Clone, Debug)]
 pub enum LoadGameMessage {
     Init,
-    Loaded(Result<GameState, LoadError>),
+    Loaded(Box<Result<GameState, LoadError>>),
 }
 
 async fn load_game(path: impl AsRef<str>) -> Result<GameState, LoadError> {

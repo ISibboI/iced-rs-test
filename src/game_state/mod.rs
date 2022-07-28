@@ -1,6 +1,6 @@
 use crate::game_state::actions::{Action, ActionInProgress};
 use crate::game_state::character::{Character, CharacterRace};
-use crate::game_state::combat::CombatStyle;
+use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::time::GameTime;
 use log::debug;
 use rand::Rng;
@@ -33,6 +33,8 @@ impl GameState {
                 action: Action::Sleep,
                 start: Default::default(),
                 end: Default::default(),
+                attribute_progress: (0.0, 0.0, 0.0, 0.0),
+                monster: None,
             },
             selected_action: Action::Wait,
             selected_combat_style,
@@ -46,15 +48,8 @@ impl GameState {
         self.current_time += passed_game_seconds;
 
         while self.current_action.end < self.current_time {
-            self.character.add_attribute_progress(
-                self.current_action
-                    .action
-                    .attribute_progress_str_dex_int_chr(),
-            );
-            if self.current_action.action == Action::FightMonsters {
-                self.character
-                    .add_attribute_progress(self.evaluate_combat_attribute_progress());
-            }
+            self.character
+                .add_attribute_progress(self.current_action.attribute_progress);
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
@@ -69,7 +64,7 @@ impl GameState {
         let hour_of_day = start_time.hour_of_day();
         let time_of_day = start_time.time_of_day();
 
-        let action = if hour_of_day >= 22 || hour_of_day < 6 {
+        let action = if !(6..22).contains(&hour_of_day) {
             // sleep until 6 in the morning
             let end_time = if hour_of_day < 6 {
                 start_time.floor_day()
@@ -81,6 +76,8 @@ impl GameState {
                 action: Action::Sleep,
                 start: start_time,
                 end: end_time,
+                attribute_progress: Action::Sleep.attribute_progress_str_dex_int_chr(),
+                monster: None,
             }
         } else if rand::thread_rng()
             .gen_range(earliest_tavern_time.seconds()..=latest_tavern_time.seconds())
@@ -90,12 +87,33 @@ impl GameState {
                 action: Action::Tavern,
                 start: start_time,
                 end: start_time + GameTime::from_hours(1),
+                attribute_progress: Action::Tavern.attribute_progress_str_dex_int_chr(),
+                monster: None,
             }
         } else {
-            ActionInProgress {
-                action: self.selected_action.clone(),
-                start: start_time,
-                end: start_time + GameTime::from_hours(1),
+            let action = self.selected_action.clone();
+
+            if action == Action::FightMonsters {
+                let monster = SpawnedMonster::spawn(self.character.level);
+                let damage = self.damage_output();
+                let attribute_progress = self.evaluate_combat_attribute_progress();
+                let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128);
+
+                ActionInProgress {
+                    action,
+                    start: start_time,
+                    end: start_time + duration,
+                    attribute_progress,
+                    monster: Some(monster),
+                }
+            } else {
+                ActionInProgress {
+                    start: start_time,
+                    end: start_time + GameTime::from_hours(1),
+                    attribute_progress: action.attribute_progress_str_dex_int_chr(),
+                    monster: None,
+                    action,
+                }
             }
         };
         self.current_action = action;
@@ -117,7 +135,7 @@ impl GameState {
     }
 
     pub fn list_feasible_actions(&self) -> Vec<Action> {
-        let mut result = vec![
+        let result = vec![
             Action::Wait,
             Action::WeightLift,
             Action::Jog,
@@ -127,24 +145,38 @@ impl GameState {
         result
     }
 
+    pub fn damage_output(&self) -> f64 {
+        match self.selected_combat_style {
+            CombatStyle::CloseContact => {
+                0.8 * self.character.strength as f64
+                    + 0.1 * self.character.dexterity as f64
+                    + 0.1 * self.character.intelligence as f64
+            }
+            CombatStyle::Ranged => {
+                0.1 * self.character.strength as f64
+                    + 0.8 * self.character.dexterity as f64
+                    + 0.1 * self.character.intelligence as f64
+            }
+            CombatStyle::Magic => {
+                0.1 * self.character.strength as f64
+                    + 0.1 * self.character.dexterity as f64
+                    + 0.8 * self.character.intelligence as f64
+            }
+        }
+    }
+
     fn evaluate_combat_attribute_progress(&self) -> (f64, f64, f64, f64) {
         match self.selected_combat_style {
             CombatStyle::CloseContact => {
-                let damage = 0.8 * self.character.strength as f64
-                    + 0.1 * self.character.dexterity as f64
-                    + 0.1 * self.character.intelligence as f64;
+                let damage = self.damage_output();
                 (damage * 0.8, damage * 0.1, damage * 0.1, 0.0)
             }
             CombatStyle::Ranged => {
-                let damage = 0.1 * self.character.strength as f64
-                    + 0.8 * self.character.dexterity as f64
-                    + 0.1 * self.character.intelligence as f64;
+                let damage = self.damage_output();
                 (damage * 0.1, damage * 0.8, damage * 0.1, 0.0)
             }
             CombatStyle::Magic => {
-                let damage = 0.1 * self.character.strength as f64
-                    + 0.1 * self.character.dexterity as f64
-                    + 0.8 * self.character.intelligence as f64;
+                let damage = self.damage_output();
                 (damage * 0.1, damage * 0.1, damage * 0.8, 0.0)
             }
         }
