@@ -36,16 +36,16 @@ impl MainMenuState {
         match message {
             MainMenuMessage::LoadGame => {
                 return Command::perform(do_nothing(self.savegame_file.clone()), |savegame_file| {
-                    Message::ChangeState(Box::new(ApplicationUiState::Loading(LoadGameState::new(
-                        savegame_file,
+                    Message::ChangeState(Box::new(ApplicationUiState::Loading(Box::new(
+                        LoadGameState::new(savegame_file),
                     ))))
                 });
             }
             MainMenuMessage::NewGame => {
                 return Command::perform(do_nothing(self.savegame_file.clone()), |savegame_file| {
-                    Message::ChangeState(Box::new(ApplicationUiState::CreateNewGame(
+                    Message::ChangeState(Box::new(ApplicationUiState::CreateNewGame(Box::new(
                         CreateNewGameState::new(savegame_file),
-                    )))
+                    ))))
                 })
             }
             MainMenuMessage::SavegameFileInputChanged(input) => self.savegame_file = input,

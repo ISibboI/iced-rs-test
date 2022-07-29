@@ -21,10 +21,10 @@ pub struct ApplicationState {
 
 #[derive(Debug, Clone)]
 pub enum ApplicationUiState {
-    MainMenu(MainMenuState),
-    Loading(LoadGameState),
-    CreateNewGame(CreateNewGameState),
-    Running(RunningState),
+    MainMenu(Box<MainMenuState>),
+    Loading(Box<LoadGameState>),
+    CreateNewGame(Box<CreateNewGameState>),
+    Running(Box<RunningState>),
 }
 
 #[derive(Debug, Clone)]
@@ -46,10 +46,10 @@ impl Application for ApplicationState {
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
             Self {
-                ui_state: ApplicationUiState::MainMenu(MainMenuState::new(
+                ui_state: ApplicationUiState::MainMenu(Box::new(MainMenuState::new(
                     flags.savegame_file.clone(),
                     None,
-                )),
+                ))),
                 configuration: flags,
                 should_exit: false,
             },

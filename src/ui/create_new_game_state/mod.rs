@@ -60,9 +60,9 @@ impl CreateNewGameState {
                             self.race.clone(),
                         )),
                         |game_state| {
-                            Message::ChangeState(Box::new(ApplicationUiState::Running(
+                            Message::ChangeState(Box::new(ApplicationUiState::Running(Box::new(
                                 RunningState::new(game_state),
-                            )))
+                            ))))
                         },
                     );
                 }

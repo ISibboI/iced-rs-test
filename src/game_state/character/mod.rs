@@ -1,4 +1,5 @@
 use crate::game_state::combat::CombatStyle;
+use crate::game_state::currency::Currency;
 use enum_iterator::Sequence;
 use serde::{Deserialize, Serialize};
 
@@ -18,6 +19,8 @@ pub struct Character {
     pub dexterity_progress: f64,
     pub intelligence_progress: f64,
     pub charisma_progress: f64,
+
+    pub currency: Currency,
 }
 
 impl Character {
@@ -38,6 +41,8 @@ impl Character {
             dexterity_progress: 0.0,
             intelligence_progress: 0.0,
             charisma_progress: 0.0,
+
+            currency: Currency::from_copper(0),
         }
     }
 
@@ -84,7 +89,7 @@ impl Character {
 
     pub fn required_level_progress(&self) -> f64 {
         let level = self.level as f64;
-        100.0 * level.powf(1.1) * level.max(2.0).log2()
+        10.0 * level.powf(1.1) * level.max(2.0).log2()
     }
 }
 

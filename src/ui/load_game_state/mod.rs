@@ -34,17 +34,22 @@ impl LoadGameState {
             LoadGameMessage::Loaded(loaded) => match *loaded {
                 Ok(game_state) => {
                     info!("Loaded game");
-                    Command::perform(do_nothing(RunningState::new(game_state)), |running_state| {
-                        Message::ChangeState(Box::new(ApplicationUiState::Running(running_state)))
-                    })
+                    Command::perform(
+                        do_nothing(Box::new(RunningState::new(game_state))),
+                        |running_state| {
+                            Message::ChangeState(Box::new(ApplicationUiState::Running(
+                                running_state,
+                            )))
+                        },
+                    )
                 }
                 Err(error) => {
                     warn!("Error loading game: {error:?}");
                     Command::perform(
-                        do_nothing(MainMenuState::new(
+                        do_nothing(Box::new(MainMenuState::new(
                             configuration.savegame_file.clone(),
                             Some(error.to_string()),
-                        )),
+                        ))),
                         |main_menu_state| {
                             Message::ChangeState(Box::new(ApplicationUiState::MainMenu(
                                 main_menu_state,

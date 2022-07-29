@@ -88,28 +88,28 @@ impl GameTime {
         }
     }
 
-    pub const fn second_of_minute(&self) -> u8 {
-        (self.seconds() % SECONDS_PER_MINUTE) as u8
+    pub const fn second_of_minute(&self) -> i8 {
+        (self.seconds() % SECONDS_PER_MINUTE) as i8
     }
 
-    pub const fn minute_of_hour(&self) -> u8 {
-        (self.minutes() % MINUTES_PER_HOUR) as u8
+    pub const fn minute_of_hour(&self) -> i8 {
+        (self.minutes() % MINUTES_PER_HOUR) as i8
     }
 
-    pub const fn hour_of_day(&self) -> u8 {
-        (self.hours() % HOURS_PER_DAY) as u8
+    pub const fn hour_of_day(&self) -> i8 {
+        (self.hours() % HOURS_PER_DAY) as i8
     }
 
-    pub const fn day_of_week(&self) -> u8 {
-        (self.days() % DAYS_PER_WEEK) as u8
+    pub const fn day_of_week(&self) -> i8 {
+        (self.days() % DAYS_PER_WEEK) as i8
     }
 
-    pub const fn week_of_month(&self) -> u8 {
-        (self.weeks() % WEEKS_PER_MONTH) as u8
+    pub const fn week_of_month(&self) -> i8 {
+        (self.weeks() % WEEKS_PER_MONTH) as i8
     }
 
-    pub const fn month_of_year(&self) -> u8 {
-        (self.months() % MONTHS_PER_YEAR) as u8
+    pub const fn month_of_year(&self) -> i8 {
+        (self.months() % MONTHS_PER_YEAR) as i8
     }
 
     pub const fn floor_day(&self) -> Self {

@@ -1,6 +1,10 @@
-use crate::game_state::actions::{Action, ActionInProgress};
+use crate::game_state::actions::{
+    Action, ActionInProgress, ACTIONS, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
+    ACTION_WAIT,
+};
 use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
+use crate::game_state::currency::Currency;
 use crate::game_state::time::{GameTime, SECONDS_PER_HOUR};
 use log::debug;
 use rand::Rng;
@@ -9,6 +13,7 @@ use serde::{Deserialize, Serialize};
 pub mod actions;
 pub mod character;
 pub mod combat;
+pub mod currency;
 pub mod time;
 
 pub const GAME_TIME_PER_SECOND: GameTime = GameTime::from_minutes(15);
@@ -18,7 +23,7 @@ pub struct GameState {
     pub savegame_file: String,
     pub character: Character,
     pub current_action: ActionInProgress,
-    pub selected_action: Action,
+    pub selected_action: String,
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
 }
@@ -30,13 +35,14 @@ impl GameState {
             savegame_file,
             character: Character::new(name, race),
             current_action: ActionInProgress {
-                action: Action::Sleep,
+                action: ACTIONS.get(ACTION_SLEEP).unwrap().clone(),
                 start: Default::default(),
                 end: Default::default(),
                 attribute_progress: (0.0, 0.0, 0.0, 0.0),
                 monster: None,
+                currency_reward: Currency::zero(),
             },
-            selected_action: Action::Wait,
+            selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
             current_time: Default::default(),
         }
@@ -50,6 +56,7 @@ impl GameState {
         while self.current_action.end < self.current_time {
             self.character
                 .add_attribute_progress(self.current_action.attribute_progress);
+            self.character.currency += self.current_action.currency_reward;
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
@@ -64,6 +71,8 @@ impl GameState {
         let hour_of_day = start_time.hour_of_day();
         let time_of_day = start_time.time_of_day();
 
+        let tavern_currency_gain = ACTIONS.get(ACTION_TAVERN).unwrap().currency_gain;
+
         let action = if !(6..22).contains(&hour_of_day) {
             // sleep until 6 in the morning
             let end_time = if hour_of_day < 6 {
@@ -72,28 +81,33 @@ impl GameState {
                 start_time.ceil_day()
             } + GameTime::from_hours(6);
 
+            let action = ACTIONS.get(ACTION_SLEEP).unwrap().clone();
             ActionInProgress {
-                action: Action::Sleep,
                 start: start_time,
                 end: end_time,
-                attribute_progress: Action::Sleep.attribute_progress_str_dex_int_chr(),
+                attribute_progress: action.attribute_progress_str_dex_int_chr,
                 monster: None,
+                currency_reward: Currency::zero(),
+                action,
             }
-        } else if rand::thread_rng()
-            .gen_range(earliest_tavern_time.seconds()..=latest_tavern_time.seconds())
-            <= time_of_day.seconds()
+        } else if self.character.currency >= -tavern_currency_gain
+            && rand::thread_rng()
+                .gen_range(earliest_tavern_time.seconds()..=latest_tavern_time.seconds())
+                <= time_of_day.seconds()
         {
+            let action = ACTIONS.get(ACTION_TAVERN).unwrap().clone();
             ActionInProgress {
-                action: Action::Tavern,
                 start: start_time,
                 end: start_time + GameTime::from_hours(1),
-                attribute_progress: Action::Tavern.attribute_progress_str_dex_int_chr(),
+                attribute_progress: action.attribute_progress_str_dex_int_chr,
                 monster: None,
+                currency_reward: tavern_currency_gain,
+                action,
             }
         } else {
-            let action = self.selected_action.clone();
+            let action = ACTIONS.get(&self.selected_action).unwrap().clone();
 
-            if action == Action::FightMonsters {
+            if &action.name == ACTION_FIGHT_MONSTERS {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
                 let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128);
@@ -104,14 +118,16 @@ impl GameState {
                     start: start_time,
                     end: start_time + duration,
                     attribute_progress,
+                    currency_reward: monster.currency_reward,
                     monster: Some(monster),
                 }
             } else {
                 ActionInProgress {
                     start: start_time,
                     end: start_time + GameTime::from_hours(1),
-                    attribute_progress: action.attribute_progress_str_dex_int_chr(),
+                    attribute_progress: action.attribute_progress_str_dex_int_chr,
                     monster: None,
+                    currency_reward: action.currency_gain,
                     action,
                 }
             }
@@ -134,15 +150,13 @@ impl GameState {
         }
     }
 
-    pub fn list_feasible_actions(&self) -> Vec<Action> {
-        let result = vec![
-            Action::Wait,
-            Action::WeightLift,
-            Action::Jog,
-            Action::Read,
-            Action::FightMonsters,
-        ];
-        result
+    pub fn list_feasible_actions<'output>(
+        &self,
+    ) -> impl 'output + Iterator<Item = &'output Action> {
+        let level = self.character.level;
+        ACTIONS
+            .values()
+            .filter(move |action| level >= action.required_level)
     }
 
     pub fn damage_output(&self) -> f64 {

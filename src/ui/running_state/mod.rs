@@ -1,7 +1,8 @@
-use crate::game_state::actions::Action;
+use crate::game_state::actions::ACTION_FIGHT_MONSTERS;
 use crate::game_state::combat::CombatStyle;
+use crate::game_state::currency::Currency;
 use crate::text_utils::a_or_an;
-use crate::ui::elements::{attribute, labelled_element, title};
+use crate::ui::elements::{attribute, currency, labelled_element, labelled_label, title};
 use crate::ui::Message;
 use crate::{Configuration, GameState};
 use async_std::fs::File;
@@ -25,7 +26,7 @@ pub struct RunningState {
     frame_times: VecDeque<Instant>,
     fps: Option<f32>,
 
-    action_picker_state: pick_list::State<Action>,
+    action_picker_state: pick_list::State<String>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
 }
 
@@ -35,7 +36,7 @@ pub enum RunningMessage {
     Update,
     SaveAndQuit,
 
-    ActionChanged(Action),
+    ActionChanged(String),
     CombatStyleChanged(CombatStyle),
 }
 
@@ -112,7 +113,42 @@ impl RunningState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let label_column_width = 130;
+        let label_column_width = 160;
+
+        let current_action_currency_reward = self.game_state.current_action.currency_reward;
+        let action_descriptor_row = Row::new().push(Text::new(&format!(
+            "{} is currently {}{}",
+            self.game_state.character.name,
+            if self.game_state.current_action.action.name == ACTION_FIGHT_MONSTERS {
+                let monster_name = self
+                    .game_state
+                    .current_action
+                    .monster
+                    .as_ref()
+                    .unwrap()
+                    .to_lowercase_string();
+                let a = a_or_an(&monster_name);
+                format!("fighting {a} {monster_name}")
+            } else {
+                self.game_state
+                    .current_action
+                    .action
+                    .verb_progressive
+                    .to_string()
+            },
+            if current_action_currency_reward > Currency::zero() {
+                " earning "
+            } else if current_action_currency_reward < Currency::zero() {
+                " costing him "
+            } else {
+                ""
+            },
+        )));
+        let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
+            action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
+        } else {
+            action_descriptor_row
+        };
 
         Column::new()
             .width(Length::Fill)
@@ -163,6 +199,7 @@ impl RunningState {
                                 ))
                                 .horizontal_alignment(Horizontal::Center),
                             )
+                            .push(currency(self.game_state.character.currency, true))
                             .push(Space::new(Length::Shrink, Length::Units(20)))
                             .push(
                                 Text::new("Attributes")
@@ -218,7 +255,10 @@ impl RunningState {
                                 label_column_width,
                                 PickList::new(
                                     &mut self.action_picker_state,
-                                    self.game_state.list_feasible_actions(),
+                                    self.game_state
+                                        .list_feasible_actions()
+                                        .map(|action| action.name.clone())
+                                        .collect::<Vec<_>>(),
                                     Some(self.game_state.selected_action.clone()),
                                     |action| RunningMessage::ActionChanged(action).into(),
                                 ),
@@ -235,28 +275,13 @@ impl RunningState {
                                     },
                                 ),
                             ))
+                            .push(labelled_label(
+                                "Damage per minute:",
+                                label_column_width,
+                                format!("{:.0}", self.game_state.damage_output()),
+                            ))
                             .push(Space::new(Length::Shrink, Length::Fill))
-                            .push(Text::new(&format!(
-                                "{} is currently {}",
-                                self.game_state.character.name,
-                                if self.game_state.current_action.action == Action::FightMonsters {
-                                    let monster_name = self
-                                        .game_state
-                                        .current_action
-                                        .monster
-                                        .as_ref()
-                                        .unwrap()
-                                        .to_lowercase_string();
-                                    let a = a_or_an(&monster_name);
-                                    format!("fighting {a} {monster_name}")
-                                } else {
-                                    self.game_state
-                                        .current_action
-                                        .action
-                                        .verb_progressive()
-                                        .to_string()
-                                }
-                            )))
+                            .push(action_descriptor_row)
                             .push(ProgressBar::new(
                                 0.0..=1.0,
                                 self.game_state.current_action_progress(),

@@ -1,19 +1,22 @@
+use crate::game_state::currency::Currency;
 use enum_iterator::Sequence;
 use lazy_static::lazy_static;
 use rand::distributions::{Distribution, Uniform};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use rand_distr::Gamma;
 use serde::{Deserialize, Serialize};
 
 lazy_static! {
     pub static ref MONSTERS: Vec<Monster> = vec![
-        Monster::new("rat", 0, 1.0, 300.0),
-        Monster::new("hare", 2, 1.0, 500.0),
-        Monster::new("deer", 4, 1.0, 1_000.0),
-        Monster::new("wolf", 8, 1.0, 4_000.0),
-        Monster::new("goblin", 10, 1.0, 8_000.0),
-        Monster::new("orc", 13, 1.0, 13_000.0),
-        Monster::new("dragon", 18, 0.1, 500_000.0),
+        Monster::new("rat", 0, 1.0, 300.0, Currency::from_copper(1)),
+        Monster::new("hare", 2, 1.0, 500.0, Currency::from_copper(4)),
+        Monster::new("deer", 4, 1.0, 1_000.0, Currency::from_copper(8)),
+        Monster::new("boar", 6, 1.0, 2_000.0, Currency::from_copper(17)),
+        Monster::new("wolf", 8, 1.0, 4_000.0, Currency::from_copper(31)),
+        Monster::new("goblin", 10, 1.0, 8_000.0, Currency::from_copper(60)),
+        Monster::new("orc", 13, 1.0, 13_000.0, Currency::from_copper(150)),
+        Monster::new("dragon", 18, 0.1, 500_000.0, Currency::from_gold(1)),
     ];
     pub static ref MONSTER_MODIFIERS: Vec<MonsterModifier> = vec![
         MonsterModifier::new("normal", 0, 1.0, 1.0),
@@ -50,6 +53,7 @@ pub struct Monster {
     pub required_level: usize,
     pub base_likelihood: f64,
     pub hitpoints: f64,
+    pub currency_reward: Currency,
 }
 
 impl Monster {
@@ -58,12 +62,14 @@ impl Monster {
         required_level: usize,
         base_likelihood: f64,
         hitpoints: f64,
+        currency_reward: Currency,
     ) -> Self {
         Self {
             name: name.to_string(),
             required_level,
             base_likelihood,
             hitpoints,
+            currency_reward,
         }
     }
 
@@ -115,6 +121,7 @@ pub struct SpawnedMonster {
     pub hitpoints: f64,
     pub monster: Monster,
     pub modifier: MonsterModifier,
+    pub currency_reward: Currency,
 }
 
 impl SpawnedMonster {
@@ -131,11 +138,13 @@ impl SpawnedMonster {
             .clone();
         let modifier = MonsterModifier::choose_random(level);
 
-        let hitpoint_jitter = Uniform::new(1.0 / 1.1, 1.1);
+        let hitpoint_jitter = Uniform::new(1.0 / 1.1, 1.1).sample(&mut thread_rng());
+        let currency_jitter = Gamma::new(2.0, 0.25).unwrap().sample(&mut thread_rng()) + 0.5;
         Self {
-            hitpoints: hitpoint_jitter.sample(&mut thread_rng())
-                * monster.hitpoints
-                * modifier.hitpoint_factor,
+            hitpoints: hitpoint_jitter * monster.hitpoints * modifier.hitpoint_factor,
+            currency_reward: Currency::from_copper(
+                (monster.currency_reward.copper() as f64 * currency_jitter).round() as i128,
+            ),
             monster,
             modifier,
         }
