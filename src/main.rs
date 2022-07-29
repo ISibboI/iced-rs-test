@@ -6,6 +6,7 @@ use log::{error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 mod game_state;
+mod text_utils;
 mod ui;
 
 #[derive(Parser, Debug)]

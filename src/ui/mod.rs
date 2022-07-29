@@ -7,6 +7,7 @@ use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
 mod create_new_game_state;
+mod elements;
 mod load_game_state;
 mod main_menu_state;
 mod running_state;
@@ -29,7 +30,7 @@ pub enum ApplicationUiState {
 #[derive(Debug, Clone)]
 pub enum Message {
     NativeEvent(iced_native::Event),
-    ChangeState(ApplicationUiState),
+    ChangeState(Box<ApplicationUiState>),
     MainMenu(MainMenuMessage),
     LoadGame(LoadGameMessage),
     CreateNewGame(CreateNewGameMessage),
@@ -78,7 +79,7 @@ impl Application for ApplicationState {
                 _ => Command::none(),
             },
             (Message::ChangeState(new_ui_state), ui_state) => {
-                *ui_state = new_ui_state;
+                *ui_state = *new_ui_state;
                 debug!("Updated ui state to {ui_state:?}");
                 Command::perform(do_nothing(ui_state.init_message()), |init_message| {
                     init_message
@@ -110,6 +111,10 @@ impl Application for ApplicationState {
         }
     }
 
+    fn subscription(&self) -> Subscription<Self::Message> {
+        iced_native::subscription::events().map(Message::NativeEvent)
+    }
+
     fn view(&mut self) -> Element<Self::Message> {
         match &mut self.ui_state {
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
@@ -119,10 +124,6 @@ impl Application for ApplicationState {
             }
             ApplicationUiState::Running(running_state) => running_state.view(),
         }
-    }
-
-    fn subscription(&self) -> Subscription<Self::Message> {
-        iced_native::subscription::events().map(Message::NativeEvent)
     }
 
     fn should_exit(&self) -> bool {

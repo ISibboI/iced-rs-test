@@ -1,4 +1,5 @@
 use crate::game_state::character::CharacterRace;
+use crate::ui::elements::{labelled_element, title};
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
@@ -6,7 +7,7 @@ use enum_iterator::all;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{
     button, pick_list, text_input, Alignment, Button, Color, Column, Command, Container, Element,
-    Length, PickList, Row, Space, Text, TextInput,
+    Length, PickList, Space, Text, TextInput,
 };
 
 #[derive(Debug, Clone)]
@@ -59,8 +60,8 @@ impl CreateNewGameState {
                             self.race.clone(),
                         )),
                         |game_state| {
-                            Message::ChangeState(ApplicationUiState::Running(RunningState::new(
-                                game_state,
+                            Message::ChangeState(Box::new(ApplicationUiState::Running(
+                                RunningState::new(game_state),
                             )))
                         },
                     );
@@ -105,50 +106,27 @@ impl CreateNewGameState {
             .spacing(5)
             .align_items(Alignment::Center)
             .width(Length::Fill)
-            .push(Space::new(Length::Shrink, Length::Units(20)))
-            .push(Text::new("Create New Game").size(100))
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(title("Create New Game"))
             .push(
                 Container::new(
                     Column::new()
                         .spacing(5)
                         .height(Length::Shrink)
-                        .push(
-                            Row::new()
-                                .spacing(5)
-                                .height(Length::Units(20 + 2 * 5))
-                                .push(
-                                    Text::new("Savegame file:")
-                                        .vertical_alignment(Vertical::Center)
-                                        .width(Length::Units(label_column_width))
-                                        .height(Length::Fill),
-                                )
-                                .push(savegame_file_field_input),
-                        )
-                        .push(
-                            Row::new()
-                                .spacing(5)
-                                .height(Length::Units(20 + 2 * 5))
-                                .push(
-                                    Text::new("Name:")
-                                        .vertical_alignment(Vertical::Center)
-                                        .width(Length::Units(label_column_width))
-                                        .height(Length::Fill),
-                                )
-                                .push(name_field_input),
-                        )
-                        .push(
-                            Row::new()
-                                .spacing(5)
-                                .height(Length::Units(20 + 2 * 5))
-                                .push(
-                                    Text::new("Race:")
-                                        .vertical_alignment(Vertical::Center)
-                                        .width(Length::Units(label_column_width))
-                                        .height(Length::Fill),
-                                )
-                                .push(race_field_input),
-                        ),
+                        .push(labelled_element(
+                            "Savegame file:",
+                            label_column_width,
+                            savegame_file_field_input,
+                        ))
+                        .push(labelled_element(
+                            "Name:",
+                            label_column_width,
+                            name_field_input,
+                        ))
+                        .push(labelled_element(
+                            "Race:",
+                            label_column_width,
+                            race_field_input,
+                        )),
                 )
                 .width(Length::Units(500))
                 .height(Length::Shrink),

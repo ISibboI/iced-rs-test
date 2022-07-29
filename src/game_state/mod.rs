@@ -1,7 +1,7 @@
 use crate::game_state::actions::{Action, ActionInProgress};
 use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
-use crate::game_state::time::GameTime;
+use crate::game_state::time::{GameTime, SECONDS_PER_HOUR};
 use log::debug;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -96,8 +96,8 @@ impl GameState {
             if action == Action::FightMonsters {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
-                let attribute_progress = self.evaluate_combat_attribute_progress();
                 let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128);
+                let attribute_progress = self.evaluate_combat_attribute_progress(duration);
 
                 ActionInProgress {
                     action,
@@ -165,20 +165,15 @@ impl GameState {
         }
     }
 
-    fn evaluate_combat_attribute_progress(&self) -> (f64, f64, f64, f64) {
+    fn evaluate_combat_attribute_progress(&self, duration: GameTime) -> (f64, f64, f64, f64) {
+        let damage = self.damage_output();
+        let damage = if damage > 1.0 { damage.sqrt() } else { damage };
+        let damage = damage * (duration.seconds() as f64 / SECONDS_PER_HOUR as f64);
+
         match self.selected_combat_style {
-            CombatStyle::CloseContact => {
-                let damage = self.damage_output();
-                (damage * 0.8, damage * 0.1, damage * 0.1, 0.0)
-            }
-            CombatStyle::Ranged => {
-                let damage = self.damage_output();
-                (damage * 0.1, damage * 0.8, damage * 0.1, 0.0)
-            }
-            CombatStyle::Magic => {
-                let damage = self.damage_output();
-                (damage * 0.1, damage * 0.1, damage * 0.8, 0.0)
-            }
+            CombatStyle::CloseContact => (damage * 0.8, damage * 0.1, damage * 0.1, 0.0),
+            CombatStyle::Ranged => (damage * 0.1, damage * 0.8, damage * 0.1, 0.0),
+            CombatStyle::Magic => (damage * 0.1, damage * 0.1, damage * 0.8, 0.0),
         }
     }
 }

@@ -1,13 +1,14 @@
 use crate::game_state::actions::Action;
-use crate::game_state::character::Character;
 use crate::game_state::combat::CombatStyle;
+use crate::text_utils::a_or_an;
+use crate::ui::elements::{attribute, labelled_element, title};
 use crate::ui::Message;
 use crate::{Configuration, GameState};
 use async_std::fs::File;
 use async_std::io::{BufWriter, WriteExt};
 use async_std::task::sleep;
 use enum_iterator::all;
-use iced::alignment::{Horizontal, Vertical};
+use iced::alignment::Horizontal;
 use iced::{pick_list, Alignment, Column, Command, Element, Length, PickList, Row, Space, Text};
 use iced_native::widget::ProgressBar;
 use log::{info, warn};
@@ -111,21 +112,12 @@ impl RunningState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let attribute_progress_bar_width = 50;
-        let attribute_progress_bar_height = 10;
         let label_column_width = 130;
 
         Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
-            .push(Space::new(Length::Shrink, Length::Units(20)))
-            .push(
-                Text::new("Progress Quest")
-                    .size(100)
-                    .width(Length::Fill)
-                    .horizontal_alignment(Horizontal::Center),
-            )
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(title("Progress Quest"))
             .push(
                 Row::new()
                     .width(Length::Fill)
@@ -145,7 +137,16 @@ impl RunningState {
                                 Text::new(&format!("Level {}", self.game_state.character.level))
                                     .horizontal_alignment(Horizontal::Center),
                             )
-                            .push(Column::new().padding([0, 20]).push(ProgressBar::new(0.0..=(self.game_state.character.required_level_progress() as f32), self.game_state.character.level_progress as f32).height(Length::Units(10))))
+                            .push(
+                                Column::new().padding([0, 20]).push(
+                                    ProgressBar::new(
+                                        0.0..=(self.game_state.character.required_level_progress()
+                                            as f32),
+                                        self.game_state.character.level_progress as f32,
+                                    )
+                                    .height(Length::Units(10)),
+                                ),
+                            )
                             .push(
                                 Text::new(&self.game_state.character.race.to_string())
                                     .horizontal_alignment(Horizontal::Center),
@@ -173,103 +174,26 @@ impl RunningState {
                                     .align_items(Alignment::Start)
                                     .padding([0, 20])
                                     .spacing(5)
-                                    .push(
-                                        Row::new()
-                                            .spacing(5)
-                                            .push(
-                                                Text::new(&format!(
-                                                    "STR {}",
-                                                    self.game_state.character.strength
-                                                ))
-                                                .horizontal_alignment(Horizontal::Left).width(Length::Fill),
-                                            )
-                                            .push(Column::new().align_items(Alignment::Start).push(Space::new(Length::Shrink, Length::Units(5))).push(
-                                                ProgressBar::new(
-                                                    0.0..=Character::required_attribute_progress(
-                                                        self.game_state.character.strength,
-                                                    )
-                                                        as f32,
-                                                    self.game_state.character.strength_progress
-                                                        as f32,
-                                                )
-                                                .width(Length::Units(attribute_progress_bar_width))
-                                                .height(Length::Units(
-                                                    attribute_progress_bar_height,
-                                                ))),
-                                            ),
-                                    )
-                                    .push(
-                                        Row::new()
-                                            .push(
-                                                Text::new(&format!(
-                                                    "DEX {}",
-                                                    self.game_state.character.dexterity
-                                                ))
-                                                .horizontal_alignment(Horizontal::Left).width(Length::Fill),
-                                            )
-                                            .push(Column::new().align_items(Alignment::Start).push(Space::new(Length::Shrink, Length::Units(5))).push(
-                                                ProgressBar::new(
-                                                    0.0..=Character::required_attribute_progress(
-                                                        self.game_state.character.dexterity,
-                                                    )
-                                                        as f32,
-                                                    self.game_state.character.dexterity_progress
-                                                        as f32,
-                                                )
-                                                .width(Length::Units(attribute_progress_bar_width))
-                                                .height(Length::Units(
-                                                    attribute_progress_bar_height,
-                                                ))),
-                                            ),
-                                    )
-                                    .push(
-                                        Row::new()
-                                            .push(
-                                                Text::new(&format!(
-                                                    "INT {}",
-                                                    self.game_state.character.intelligence
-                                                ))
-                                                .horizontal_alignment(Horizontal::Left).width(Length::Fill),
-                                            )
-                                            .push(Column::new().align_items(Alignment::Start).push(Space::new(Length::Shrink, Length::Units(5))).push(
-                                                ProgressBar::new(
-                                                    0.0..=Character::required_attribute_progress(
-                                                        self.game_state.character.intelligence,
-                                                    )
-                                                        as f32,
-                                                    self.game_state.character.intelligence_progress
-                                                        as f32,
-                                                )
-                                                .width(Length::Units(attribute_progress_bar_width))
-                                                .height(Length::Units(
-                                                    attribute_progress_bar_height,
-                                                ))),
-                                            ),
-                                    )
-                                    .push(
-                                        Row::new()
-                                            .push(
-                                                Text::new(&format!(
-                                                    "CHR {}",
-                                                    self.game_state.character.charisma
-                                                ))
-                                                    .horizontal_alignment(Horizontal::Left).width(Length::Fill),
-                                            )
-                                            .push(Column::new().align_items(Alignment::Start).push(Space::new(Length::Shrink, Length::Units(5))).push(
-                                                ProgressBar::new(
-                                                    0.0..=Character::required_attribute_progress(
-                                                        self.game_state.character.charisma,
-                                                    )
-                                                        as f32,
-                                                    self.game_state.character.charisma_progress
-                                                        as f32,
-                                                )
-                                                    .width(Length::Units(attribute_progress_bar_width))
-                                                    .height(Length::Units(
-                                                        attribute_progress_bar_height,
-                                                    ))),
-                                            ),
-                                    ),
+                                    .push(attribute(
+                                        "STR",
+                                        self.game_state.character.strength,
+                                        self.game_state.character.strength_progress,
+                                    ))
+                                    .push(attribute(
+                                        "DEX",
+                                        self.game_state.character.dexterity,
+                                        self.game_state.character.dexterity_progress,
+                                    ))
+                                    .push(attribute(
+                                        "INT",
+                                        self.game_state.character.intelligence,
+                                        self.game_state.character.intelligence_progress,
+                                    ))
+                                    .push(attribute(
+                                        "CHR",
+                                        self.game_state.character.charisma,
+                                        self.game_state.character.charisma_progress,
+                                    )),
                             )
                             .push(Space::new(Length::Shrink, Length::Fill))
                             .push(
@@ -289,33 +213,49 @@ impl RunningState {
                             .height(Length::Fill)
                             .spacing(5)
                             .padding(5)
-                            .push(
-                                Row::new()
-                                    .padding(5)
-                                    .spacing(5)
-                                    .push(Text::new("Selected action:").width(Length::Units(label_column_width)).height(Length::Units(20 + 2 * 5)).vertical_alignment(Vertical::Center))
-                                    .push(PickList::new(
-                                        &mut self.action_picker_state,
-                                        self.game_state.list_feasible_actions(),
-                                        Some(self.game_state.selected_action.clone()),
-                                        |action| RunningMessage::ActionChanged(action).into())
-                                    ))
-                            .push(
-                                Row::new()
-                                    .padding(5)
-                                    .spacing(5)
-                                    .push(Text::new("Combat style:").width(Length::Units(label_column_width)).height(Length::Units(20 + 2 * 5)).vertical_alignment(Vertical::Center))
-                                    .push(PickList::new(
-                                        &mut self.combat_style_picker_state,
-                                        all::<CombatStyle>().collect::<Vec<_>>(),
-                                        Some(self.game_state.selected_combat_style.clone()),
-                                        |combat_style| RunningMessage::CombatStyleChanged(combat_style).into())
-                                    ))
+                            .push(labelled_element(
+                                "Selected action:",
+                                label_column_width,
+                                PickList::new(
+                                    &mut self.action_picker_state,
+                                    self.game_state.list_feasible_actions(),
+                                    Some(self.game_state.selected_action.clone()),
+                                    |action| RunningMessage::ActionChanged(action).into(),
+                                ),
+                            ))
+                            .push(labelled_element(
+                                "Combat style:",
+                                label_column_width,
+                                PickList::new(
+                                    &mut self.combat_style_picker_state,
+                                    all::<CombatStyle>().collect::<Vec<_>>(),
+                                    Some(self.game_state.selected_combat_style.clone()),
+                                    |combat_style| {
+                                        RunningMessage::CombatStyleChanged(combat_style).into()
+                                    },
+                                ),
+                            ))
                             .push(Space::new(Length::Shrink, Length::Fill))
                             .push(Text::new(&format!(
                                 "{} is currently {}",
                                 self.game_state.character.name,
-                                self.game_state.current_action.action.verb_progressive()
+                                if self.game_state.current_action.action == Action::FightMonsters {
+                                    let monster_name = self
+                                        .game_state
+                                        .current_action
+                                        .monster
+                                        .as_ref()
+                                        .unwrap()
+                                        .to_lowercase_string();
+                                    let a = a_or_an(&monster_name);
+                                    format!("fighting {a} {monster_name}")
+                                } else {
+                                    self.game_state
+                                        .current_action
+                                        .action
+                                        .verb_progressive()
+                                        .to_string()
+                                }
                             )))
                             .push(ProgressBar::new(
                                 0.0..=1.0,

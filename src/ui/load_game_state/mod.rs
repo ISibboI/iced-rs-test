@@ -35,7 +35,7 @@ impl LoadGameState {
                 Ok(game_state) => {
                     info!("Loaded game");
                     Command::perform(do_nothing(RunningState::new(game_state)), |running_state| {
-                        Message::ChangeState(ApplicationUiState::Running(running_state))
+                        Message::ChangeState(Box::new(ApplicationUiState::Running(running_state)))
                     })
                 }
                 Err(error) => {
@@ -46,7 +46,9 @@ impl LoadGameState {
                             Some(error.to_string()),
                         )),
                         |main_menu_state| {
-                            Message::ChangeState(ApplicationUiState::MainMenu(main_menu_state))
+                            Message::ChangeState(Box::new(ApplicationUiState::MainMenu(
+                                main_menu_state,
+                            )))
                         },
                     )
                 }
