@@ -5,11 +5,12 @@ use crate::game_state::actions::{
 use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::currency::Currency;
+use crate::game_state::story::Story;
 use crate::game_state::time::{GameTime, SerdeInstant, SECONDS_PER_HOUR};
 use log::debug;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 pub mod actions;
 pub mod character;
@@ -30,7 +31,7 @@ pub struct GameState {
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
     pub last_update: SerdeInstant,
-    //pub story: Story,
+    pub story: Story,
 }
 
 impl GameState {
@@ -52,6 +53,7 @@ impl GameState {
             selected_combat_style,
             current_time: Default::default(),
             last_update: Instant::now().into(),
+            story: Default::default(),
         }
     }
 
@@ -65,11 +67,15 @@ impl GameState {
                 self.character
                     .add_attribute_progress(self.current_action.attribute_progress);
                 self.character.currency += self.current_action.currency_reward;
+
+                self.story.update(&self.current_action);
             }
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
         }
+
+        self.last_update.time += Duration::from_secs_f64(passed_real_seconds);
     }
 
     fn next_action(&mut self) {
@@ -121,9 +127,10 @@ impl GameState {
             if action.name == ACTION_FIGHT_MONSTERS {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
-                let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128);
+                let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128)
+                    .min(MAX_COMBAT_DURATION);
                 let attribute_progress = self.evaluate_combat_attribute_progress(duration);
-                let success = duration <= MAX_COMBAT_DURATION;
+                let success = duration < MAX_COMBAT_DURATION;
 
                 ActionInProgress {
                     action,

@@ -72,7 +72,6 @@ impl RunningState {
                     warn!("Making {passed_real_seconds:.0} seconds worth of updates");
                 }
                 self.game_state.update(passed_real_seconds);
-                self.game_state.last_update = current_time.into();
 
                 // measure frame time
                 {
