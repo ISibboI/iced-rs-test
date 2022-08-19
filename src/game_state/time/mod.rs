@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::ops;
+use std::time::Instant;
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct GameTime {
@@ -19,6 +20,7 @@ pub const SECONDS_PER_WEEK: i128 = SECONDS_PER_DAY * DAYS_PER_WEEK;
 pub const SECONDS_PER_MONTH: i128 = SECONDS_PER_WEEK * WEEKS_PER_MONTH;
 pub const SECONDS_PER_YEAR: i128 = SECONDS_PER_MONTH * MONTHS_PER_YEAR;
 
+#[allow(dead_code)]
 impl GameTime {
     pub const fn seconds(&self) -> i128 {
         self.time
@@ -161,5 +163,35 @@ impl ops::Sub for GameTime {
 impl ops::SubAssign for GameTime {
     fn sub_assign(&mut self, rhs: Self) {
         *self = *self - rhs;
+    }
+}
+
+#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Serialize, Deserialize)]
+pub struct SerdeInstant {
+    #[serde(with = "serde_millis")]
+    pub time: Instant,
+}
+
+impl AsRef<Instant> for SerdeInstant {
+    fn as_ref(&self) -> &Instant {
+        &self.time
+    }
+}
+
+impl AsMut<Instant> for SerdeInstant {
+    fn as_mut(&mut self) -> &mut Instant {
+        &mut self.time
+    }
+}
+
+impl From<Instant> for SerdeInstant {
+    fn from(time: Instant) -> Self {
+        Self { time }
+    }
+}
+
+impl From<SerdeInstant> for Instant {
+    fn from(instant: SerdeInstant) -> Self {
+        instant.time
     }
 }

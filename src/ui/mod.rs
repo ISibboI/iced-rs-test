@@ -1,3 +1,4 @@
+use crate::ui::bulk_update_state::{BulkUpdateMessage, BulkUpdateState};
 use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState};
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
@@ -6,6 +7,7 @@ use crate::Configuration;
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
+mod bulk_update_state;
 mod create_new_game_state;
 mod elements;
 mod load_game_state;
@@ -23,6 +25,7 @@ pub struct ApplicationState {
 pub enum ApplicationUiState {
     MainMenu(Box<MainMenuState>),
     Loading(Box<LoadGameState>),
+    BulkUpdate(Box<BulkUpdateState>),
     CreateNewGame(Box<CreateNewGameState>),
     Running(Box<RunningState>),
 }
@@ -33,6 +36,7 @@ pub enum Message {
     ChangeState(Box<ApplicationUiState>),
     MainMenu(MainMenuMessage),
     LoadGame(LoadGameMessage),
+    BulkUpdate(BulkUpdateMessage),
     CreateNewGame(CreateNewGameMessage),
     Running(RunningMessage),
     Quit,
@@ -99,6 +103,10 @@ impl Application for ApplicationState {
                 ApplicationUiState::Loading(load_game_state),
             ) => load_game_state.update(&self.configuration, load_game_message),
             (
+                Message::BulkUpdate(bulk_update_message),
+                ApplicationUiState::BulkUpdate(bulk_update_state),
+            ) => bulk_update_state.update(&self.configuration, bulk_update_message),
+            (
                 Message::CreateNewGame(create_new_game_message),
                 ApplicationUiState::CreateNewGame(create_new_game_state),
             ) => create_new_game_state.update(&self.configuration, create_new_game_message),
@@ -119,6 +127,7 @@ impl Application for ApplicationState {
         match &mut self.ui_state {
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
             ApplicationUiState::Loading(load_game_state) => load_game_state.view(),
+            ApplicationUiState::BulkUpdate(bulk_update_state) => bulk_update_state.view(),
             ApplicationUiState::CreateNewGame(create_new_game_state) => {
                 create_new_game_state.view()
             }
@@ -143,6 +152,12 @@ impl From<LoadGameMessage> for Message {
     }
 }
 
+impl From<BulkUpdateMessage> for Message {
+    fn from(bulk_update_message: BulkUpdateMessage) -> Self {
+        Self::BulkUpdate(bulk_update_message)
+    }
+}
+
 impl From<CreateNewGameMessage> for Message {
     fn from(create_new_game_message: CreateNewGameMessage) -> Self {
         Self::CreateNewGame(create_new_game_message)
@@ -164,6 +179,7 @@ impl ApplicationUiState {
         match self {
             ApplicationUiState::MainMenu(_) => MainMenuMessage::Init.into(),
             ApplicationUiState::Loading(_) => LoadGameMessage::Init.into(),
+            ApplicationUiState::BulkUpdate(_) => BulkUpdateMessage::Init.into(),
             ApplicationUiState::CreateNewGame(_) => CreateNewGameMessage::Init.into(),
             ApplicationUiState::Running(_) => RunningMessage::Init.into(),
         }

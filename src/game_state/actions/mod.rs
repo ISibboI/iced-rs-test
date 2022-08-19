@@ -19,10 +19,10 @@ lazy_static! {
     ].into_iter().map(|action| (action.name.clone(), action)).collect();
 }
 
-pub static ACTION_WAIT: &'static str = "Wait";
-pub static ACTION_SLEEP: &'static str = "Sleep";
-pub static ACTION_TAVERN: &'static str = "Tavern";
-pub static ACTION_FIGHT_MONSTERS: &'static str = "Fight monsters";
+pub static ACTION_WAIT: &str = "Wait";
+pub static ACTION_SLEEP: &str = "Sleep";
+pub static ACTION_TAVERN: &str = "Tavern";
+pub static ACTION_FIGHT_MONSTERS: &str = "Fight monsters";
 
 #[derive(Clone, Debug, Serialize, Deserialize, Sequence, Eq, PartialEq)]
 pub enum ActionType {
@@ -76,6 +76,7 @@ pub struct ActionInProgress {
     pub attribute_progress: (f64, f64, f64, f64),
     pub monster: Option<SpawnedMonster>,
     pub currency_reward: Currency,
+    pub success: bool,
 }
 
 impl ActionInProgress {

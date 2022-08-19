@@ -1,5 +1,5 @@
+use crate::ui::bulk_update_state::BulkUpdateState;
 use crate::ui::main_menu_state::MainMenuState;
-use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
 use async_std::fs::File;
@@ -35,10 +35,10 @@ impl LoadGameState {
                 Ok(game_state) => {
                     info!("Loaded game");
                     Command::perform(
-                        do_nothing(Box::new(RunningState::new(game_state))),
-                        |running_state| {
-                            Message::ChangeState(Box::new(ApplicationUiState::Running(
-                                running_state,
+                        do_nothing(Box::new(BulkUpdateState::new(game_state))),
+                        |bulk_update_state| {
+                            Message::ChangeState(Box::new(ApplicationUiState::BulkUpdate(
+                                bulk_update_state,
                             )))
                         },
                     )

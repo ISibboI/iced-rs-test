@@ -10,9 +10,12 @@ use async_std::io::{BufWriter, WriteExt};
 use async_std::task::sleep;
 use enum_iterator::all;
 use iced::alignment::Horizontal;
-use iced::{pick_list, Alignment, Column, Command, Element, Length, PickList, Row, Space, Text};
+use iced::{
+    pick_list, Alignment, Color, Column, Command, Element, Length, PickList, Row, Space, Text,
+};
 use iced_native::widget::ProgressBar;
 use log::{info, warn};
+use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -22,7 +25,6 @@ pub const UI_SLEEP_BETWEEN_UPDATES: Duration = Duration::from_millis(0);
 #[derive(Debug, Clone)]
 pub struct RunningState {
     game_state: GameState,
-    last_update: Instant,
     frame_times: VecDeque<Instant>,
     fps: Option<f32>,
 
@@ -44,7 +46,6 @@ impl RunningState {
     pub fn new(game_state: GameState) -> Self {
         Self {
             game_state,
-            last_update: Instant::now(),
             frame_times: Default::default(),
             fps: Default::default(),
             action_picker_state: Default::default(),
@@ -65,9 +66,13 @@ impl RunningState {
             }
             RunningMessage::Update => {
                 let current_time = Instant::now();
-                let passed_real_seconds = (current_time - self.last_update).as_secs_f64();
+                let passed_real_seconds =
+                    (current_time - Instant::from(self.game_state.last_update)).as_secs_f64();
+                if passed_real_seconds > 60.0 {
+                    warn!("Making {passed_real_seconds:.0} seconds worth of updates");
+                }
                 self.game_state.update(passed_real_seconds);
-                self.last_update = current_time;
+                self.game_state.last_update = current_time.into();
 
                 // measure frame time
                 {
@@ -114,6 +119,7 @@ impl RunningState {
 
     pub fn view(&mut self) -> Element<Message> {
         let label_column_width = 160;
+        let error_color = Color::from_rgb8(220, 10, 10);
 
         let current_action_currency_reward = self.game_state.current_action.currency_reward;
         let action_descriptor_row = Row::new().push(Text::new(&format!(
@@ -136,16 +142,19 @@ impl RunningState {
                     .verb_progressive
                     .to_string()
             },
-            if current_action_currency_reward > Currency::zero() {
-                " earning "
-            } else if current_action_currency_reward < Currency::zero() {
-                " costing him "
-            } else {
-                ""
+            match current_action_currency_reward.cmp(&Currency::zero()) {
+                Ordering::Less => " costing him ",
+                Ordering::Equal => "",
+                Ordering::Greater => " earning ",
             },
         )));
         let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
             action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
+        } else {
+            action_descriptor_row
+        };
+        let action_descriptor_row = if !self.game_state.current_action.success {
+            action_descriptor_row.push(Text::new(" (failure)").color(error_color))
         } else {
             action_descriptor_row
         };

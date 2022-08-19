@@ -5,18 +5,21 @@ use crate::game_state::actions::{
 use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::currency::Currency;
-use crate::game_state::time::{GameTime, SECONDS_PER_HOUR};
+use crate::game_state::time::{GameTime, SerdeInstant, SECONDS_PER_HOUR};
 use log::debug;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::time::Instant;
 
 pub mod actions;
 pub mod character;
 pub mod combat;
 pub mod currency;
+pub mod story;
 pub mod time;
 
 pub const GAME_TIME_PER_SECOND: GameTime = GameTime::from_minutes(15);
+pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
@@ -26,6 +29,8 @@ pub struct GameState {
     pub selected_action: String,
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
+    pub last_update: SerdeInstant,
+    //pub story: Story,
 }
 
 impl GameState {
@@ -41,10 +46,12 @@ impl GameState {
                 attribute_progress: (0.0, 0.0, 0.0, 0.0),
                 monster: None,
                 currency_reward: Currency::zero(),
+                success: true,
             },
             selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
             current_time: Default::default(),
+            last_update: Instant::now().into(),
         }
     }
 
@@ -54,9 +61,11 @@ impl GameState {
         self.current_time += passed_game_seconds;
 
         while self.current_action.end < self.current_time {
-            self.character
-                .add_attribute_progress(self.current_action.attribute_progress);
-            self.character.currency += self.current_action.currency_reward;
+            if self.current_action.success {
+                self.character
+                    .add_attribute_progress(self.current_action.attribute_progress);
+                self.character.currency += self.current_action.currency_reward;
+            }
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
@@ -89,6 +98,7 @@ impl GameState {
                 monster: None,
                 currency_reward: Currency::zero(),
                 action,
+                success: true,
             }
         } else if self.character.currency >= -tavern_currency_gain
             && rand::thread_rng()
@@ -103,15 +113,17 @@ impl GameState {
                 monster: None,
                 currency_reward: tavern_currency_gain,
                 action,
+                success: true,
             }
         } else {
             let action = ACTIONS.get(&self.selected_action).unwrap().clone();
 
-            if &action.name == ACTION_FIGHT_MONSTERS {
+            if action.name == ACTION_FIGHT_MONSTERS {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
                 let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128);
                 let attribute_progress = self.evaluate_combat_attribute_progress(duration);
+                let success = duration <= MAX_COMBAT_DURATION;
 
                 ActionInProgress {
                     action,
@@ -120,6 +132,7 @@ impl GameState {
                     attribute_progress,
                     currency_reward: monster.currency_reward,
                     monster: Some(monster),
+                    success,
                 }
             } else {
                 ActionInProgress {
@@ -129,6 +142,7 @@ impl GameState {
                     monster: None,
                     currency_reward: action.currency_gain,
                     action,
+                    success: true,
                 }
             }
         };

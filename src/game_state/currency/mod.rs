@@ -11,6 +11,7 @@ pub const SILVER_PER_GOLD: i128 = 100;
 
 pub const COPPER_PER_GOLD: i128 = COPPER_PER_SILVER * SILVER_PER_GOLD;
 
+#[allow(dead_code)]
 impl Currency {
     pub const fn zero() -> Self {
         Self { amount: 0 }

@@ -129,7 +129,11 @@ pub fn currency<'a, T: 'a>(currency: Currency, align_center: bool) -> Row<'a, T>
     let mut result = Row::new()
         .spacing(5)
         .align_items(Alignment::Center)
-        .width(Length::Fill);
+        .width(if align_center {
+            Length::Fill
+        } else {
+            Length::Shrink
+        });
     for element in elements {
         result = result.push(element);
     }
