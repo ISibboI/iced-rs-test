@@ -5,7 +5,7 @@ use chrono::{DateTime, Duration, Utc};
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
 use lazy_static::lazy_static;
-use log::info;
+use log::{debug, info};
 use std::time::SystemTime;
 
 lazy_static! {
@@ -43,6 +43,13 @@ impl BulkUpdateState {
                 let next_delta =
                     (current_time - game_state.last_update).min(*BULK_UPDATE_STEP_SIZE);
                 self.update_count += 1;
+
+                let total_steps: u64 = ((current_time - self.initial_time).num_milliseconds()
+                    as f64
+                    / BULK_UPDATE_STEP_SIZE.num_milliseconds() as f64)
+                    .ceil() as u64;
+
+                debug!("Bulk updating {}/{total_steps}", self.update_count);
 
                 if next_delta == *BULK_UPDATE_STEP_SIZE {
                     Command::perform(
