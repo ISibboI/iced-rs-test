@@ -267,23 +267,33 @@ impl RunningState {
                                     .spacing(5)
                                     .push(attribute(
                                         "STR",
-                                        self.game_state.character.strength,
-                                        self.game_state.character.strength_progress,
+                                        self.game_state.character.attributes.strength,
+                                        self.game_state.character.attribute_progress.strength,
+                                    ))
+                                    .push(attribute(
+                                        "STA",
+                                        self.game_state.character.attributes.stamina,
+                                        self.game_state.character.attribute_progress.stamina,
                                     ))
                                     .push(attribute(
                                         "DEX",
-                                        self.game_state.character.dexterity,
-                                        self.game_state.character.dexterity_progress,
+                                        self.game_state.character.attributes.dexterity,
+                                        self.game_state.character.attribute_progress.dexterity,
                                     ))
                                     .push(attribute(
                                         "INT",
-                                        self.game_state.character.intelligence,
-                                        self.game_state.character.intelligence_progress,
+                                        self.game_state.character.attributes.intelligence,
+                                        self.game_state.character.attribute_progress.intelligence,
+                                    ))
+                                    .push(attribute(
+                                        "WIS",
+                                        self.game_state.character.attributes.wisdom,
+                                        self.game_state.character.attribute_progress.wisdom,
                                     ))
                                     .push(attribute(
                                         "CHR",
-                                        self.game_state.character.charisma,
-                                        self.game_state.character.charisma_progress,
+                                        self.game_state.character.attributes.charisma,
+                                        self.game_state.character.attribute_progress.charisma,
                                     )),
                             )
                             .push(Space::new(Length::Shrink, Length::Fill))

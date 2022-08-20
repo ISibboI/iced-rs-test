@@ -57,7 +57,7 @@ impl CreateNewGameState {
                         do_nothing(GameState::new(
                             self.savegame_file.clone(),
                             self.name.clone(),
-                            self.race.clone(),
+                            self.race,
                         )),
                         |game_state| {
                             Message::ChangeState(Box::new(ApplicationUiState::Running(Box::new(
@@ -96,7 +96,7 @@ impl CreateNewGameState {
         let race_field_input = PickList::new(
             &mut self.race_field,
             all::<CharacterRace>().collect::<Vec<_>>(),
-            Some(self.race.clone()),
+            Some(self.race),
             |race| CreateNewGameMessage::RaceChanged(race).into(),
         )
         .padding(5);

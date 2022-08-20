@@ -1,3 +1,4 @@
+use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
@@ -8,14 +9,16 @@ use std::collections::BTreeMap;
 
 lazy_static! {
     pub static ref ACTIONS: BTreeMap<String, Action> = [
-        Action::new("Wait", "waiting", ActionType::Rest, (0.0, 0.0, 0.0, 0.0), Currency::zero(), 0),
-        Action::new("Sleep", "sleeping", ActionType::Rest, (0.0, 0.0, 0.0, 0.0), Currency::zero(), 0),
-        Action::new("Tavern", "relaxing in the tavern", ActionType::Rest, (0.0, 0.0, 0.0, 1.0), Currency::from_copper(-10), 0),
-        Action::new("WeightLift", "lifting weights", ActionType::Train, (1.0, 0.0, 0.0, 0.0), Currency::zero(), 0),
-        Action::new("Jog", "jogging", ActionType::Train, (0.0, 1.0, 0.0, 0.0), Currency::zero(), 0),
-        Action::new("Read", "reading", ActionType::Train, (0.0, 0.0, 1.0, 0.0), Currency::zero(), 0),
+        Action::new("Wait", "waiting", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
+        Action::new("Sleep", "sleeping", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
+        Action::new("Tavern", "relaxing in the tavern", ActionType::Rest, CharacterAttributeProgressFactor::from_charisma(1.0), Currency::from_copper(-10), 0),
+        Action::new("Lift weights", "lifting weights", ActionType::Train, CharacterAttributeProgressFactor::from_strength(1.0), Currency::zero(), 0),
+        Action::new("Jog", "jogging", ActionType::Train, CharacterAttributeProgressFactor::from_stamina(1.0), Currency::zero(), 0),
+        Action::new("Practice juggling", "practicing juggling", ActionType::Train, CharacterAttributeProgressFactor::from_dexterity(1.0), Currency::zero(), 0),
+        Action::new("Study logic", "studying logic", ActionType::Train, CharacterAttributeProgressFactor::from_intelligence(1.0), Currency::zero(), 0),
+        Action::new("Read", "reading", ActionType::Train, CharacterAttributeProgressFactor::from_wisdom(1.0), Currency::zero(), 0),
         // most values computed depending on fighting style, monster, etc.
-        Action::new("Fight monsters", "fighting monsters", ActionType::Combat, (0.0, 0.0, 0.0, 0.0), Currency::zero(), 0),
+        Action::new("Fight monsters", "fighting monsters", ActionType::Combat, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
     ].into_iter().map(|action| (action.name.clone(), action)).collect();
 }
 
@@ -32,14 +35,14 @@ pub enum ActionType {
     Combat,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct Action {
     pub name: String,
     pub verb_progressive: String,
     pub action_type: ActionType,
-    pub attribute_progress_str_dex_int_chr: (f64, f64, f64, f64),
+    pub attribute_progress_factor: CharacterAttributeProgressFactor,
     pub currency_gain: Currency,
-    pub required_level: usize,
+    pub required_level: u64,
 }
 
 impl Action {
@@ -47,15 +50,15 @@ impl Action {
         name: impl ToString,
         verb_progressive: impl ToString,
         action_type: ActionType,
-        attribute_progress_str_dex_int_chr: (f64, f64, f64, f64),
+        attribute_progress_factor: CharacterAttributeProgressFactor,
         currency_gain: Currency,
-        required_level: usize,
+        required_level: u64,
     ) -> Self {
         Self {
             name: name.to_string(),
             verb_progressive: verb_progressive.to_string(),
             action_type,
-            attribute_progress_str_dex_int_chr,
+            attribute_progress_factor,
             currency_gain,
             required_level,
         }
@@ -73,7 +76,7 @@ pub struct ActionInProgress {
     pub action: Action,
     pub start: GameTime,
     pub end: GameTime,
-    pub attribute_progress: (f64, f64, f64, f64),
+    pub attribute_progress: CharacterAttributeProgress,
     pub monster: Option<SpawnedMonster>,
     pub currency_reward: Currency,
     pub success: bool,

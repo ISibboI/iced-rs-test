@@ -2,7 +2,7 @@ use crate::game_state::actions::{
     Action, ActionInProgress, ACTIONS, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
     ACTION_WAIT,
 };
-use crate::game_state::character::{Character, CharacterRace};
+use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::currency::Currency;
 use crate::game_state::story::Story;
@@ -45,7 +45,7 @@ impl GameState {
                 action: ACTIONS.get(ACTION_SLEEP).unwrap().clone(),
                 start: Default::default(),
                 end: Default::default(),
-                attribute_progress: (0.0, 0.0, 0.0, 0.0),
+                attribute_progress: CharacterAttributeProgress::zero(),
                 monster: None,
                 currency_reward: Currency::zero(),
                 success: true,
@@ -100,12 +100,13 @@ impl GameState {
             } else {
                 start_time.ceil_day()
             } + GameTime::from_hours(6);
+            let duration = end_time - start_time;
 
             let action = ACTIONS.get(ACTION_SLEEP).unwrap().clone();
             ActionInProgress {
                 start: start_time,
                 end: end_time,
-                attribute_progress: action.attribute_progress_str_dex_int_chr,
+                attribute_progress: action.attribute_progress_factor.into_progress(duration),
                 monster: None,
                 currency_reward: Currency::zero(),
                 action,
@@ -117,10 +118,11 @@ impl GameState {
                 <= time_of_day.seconds()
         {
             let action = ACTIONS.get(ACTION_TAVERN).unwrap().clone();
+            let duration = GameTime::from_hours(1);
             ActionInProgress {
                 start: start_time,
-                end: start_time + GameTime::from_hours(1),
-                attribute_progress: action.attribute_progress_str_dex_int_chr,
+                end: start_time + duration,
+                attribute_progress: action.attribute_progress_factor.into_progress(duration),
                 monster: None,
                 currency_reward: tavern_currency_gain,
                 action,
@@ -132,8 +134,9 @@ impl GameState {
             if action.name == ACTION_FIGHT_MONSTERS {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
-                let duration = GameTime::from_seconds((monster.hitpoints / damage * 60.0) as i128)
-                    .min(MAX_COMBAT_DURATION);
+                let duration =
+                    GameTime::from_seconds((monster.hitpoints as f64 / damage * 60.0) as i128)
+                        .min(MAX_COMBAT_DURATION);
                 let attribute_progress = self.evaluate_combat_attribute_progress(duration);
                 let success = duration < MAX_COMBAT_DURATION;
 
@@ -147,10 +150,11 @@ impl GameState {
                     success,
                 }
             } else {
+                let duration = GameTime::from_hours(1);
                 ActionInProgress {
                     start: start_time,
-                    end: start_time + GameTime::from_hours(1),
-                    attribute_progress: action.attribute_progress_str_dex_int_chr,
+                    end: start_time + duration,
+                    attribute_progress: action.attribute_progress_factor.into_progress(duration),
                     monster: None,
                     currency_reward: action.currency_gain,
                     action,
@@ -186,34 +190,54 @@ impl GameState {
     }
 
     pub fn damage_output(&self) -> f64 {
+        let attributes = &self.character.attributes;
         match self.selected_combat_style {
             CombatStyle::CloseContact => {
-                0.8 * self.character.strength as f64
-                    + 0.1 * self.character.dexterity as f64
-                    + 0.1 * self.character.intelligence as f64
+                0.45 * attributes.strength as f64
+                    + 0.45 * attributes.stamina as f64
+                    + 0.1 * attributes.dexterity as f64
             }
             CombatStyle::Ranged => {
-                0.1 * self.character.strength as f64
-                    + 0.8 * self.character.dexterity as f64
-                    + 0.1 * self.character.intelligence as f64
+                0.1 * attributes.strength as f64
+                    + 0.1 * attributes.stamina as f64
+                    + 0.8 * attributes.dexterity as f64
             }
             CombatStyle::Magic => {
-                0.1 * self.character.strength as f64
-                    + 0.1 * self.character.dexterity as f64
-                    + 0.8 * self.character.intelligence as f64
+                0.4 * attributes.intelligence as f64 + 0.6 * attributes.wisdom as f64
             }
         }
     }
 
-    fn evaluate_combat_attribute_progress(&self, duration: GameTime) -> (f64, f64, f64, f64) {
+    fn evaluate_combat_attribute_progress(&self, duration: GameTime) -> CharacterAttributeProgress {
         let damage = self.damage_output();
         let damage = if damage > 1.0 { damage.sqrt() } else { damage };
         let damage = damage * (duration.milliseconds() as f64 / MILLISECONDS_PER_HOUR as f64);
 
         match self.selected_combat_style {
-            CombatStyle::CloseContact => (damage * 0.8, damage * 0.1, damage * 0.1, 0.0),
-            CombatStyle::Ranged => (damage * 0.1, damage * 0.8, damage * 0.1, 0.0),
-            CombatStyle::Magic => (damage * 0.1, damage * 0.1, damage * 0.8, 0.0),
+            CombatStyle::CloseContact => CharacterAttributeProgress::new(
+                (0.45 * damage).round() as u64,
+                (0.45 * damage).round() as u64,
+                (0.1 * damage).round() as u64,
+                0,
+                0,
+                0,
+            ),
+            CombatStyle::Ranged => CharacterAttributeProgress::new(
+                (0.1 * damage).round() as u64,
+                (0.1 * damage).round() as u64,
+                (0.8 * damage).round() as u64,
+                0,
+                0,
+                0,
+            ),
+            CombatStyle::Magic => CharacterAttributeProgress::new(
+                0,
+                0,
+                0,
+                (0.4 * damage).round() as u64,
+                (0.6 * damage).round() as u64,
+                0,
+            ),
         }
     }
 }

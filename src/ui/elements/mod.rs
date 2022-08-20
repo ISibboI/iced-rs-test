@@ -1,4 +1,4 @@
-use crate::game_state::character::Character;
+use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::story::Story;
 use iced::alignment::{Horizontal, Vertical};
@@ -58,8 +58,8 @@ pub fn labelled_label<'a, T: 'a>(
 
 pub fn attribute<'a, T: 'a>(
     name: impl AsRef<str>,
-    attribute: usize,
-    attribute_progress: f64,
+    attribute: u64,
+    attribute_progress: u64,
 ) -> Row<'a, T> {
     let attribute_progress_bar_width = 50;
     let attribute_progress_bar_height = 10;
@@ -77,7 +77,7 @@ pub fn attribute<'a, T: 'a>(
                 .push(Space::new(Length::Shrink, Length::Units(5)))
                 .push(
                     ProgressBar::new(
-                        0.0..=Character::required_attribute_progress(attribute) as f32,
+                        0.0..=CharacterAttributes::required_attribute_progress(attribute) as f32,
                         attribute_progress as f32,
                     )
                     .width(Length::Units(attribute_progress_bar_width))

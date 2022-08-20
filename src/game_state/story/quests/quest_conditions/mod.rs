@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use crate::game_state::actions::ActionInProgress;
 use crate::game_state::time::GameTime;
 use serde::{Deserialize, Serialize};
@@ -8,6 +10,11 @@ use std::ops::{BitAnd, BitOr};
 pub enum QuestCondition {
     ActionIs(String),
     ActionIsNot(String),
+    ActionCount {
+        action: String,
+        current: usize,
+        required: usize,
+    },
 
     TimeGeq(GameTime),
 
@@ -20,6 +27,16 @@ impl QuestCondition {
         match self {
             QuestCondition::ActionIs(action) => action_in_progress.action.name == *action,
             QuestCondition::ActionIsNot(action) => action_in_progress.action.name != *action,
+            QuestCondition::ActionCount {
+                action,
+                current,
+                required,
+            } => {
+                if action_in_progress.action.name == *action {
+                    *current += 1;
+                }
+                current >= required
+            }
             QuestCondition::TimeGeq(time) => action_in_progress.end >= *time,
             QuestCondition::And(conditions) => conditions
                 .iter_mut()
@@ -29,6 +46,26 @@ impl QuestCondition {
                 .any(|condition| condition.update(action_in_progress)),
         }
     }
+}
+
+pub fn action_is(action: impl ToString) -> QuestCondition {
+    QuestCondition::ActionIs(action.to_string())
+}
+
+pub fn action_is_not(action: impl ToString) -> QuestCondition {
+    QuestCondition::ActionIsNot(action.to_string())
+}
+
+pub fn action_count(action: impl ToString, count: usize) -> QuestCondition {
+    QuestCondition::ActionCount {
+        action: action.to_string(),
+        current: 0,
+        required: count,
+    }
+}
+
+pub fn time_geq(time: GameTime) -> QuestCondition {
+    QuestCondition::TimeGeq(time)
 }
 
 impl BitAnd for QuestCondition {
