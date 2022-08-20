@@ -1,7 +1,8 @@
 use crate::game_state::character::Character;
 use crate::game_state::currency::Currency;
+use crate::game_state::story::Story;
 use iced::alignment::{Horizontal, Vertical};
-use iced::{Alignment, Color, Column, Element, Length, Row, Space, Text};
+use iced::{scrollable, Alignment, Color, Column, Element, Length, Row, Scrollable, Space, Text};
 use iced_native::widget::ProgressBar;
 use std::collections::VecDeque;
 
@@ -94,37 +95,13 @@ pub fn currency<'a, T: 'a>(currency: Currency, align_center: bool) -> Row<'a, T>
     let silver = Text::new(format!("{}s", currency.silver_of_gold())).color(silver_color);
     let copper = Text::new(format!("{}c", currency.copper_of_silver())).color(copper_color);
 
-    let mut elements = if currency.gold() > 0 {
+    let elements = if currency.gold() > 0 {
         VecDeque::from([gold, silver, copper])
     } else if currency.silver() > 0 {
         VecDeque::from([silver, copper])
     } else {
         VecDeque::from([copper])
     };
-
-    if align_center {
-        if elements.len() >= 2 {
-            let first = elements.pop_front().unwrap();
-            elements.push_front(
-                first
-                    .width(Length::Fill)
-                    .horizontal_alignment(Horizontal::Right),
-            );
-
-            let last = elements.pop_back().unwrap();
-            elements.push_back(
-                last.width(Length::Fill)
-                    .horizontal_alignment(Horizontal::Left),
-            );
-        } else {
-            let element = elements.pop_front().unwrap();
-            elements.push_front(
-                element
-                    .width(Length::Fill)
-                    .horizontal_alignment(Horizontal::Center),
-            );
-        }
-    }
 
     let mut result = Row::new()
         .spacing(5)
@@ -134,8 +111,40 @@ pub fn currency<'a, T: 'a>(currency: Currency, align_center: bool) -> Row<'a, T>
         } else {
             Length::Shrink
         });
+    if align_center {
+        result = result.push(Space::new(Length::Fill, Length::Shrink));
+    }
     for element in elements {
         result = result.push(element);
     }
+    if align_center {
+        result = result.push(Space::new(Length::Fill, Length::Shrink));
+    }
     result
+}
+
+pub fn scrollable_quest_column<'a, T: 'a>(
+    story: &Story,
+    scrollable_state: &'a mut scrollable::State,
+) -> Scrollable<'a, T> {
+    let mut quest_column = Column::new()
+        .width(Length::Shrink)
+        .height(Length::Shrink)
+        .spacing(5)
+        .padding(5)
+        .push(Text::new("Active quests:").size(24));
+    for quest in story.active_quests.values() {
+        quest_column = quest_column
+            .push(Text::new(&quest.title))
+            .push(Text::new(&quest.description).size(16));
+    }
+    quest_column = quest_column.push(Text::new("Completed quests:").size(24));
+    for quest in story.completed_quests.values() {
+        quest_column = quest_column
+            .push(Text::new(&quest.title))
+            .push(Text::new(&quest.description).size(16));
+    }
+    Scrollable::new(scrollable_state)
+        .scrollbar_width(20)
+        .push(quest_column)
 }

@@ -2,7 +2,9 @@ use crate::game_state::actions::ACTION_FIGHT_MONSTERS;
 use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::text_utils::a_or_an;
-use crate::ui::elements::{attribute, currency, labelled_element, labelled_label, title};
+use crate::ui::elements::{
+    attribute, currency, labelled_element, labelled_label, scrollable_quest_column, title,
+};
 use crate::ui::Message;
 use crate::{Configuration, GameState};
 use async_std::fs::File;
@@ -12,7 +14,8 @@ use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
 use iced::alignment::Horizontal;
 use iced::{
-    pick_list, Alignment, Color, Column, Command, Element, Length, PickList, Row, Space, Text,
+    pick_list, scrollable, Alignment, Color, Column, Command, Element, Length, PickList, Row,
+    Space, Text,
 };
 use iced_native::widget::ProgressBar;
 use log::{info, warn};
@@ -31,6 +34,7 @@ pub struct RunningState {
 
     action_picker_state: pick_list::State<String>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
+    quest_column_scrollable_state: scrollable::State,
 }
 
 #[derive(Clone, Debug)]
@@ -51,6 +55,7 @@ impl RunningState {
             fps: Default::default(),
             action_picker_state: Default::default(),
             combat_style_picker_state: Default::default(),
+            quest_column_scrollable_state: Default::default(),
         }
     }
 
@@ -165,6 +170,40 @@ impl RunningState {
             action_descriptor_row
         };
 
+        let action_column = Column::new()
+            .width(Length::Shrink)
+            .height(Length::Fill)
+            .spacing(5)
+            .padding(5)
+            .push(labelled_element(
+                "Selected action:",
+                label_column_width,
+                PickList::new(
+                    &mut self.action_picker_state,
+                    self.game_state
+                        .list_feasible_actions()
+                        .map(|action| action.name.clone())
+                        .collect::<Vec<_>>(),
+                    Some(self.game_state.selected_action.clone()),
+                    |action| RunningMessage::ActionChanged(action).into(),
+                ),
+            ))
+            .push(labelled_element(
+                "Combat style:",
+                label_column_width,
+                PickList::new(
+                    &mut self.combat_style_picker_state,
+                    all::<CombatStyle>().collect::<Vec<_>>(),
+                    Some(self.game_state.selected_combat_style.clone()),
+                    |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
+                ),
+            ))
+            .push(labelled_label(
+                "Damage per minute:",
+                label_column_width,
+                format!("{:.0}", self.game_state.damage_output()),
+            ));
+
         Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
@@ -271,54 +310,17 @@ impl RunningState {
                                     .height(Length::Fill)
                                     .spacing(5)
                                     .padding(5)
+                                    .push(action_column)
                                     .push(
-                                        Column::new()
-                                            .width(Length::Shrink)
-                                            .height(Length::Fill)
-                                            .spacing(5)
-                                            .padding(5)
-                                            .push(labelled_element(
-                                                "Selected action:",
-                                                label_column_width,
-                                                PickList::new(
-                                                    &mut self.action_picker_state,
-                                                    self.game_state
-                                                        .list_feasible_actions()
-                                                        .map(|action| action.name.clone())
-                                                        .collect::<Vec<_>>(),
-                                                    Some(self.game_state.selected_action.clone()),
-                                                    |action| {
-                                                        RunningMessage::ActionChanged(action).into()
-                                                    },
-                                                ),
-                                            ))
-                                            .push(labelled_element(
-                                                "Combat style:",
-                                                label_column_width,
-                                                PickList::new(
-                                                    &mut self.combat_style_picker_state,
-                                                    all::<CombatStyle>().collect::<Vec<_>>(),
-                                                    Some(
-                                                        self.game_state
-                                                            .selected_combat_style
-                                                            .clone(),
-                                                    ),
-                                                    |combat_style| {
-                                                        RunningMessage::CombatStyleChanged(
-                                                            combat_style,
-                                                        )
-                                                        .into()
-                                                    },
-                                                ),
-                                            ))
-                                            .push(labelled_label(
-                                                "Damage per minute:",
-                                                label_column_width,
-                                                format!("{:.0}", self.game_state.damage_output()),
-                                            )),
-                                    )
-                                    .push(Space::new(Length::Shrink, Length::Fill)),
+                                        scrollable_quest_column(
+                                            &self.game_state.story,
+                                            &mut self.quest_column_scrollable_state,
+                                        )
+                                        .width(Length::Units(400))
+                                        .height(Length::Fill),
+                                    ),
                             )
+                            .push(Space::new(Length::Shrink, Length::Fill))
                             .push(action_descriptor_row)
                             .push(ProgressBar::new(
                                 0.0..=1.0,
