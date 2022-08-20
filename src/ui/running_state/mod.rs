@@ -8,6 +8,7 @@ use crate::{Configuration, GameState};
 use async_std::fs::File;
 use async_std::io::{BufWriter, WriteExt};
 use async_std::task::sleep;
+use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
 use iced::alignment::Horizontal;
 use iced::{
@@ -18,14 +19,14 @@ use log::{info, warn};
 use std::cmp::Ordering;
 use std::collections::VecDeque;
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::SystemTime;
 
-pub const UI_SLEEP_BETWEEN_UPDATES: Duration = Duration::from_millis(0);
+pub const UI_SLEEP_BETWEEN_UPDATES: core::time::Duration = core::time::Duration::from_millis(0);
 
 #[derive(Debug, Clone)]
 pub struct RunningState {
     game_state: GameState,
-    frame_times: VecDeque<Instant>,
+    frame_times: VecDeque<DateTime<Utc>>,
     fps: Option<f32>,
 
     action_picker_state: pick_list::State<String>,
@@ -65,23 +66,29 @@ impl RunningState {
                 })
             }
             RunningMessage::Update => {
-                let current_time = Instant::now();
-                let passed_real_seconds =
-                    (current_time - Instant::from(self.game_state.last_update)).as_secs_f64();
-                if passed_real_seconds > 60.0 {
-                    warn!("Making {passed_real_seconds:.0} seconds worth of updates");
+                let current_time = DateTime::from(SystemTime::now());
+                let passed_real_milliseconds =
+                    (current_time - self.game_state.last_update).num_milliseconds();
+                if passed_real_milliseconds > 60_000 {
+                    warn!(
+                        "Making {:.0} seconds worth of updates",
+                        passed_real_milliseconds as f64 / 1000.0
+                    );
                 }
-                self.game_state.update(passed_real_seconds);
+                self.game_state.update(passed_real_milliseconds);
 
                 // measure frame time
                 {
                     let size = self.frame_times.len();
                     self.frame_times.push_back(current_time);
                     let front = *self.frame_times.front().unwrap();
-                    let one_second_ago = current_time - Duration::from_secs(1);
+                    let one_second_ago = current_time - Duration::seconds(1);
                     if front < one_second_ago {
                         assert!(size > 0);
-                        self.fps = Some((size as f32) / (current_time - front).as_secs_f32());
+                        self.fps = Some(
+                            (size as f32)
+                                / ((current_time - front).num_nanoseconds().unwrap() as f32 / 1e9),
+                        );
                         while *self.frame_times.front().unwrap() < one_second_ago {
                             self.frame_times.pop_front();
                         }
@@ -258,37 +265,60 @@ impl RunningState {
                             .height(Length::Fill)
                             .spacing(5)
                             .padding(5)
-                            .push(labelled_element(
-                                "Selected action:",
-                                label_column_width,
-                                PickList::new(
-                                    &mut self.action_picker_state,
-                                    self.game_state
-                                        .list_feasible_actions()
-                                        .map(|action| action.name.clone())
-                                        .collect::<Vec<_>>(),
-                                    Some(self.game_state.selected_action.clone()),
-                                    |action| RunningMessage::ActionChanged(action).into(),
-                                ),
-                            ))
-                            .push(labelled_element(
-                                "Combat style:",
-                                label_column_width,
-                                PickList::new(
-                                    &mut self.combat_style_picker_state,
-                                    all::<CombatStyle>().collect::<Vec<_>>(),
-                                    Some(self.game_state.selected_combat_style.clone()),
-                                    |combat_style| {
-                                        RunningMessage::CombatStyleChanged(combat_style).into()
-                                    },
-                                ),
-                            ))
-                            .push(labelled_label(
-                                "Damage per minute:",
-                                label_column_width,
-                                format!("{:.0}", self.game_state.damage_output()),
-                            ))
-                            .push(Space::new(Length::Shrink, Length::Fill))
+                            .push(
+                                Row::new()
+                                    .width(Length::Fill)
+                                    .height(Length::Fill)
+                                    .spacing(5)
+                                    .padding(5)
+                                    .push(
+                                        Column::new()
+                                            .width(Length::Shrink)
+                                            .height(Length::Fill)
+                                            .spacing(5)
+                                            .padding(5)
+                                            .push(labelled_element(
+                                                "Selected action:",
+                                                label_column_width,
+                                                PickList::new(
+                                                    &mut self.action_picker_state,
+                                                    self.game_state
+                                                        .list_feasible_actions()
+                                                        .map(|action| action.name.clone())
+                                                        .collect::<Vec<_>>(),
+                                                    Some(self.game_state.selected_action.clone()),
+                                                    |action| {
+                                                        RunningMessage::ActionChanged(action).into()
+                                                    },
+                                                ),
+                                            ))
+                                            .push(labelled_element(
+                                                "Combat style:",
+                                                label_column_width,
+                                                PickList::new(
+                                                    &mut self.combat_style_picker_state,
+                                                    all::<CombatStyle>().collect::<Vec<_>>(),
+                                                    Some(
+                                                        self.game_state
+                                                            .selected_combat_style
+                                                            .clone(),
+                                                    ),
+                                                    |combat_style| {
+                                                        RunningMessage::CombatStyleChanged(
+                                                            combat_style,
+                                                        )
+                                                        .into()
+                                                    },
+                                                ),
+                                            ))
+                                            .push(labelled_label(
+                                                "Damage per minute:",
+                                                label_column_width,
+                                                format!("{:.0}", self.game_state.damage_output()),
+                                            )),
+                                    )
+                                    .push(Space::new(Length::Shrink, Length::Fill)),
+                            )
                             .push(action_descriptor_row)
                             .push(ProgressBar::new(
                                 0.0..=1.0,

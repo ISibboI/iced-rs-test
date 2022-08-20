@@ -1,25 +1,29 @@
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
+use chrono::{DateTime, Duration, Utc};
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
+use lazy_static::lazy_static;
 use log::info;
-use std::time::{Duration, Instant};
+use std::time::SystemTime;
 
-pub static BULK_UPDATE_STEP_SIZE: Duration = Duration::from_secs(3600 * 24);
+lazy_static! {
+    pub static ref BULK_UPDATE_STEP_SIZE: Duration = Duration::hours(1);
+}
 
 #[derive(Debug, Clone)]
 pub struct BulkUpdateState {
-    game_state: GameState,
-    initial_time: Instant,
+    game_state: Option<GameState>,
+    initial_time: DateTime<Utc>,
     update_count: u64,
 }
 
 impl BulkUpdateState {
     pub fn new(game_state: GameState) -> Self {
         Self {
-            initial_time: game_state.last_update.into(),
-            game_state,
+            initial_time: game_state.last_update,
+            game_state: game_state.into(),
             update_count: 0,
         }
     }
@@ -30,21 +34,25 @@ impl BulkUpdateState {
         message: BulkUpdateMessage,
     ) -> Command<Message> {
         match message {
-            BulkUpdateMessage::Init => {
-                Command::perform(do_nothing(()), |()| BulkUpdateMessage::Step.into())
-            }
-            BulkUpdateMessage::Step => {
-                let current_time = Instant::now();
+            BulkUpdateMessage::Init => Command::perform(
+                do_nothing(Box::new(self.game_state.take().unwrap())),
+                |game_state| BulkUpdateMessage::Step(game_state).into(),
+            ),
+            BulkUpdateMessage::Step(game_state) => {
+                let current_time = DateTime::from(SystemTime::now());
                 let next_delta =
-                    (current_time - self.game_state.last_update.time).min(BULK_UPDATE_STEP_SIZE);
-                self.game_state.update(next_delta.as_secs_f64());
+                    (current_time - game_state.last_update).min(*BULK_UPDATE_STEP_SIZE);
+                self.update_count += 1;
 
-                if next_delta == BULK_UPDATE_STEP_SIZE {
-                    Command::perform(do_nothing(()), |()| BulkUpdateMessage::Step.into())
+                if next_delta == *BULK_UPDATE_STEP_SIZE {
+                    Command::perform(
+                        update(game_state, next_delta.num_milliseconds()),
+                        |game_state| BulkUpdateMessage::Step(game_state).into(),
+                    )
                 } else {
                     info!("Finished bulk update");
                     Command::perform(
-                        do_nothing(Box::new(RunningState::new(self.game_state.clone()))),
+                        do_nothing(Box::new(RunningState::new(*game_state))),
                         |running_state| {
                             Message::ChangeState(Box::new(ApplicationUiState::Running(
                                 running_state,
@@ -57,10 +65,10 @@ impl BulkUpdateState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let current_time = Instant::now();
-        let total_steps: u64 = ((current_time - self.initial_time).as_secs_f64()
-            / BULK_UPDATE_STEP_SIZE.as_secs_f64())
-        .ceil() as u64;
+        let current_time = DateTime::from(SystemTime::now());
+        let total_steps: u64 = ((current_time - self.initial_time).num_milliseconds() as f64
+            / BULK_UPDATE_STEP_SIZE.num_milliseconds() as f64)
+            .ceil() as u64;
 
         Text::new(&format!(
             "Evaluating offline progress... ({}/{total_steps})",
@@ -75,8 +83,13 @@ impl BulkUpdateState {
     }
 }
 
+async fn update(mut game_state: Box<GameState>, delta_milliseconds: i64) -> Box<GameState> {
+    game_state.update(delta_milliseconds);
+    game_state
+}
+
 #[derive(Clone, Debug)]
 pub enum BulkUpdateMessage {
     Init,
-    Step,
+    Step(Box<GameState>),
 }

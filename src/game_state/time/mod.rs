@@ -1,12 +1,12 @@
 use serde::{Deserialize, Serialize};
 use std::ops;
-use std::time::Instant;
 
 #[derive(Default, Debug, Clone, Copy, Eq, PartialEq, Ord, PartialOrd, Serialize, Deserialize)]
 pub struct GameTime {
     time: i128,
 }
 
+pub const MILLISECONDS_PER_SECOND: i128 = 1000;
 pub const SECONDS_PER_MINUTE: i128 = 60;
 pub const MINUTES_PER_HOUR: i128 = 60;
 pub const HOURS_PER_DAY: i128 = 24;
@@ -14,80 +14,95 @@ pub const DAYS_PER_WEEK: i128 = 7;
 pub const WEEKS_PER_MONTH: i128 = 4;
 pub const MONTHS_PER_YEAR: i128 = 12;
 
-pub const SECONDS_PER_HOUR: i128 = SECONDS_PER_MINUTE * MINUTES_PER_HOUR;
-pub const SECONDS_PER_DAY: i128 = SECONDS_PER_HOUR * HOURS_PER_DAY;
-pub const SECONDS_PER_WEEK: i128 = SECONDS_PER_DAY * DAYS_PER_WEEK;
-pub const SECONDS_PER_MONTH: i128 = SECONDS_PER_WEEK * WEEKS_PER_MONTH;
-pub const SECONDS_PER_YEAR: i128 = SECONDS_PER_MONTH * MONTHS_PER_YEAR;
+pub const MILLISECONDS_PER_MINUTE: i128 = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
+pub const MILLISECONDS_PER_HOUR: i128 = MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR;
+pub const MILLISECONDS_PER_DAY: i128 = MILLISECONDS_PER_HOUR * HOURS_PER_DAY;
+pub const MILLISECONDS_PER_WEEK: i128 = MILLISECONDS_PER_DAY * DAYS_PER_WEEK;
+pub const MILLISECONDS_PER_MONTH: i128 = MILLISECONDS_PER_WEEK * WEEKS_PER_MONTH;
+pub const MILLISECONDS_PER_YEAR: i128 = MILLISECONDS_PER_MONTH * MONTHS_PER_YEAR;
 
 #[allow(dead_code)]
 impl GameTime {
-    pub const fn seconds(&self) -> i128 {
+    pub const fn milliseconds(&self) -> i128 {
         self.time
     }
 
+    pub const fn seconds(&self) -> i128 {
+        self.time / MILLISECONDS_PER_SECOND
+    }
+
     pub const fn minutes(&self) -> i128 {
-        self.time / SECONDS_PER_MINUTE
+        self.time / MILLISECONDS_PER_MINUTE
     }
 
     pub const fn hours(&self) -> i128 {
-        self.time / SECONDS_PER_HOUR
+        self.time / MILLISECONDS_PER_HOUR
     }
 
     pub const fn days(&self) -> i128 {
-        self.time / SECONDS_PER_DAY
+        self.time / MILLISECONDS_PER_DAY
     }
 
     pub const fn weeks(&self) -> i128 {
-        self.time / SECONDS_PER_WEEK
+        self.time / MILLISECONDS_PER_WEEK
     }
 
     pub const fn months(&self) -> i128 {
-        self.time / SECONDS_PER_MONTH
+        self.time / MILLISECONDS_PER_MONTH
     }
 
     pub const fn years(&self) -> i128 {
-        self.time / SECONDS_PER_YEAR
+        self.time / MILLISECONDS_PER_YEAR
+    }
+
+    pub const fn from_milliseconds(milliseconds: i128) -> Self {
+        Self { time: milliseconds }
     }
 
     pub const fn from_seconds(seconds: i128) -> Self {
-        Self { time: seconds }
+        Self {
+            time: seconds * MILLISECONDS_PER_SECOND,
+        }
     }
 
     pub const fn from_minutes(minutes: i128) -> Self {
         Self {
-            time: minutes * SECONDS_PER_MINUTE,
+            time: minutes * MILLISECONDS_PER_MINUTE,
         }
     }
 
     pub const fn from_hours(hours: i128) -> Self {
         Self {
-            time: hours * SECONDS_PER_HOUR,
+            time: hours * MILLISECONDS_PER_HOUR,
         }
     }
 
     pub const fn from_days(days: i128) -> Self {
         Self {
-            time: days * SECONDS_PER_DAY,
+            time: days * MILLISECONDS_PER_DAY,
         }
     }
 
     pub const fn from_weeks(weeks: i128) -> Self {
         Self {
-            time: weeks * SECONDS_PER_WEEK,
+            time: weeks * MILLISECONDS_PER_WEEK,
         }
     }
 
     pub const fn from_months(months: i128) -> Self {
         Self {
-            time: months * SECONDS_PER_MONTH,
+            time: months * MILLISECONDS_PER_MONTH,
         }
     }
 
     pub const fn from_years(years: i128) -> Self {
         Self {
-            time: years * SECONDS_PER_YEAR,
+            time: years * MILLISECONDS_PER_YEAR,
         }
+    }
+
+    pub const fn millisecond_of_second(&self) -> i16 {
+        (self.milliseconds() % MILLISECONDS_PER_SECOND) as i16
     }
 
     pub const fn second_of_minute(&self) -> i8 {
@@ -116,20 +131,20 @@ impl GameTime {
 
     pub const fn floor_day(&self) -> Self {
         Self {
-            time: self.days() * SECONDS_PER_DAY,
+            time: self.days() * MILLISECONDS_PER_DAY,
         }
     }
 
     pub const fn ceil_day(&self) -> Self {
         Self {
-            time: ((self.time - 1) / SECONDS_PER_DAY + 1) * SECONDS_PER_DAY,
+            time: ((self.time - 1) / MILLISECONDS_PER_DAY + 1) * MILLISECONDS_PER_DAY,
         }
     }
 
     /// Modulo the length of a day, return the time as a clock would show it.
     pub const fn time_of_day(&self) -> Self {
         Self {
-            time: self.time % SECONDS_PER_DAY,
+            time: self.time % MILLISECONDS_PER_DAY,
         }
     }
 }
@@ -166,32 +181,22 @@ impl ops::SubAssign for GameTime {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Ord, PartialOrd, Clone, Copy, Serialize, Deserialize)]
-pub struct SerdeInstant {
-    #[serde(with = "serde_millis")]
-    pub time: Instant,
-}
+impl ops::Mul<i64> for GameTime {
+    type Output = Self;
 
-impl AsRef<Instant> for SerdeInstant {
-    fn as_ref(&self) -> &Instant {
-        &self.time
+    fn mul(self, rhs: i64) -> Self::Output {
+        Self {
+            time: self.time * i128::from(rhs),
+        }
     }
 }
 
-impl AsMut<Instant> for SerdeInstant {
-    fn as_mut(&mut self) -> &mut Instant {
-        &mut self.time
-    }
-}
+impl ops::Mul<GameTime> for i64 {
+    type Output = GameTime;
 
-impl From<Instant> for SerdeInstant {
-    fn from(time: Instant) -> Self {
-        Self { time }
-    }
-}
-
-impl From<SerdeInstant> for Instant {
-    fn from(instant: SerdeInstant) -> Self {
-        instant.time
+    fn mul(self, rhs: GameTime) -> Self::Output {
+        GameTime {
+            time: rhs.time * i128::from(self),
+        }
     }
 }

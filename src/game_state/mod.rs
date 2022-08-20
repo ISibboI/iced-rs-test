@@ -6,11 +6,12 @@ use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::currency::Currency;
 use crate::game_state::story::Story;
-use crate::game_state::time::{GameTime, SerdeInstant, SECONDS_PER_HOUR};
-use log::debug;
+use crate::game_state::time::{GameTime, MILLISECONDS_PER_HOUR};
+use chrono::{DateTime, Duration, Utc};
+use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::time::{Duration, Instant};
+use std::time::SystemTime;
 
 pub mod actions;
 pub mod character;
@@ -19,7 +20,7 @@ pub mod currency;
 pub mod story;
 pub mod time;
 
-pub const GAME_TIME_PER_SECOND: GameTime = GameTime::from_minutes(15);
+pub const GAME_TIME_PER_MILLISECOND: GameTime = GameTime::from_milliseconds(900);
 pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -30,7 +31,7 @@ pub struct GameState {
     pub selected_action: String,
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
-    pub last_update: SerdeInstant,
+    pub last_update: DateTime<Utc>,
     pub story: Story,
 }
 
@@ -52,15 +53,19 @@ impl GameState {
             selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
             current_time: Default::default(),
-            last_update: Instant::now().into(),
+            last_update: DateTime::from(SystemTime::now()),
             story: Default::default(),
         }
     }
 
-    pub fn update(&mut self, passed_real_seconds: f64) {
-        let passed_game_seconds = passed_real_seconds * GAME_TIME_PER_SECOND.seconds() as f64;
-        let passed_game_seconds = GameTime::from_seconds(passed_game_seconds as i128);
-        self.current_time += passed_game_seconds;
+    pub fn update(&mut self, passed_real_milliseconds: i64) {
+        if passed_real_milliseconds < 0 {
+            warn!("Attempting to update with negative duration: {passed_real_milliseconds}; last_update: {}", self.last_update.naive_local());
+            return;
+        }
+
+        let passed_game_time = passed_real_milliseconds * GAME_TIME_PER_MILLISECOND;
+        self.current_time += passed_game_time;
 
         while self.current_action.end < self.current_time {
             if self.current_action.success {
@@ -75,7 +80,7 @@ impl GameState {
             debug!("New action: {:?}", self.current_action);
         }
 
-        self.last_update.time += Duration::from_secs_f64(passed_real_seconds);
+        self.last_update = self.last_update + Duration::milliseconds(passed_real_milliseconds);
     }
 
     fn next_action(&mut self) {
@@ -203,7 +208,7 @@ impl GameState {
     fn evaluate_combat_attribute_progress(&self, duration: GameTime) -> (f64, f64, f64, f64) {
         let damage = self.damage_output();
         let damage = if damage > 1.0 { damage.sqrt() } else { damage };
-        let damage = damage * (duration.seconds() as f64 / SECONDS_PER_HOUR as f64);
+        let damage = damage * (duration.milliseconds() as f64 / MILLISECONDS_PER_HOUR as f64);
 
         match self.selected_combat_style {
             CombatStyle::CloseContact => (damage * 0.8, damage * 0.1, damage * 0.1, 0.0),
