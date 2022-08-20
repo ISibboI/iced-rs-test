@@ -1,4 +1,4 @@
-use crate::game_state::actions::{ActionInProgress, ACTION_SLEEP};
+use crate::game_state::actions::{ActionInProgress, ACTION_SLEEP, ACTION_TAVERN};
 use crate::game_state::story::quests::quest_conditions::*;
 use crate::game_state::time::GameTime;
 use lazy_static::lazy_static;
@@ -17,7 +17,11 @@ lazy_static! {
             action_is(ACTION_SLEEP) & time_geq(GameTime::from_seconds(1)) // dodge the initial dummy sleeping action that ends at time 0
         ),
         Quest::new("train_str", "Lift weights", "Lift weights a few times to gain some strength.", ["init"], action_count("Lift weights", 5)),
-        Quest::new("train_dex", "Lift weights", "Lift weights a few times to gain some strength.", ["init"], action_count("Lift weights", 5)),
+        Quest::new("train_sta", "Go for a run", "Jog around a bit to increase your stamina.", ["init"], action_count("Jog", 5)),
+        Quest::new("train_dex", "Try out juggling", "Practice some juggling to improve your dexterity.", ["init"], action_count("Practice juggling", 5)),
+        Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", ["init"], action_count("Study logic", 5)),
+        Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", ["init"], action_count("Read", 5)),
+        Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", ["init"], action_count(ACTION_TAVERN, 5)),
     ]
     .into_iter()
     .map(|quest| (quest.id.clone(), quest))

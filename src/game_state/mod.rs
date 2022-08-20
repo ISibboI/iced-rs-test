@@ -6,7 +6,7 @@ use crate::game_state::character::{Character, CharacterAttributeProgress, Charac
 use crate::game_state::combat::{CombatStyle, SpawnedMonster};
 use crate::game_state::currency::Currency;
 use crate::game_state::story::Story;
-use crate::game_state::time::{GameTime, MILLISECONDS_PER_HOUR};
+use crate::game_state::time::GameTime;
 use chrono::{DateTime, Duration, Utc};
 use log::{debug, warn};
 use rand::Rng;
@@ -134,9 +134,10 @@ impl GameState {
             if action.name == ACTION_FIGHT_MONSTERS {
                 let monster = SpawnedMonster::spawn(self.character.level);
                 let damage = self.damage_output();
-                let duration =
-                    GameTime::from_seconds((monster.hitpoints as f64 / damage * 60.0) as i128)
-                        .min(MAX_COMBAT_DURATION);
+                let duration = GameTime::from_milliseconds(
+                    (monster.hitpoints as f64 / damage * 60_000.0).round() as i128,
+                )
+                .min(MAX_COMBAT_DURATION);
                 let attribute_progress = self.evaluate_combat_attribute_progress(duration);
                 let success = duration < MAX_COMBAT_DURATION;
 
@@ -190,7 +191,7 @@ impl GameState {
     }
 
     pub fn damage_output(&self) -> f64 {
-        let attributes = &self.character.attributes;
+        let attributes = self.character.attributes();
         match self.selected_combat_style {
             CombatStyle::CloseContact => {
                 0.45 * attributes.strength as f64
@@ -211,7 +212,7 @@ impl GameState {
     fn evaluate_combat_attribute_progress(&self, duration: GameTime) -> CharacterAttributeProgress {
         let damage = self.damage_output();
         let damage = if damage > 1.0 { damage.sqrt() } else { damage };
-        let damage = damage * (duration.milliseconds() as f64 / MILLISECONDS_PER_HOUR as f64);
+        let damage = damage * duration.milliseconds() as f64;
 
         match self.selected_combat_style {
             CombatStyle::CloseContact => CharacterAttributeProgress::new(

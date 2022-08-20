@@ -9,14 +9,14 @@ use serde::{Deserialize, Serialize};
 
 lazy_static! {
     pub static ref MONSTERS: Vec<Monster> = vec![
-        Monster::new("rat", 0, 1.0, 300, Currency::from_copper(1)),
-        Monster::new("hare", 2, 1.0, 500, Currency::from_copper(4)),
-        Monster::new("deer", 4, 1.0, 1_000, Currency::from_copper(8)),
-        Monster::new("boar", 6, 1.0, 2_000, Currency::from_copper(17)),
-        Monster::new("wolf", 8, 1.0, 4_000, Currency::from_copper(31)),
-        Monster::new("goblin", 10, 1.0, 8_000, Currency::from_copper(60)),
-        Monster::new("orc", 13, 1.0, 13_000, Currency::from_copper(150)),
-        Monster::new("dragon", 18, 0.1, 500_000, Currency::from_gold(1)),
+        Monster::new("rat", 0, 1.0, 3, Currency::from_copper(1)),
+        Monster::new("hare", 2, 1.0, 5, Currency::from_copper(4)),
+        Monster::new("deer", 4, 1.0, 10, Currency::from_copper(8)),
+        Monster::new("boar", 6, 1.0, 20, Currency::from_copper(17)),
+        Monster::new("wolf", 8, 1.0, 40, Currency::from_copper(31)),
+        Monster::new("goblin", 10, 1.0, 80, Currency::from_copper(60)),
+        Monster::new("orc", 13, 1.0, 130, Currency::from_copper(150)),
+        Monster::new("dragon", 18, 0.1, 5_000, Currency::from_gold(1)),
     ];
     pub static ref MONSTER_MODIFIERS: Vec<MonsterModifier> = vec![
         MonsterModifier::new("normal", 0, 1.0, 1.0),

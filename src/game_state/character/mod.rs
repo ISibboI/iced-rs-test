@@ -44,8 +44,8 @@ pub struct Character {
     pub level: u64,
     pub level_progress: u64,
 
-    pub attributes: CharacterAttributes,
-    pub attribute_progress: CharacterAttributeProgress,
+    attributes: CharacterAttributes,
+    attribute_progress: CharacterAttributeProgress,
 
     pub currency: Currency,
 }
@@ -67,6 +67,7 @@ impl Character {
     }
 
     pub fn add_attribute_progress(&mut self, progress: CharacterAttributeProgress) {
+        let progress = progress * self.race.attribute_progress_factors();
         self.attribute_progress += progress;
         self.attributes.check_progress(&mut self.attribute_progress);
 
@@ -88,6 +89,14 @@ impl Character {
                 * level.powf(1.1)
                 * level.max(2.0).log2()) as u64
     }
+
+    pub fn attributes(&self) -> &CharacterAttributes {
+        &self.attributes
+    }
+
+    pub fn attribute_progress(&self) -> &CharacterAttributeProgress {
+        &self.attribute_progress
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Default, Sequence, Eq, PartialEq)]
@@ -102,10 +111,27 @@ pub enum CharacterRace {
 impl CharacterRace {
     pub fn starting_basic_attributes(&self) -> CharacterAttributes {
         match self {
-            CharacterRace::Human => CharacterAttributes::new(10, 10, 10, 10, 10, 10),
-            CharacterRace::Orc => CharacterAttributes::new(20, 20, 5, 5, 5, 5),
-            CharacterRace::Elf => CharacterAttributes::new(8, 15, 20, 15, 10, 10),
-            CharacterRace::Dwarf => CharacterAttributes::new(20, 10, 10, 5, 5, 10),
+            CharacterRace::Human => CharacterAttributes::new(1, 1, 1, 1, 1, 2),
+            CharacterRace::Orc => CharacterAttributes::new(2, 1, 1, 1, 1, 1),
+            CharacterRace::Elf => CharacterAttributes::new(1, 1, 2, 1, 1, 1),
+            CharacterRace::Dwarf => CharacterAttributes::new(1, 2, 1, 1, 1, 1),
+        }
+    }
+
+    pub fn attribute_progress_factors(&self) -> CharacterAttributeProgressFactor {
+        match self {
+            CharacterRace::Human => {
+                CharacterAttributeProgressFactor::new(1.0, 1.0, 1.0, 1.1, 1.0, 1.1)
+            }
+            CharacterRace::Orc => {
+                CharacterAttributeProgressFactor::new(1.1, 1.1, 1.0, 1.0, 1.0, 1.0)
+            }
+            CharacterRace::Elf => {
+                CharacterAttributeProgressFactor::new(1.0, 1.0, 1.1, 1.0, 1.1, 1.0)
+            }
+            CharacterRace::Dwarf => {
+                CharacterAttributeProgressFactor::new(1.0, 1.1, 1.1, 1.0, 1.0, 1.0)
+            }
         }
     }
 
@@ -334,6 +360,21 @@ impl CharacterAttributeProgressFactor {
         assert!(self.intelligence.is_normal() || self.intelligence.is_zero());
         assert!(self.wisdom.is_normal() || self.wisdom.is_zero());
         assert!(self.charisma.is_normal() || self.charisma.is_zero());
+    }
+}
+
+impl ops::Mul<CharacterAttributeProgressFactor> for CharacterAttributeProgress {
+    type Output = Self;
+
+    fn mul(self, rhs: CharacterAttributeProgressFactor) -> Self::Output {
+        Self {
+            strength: (self.strength as f64 * rhs.strength).round() as u64,
+            stamina: (self.stamina as f64 * rhs.stamina).round() as u64,
+            dexterity: (self.dexterity as f64 * rhs.dexterity).round() as u64,
+            intelligence: (self.intelligence as f64 * rhs.intelligence).round() as u64,
+            wisdom: (self.wisdom as f64 * rhs.wisdom).round() as u64,
+            charisma: (self.charisma as f64 * rhs.charisma).round() as u64,
+        }
     }
 }
 
