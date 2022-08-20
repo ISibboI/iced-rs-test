@@ -133,13 +133,17 @@ pub fn scrollable_quest_column<'a, T: 'a>(
         .spacing(5)
         .padding(5)
         .push(Text::new("Active quests:").size(24));
-    for quest in story.active_quests.values() {
+    for quest in story.active_quests.values().filter(|quest| !quest.hidden) {
         quest_column = quest_column
             .push(Text::new(&quest.title))
             .push(Text::new(&quest.description).size(16));
     }
     quest_column = quest_column.push(Text::new("Completed quests:").size(24));
-    for quest in story.completed_quests.values() {
+    for quest in story
+        .completed_quests
+        .values()
+        .filter(|quest| !quest.hidden)
+    {
         quest_column = quest_column
             .push(Text::new(&quest.title))
             .push(Text::new(&quest.description).size(16));

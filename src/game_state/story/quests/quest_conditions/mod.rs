@@ -1,13 +1,16 @@
 #![allow(dead_code)]
 
 use crate::game_state::actions::ActionInProgress;
+use crate::game_state::story::quests::Quest;
 use crate::game_state::time::GameTime;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{BitAnd, BitOr};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum QuestCondition {
+    None,
     ActionIs(String),
     ActionIsNot(String),
     ActionCount {
@@ -18,13 +21,21 @@ pub enum QuestCondition {
 
     TimeGeq(GameTime),
 
+    Completed(String),
+
     And(Vec<QuestCondition>),
     Or(Vec<QuestCondition>),
+    AnyN(Vec<QuestCondition>, usize),
 }
 
 impl QuestCondition {
-    pub fn update(&mut self, action_in_progress: &ActionInProgress) -> bool {
+    pub fn update(
+        &mut self,
+        action_in_progress: &ActionInProgress,
+        completed_quests: &HashMap<String, Quest>,
+    ) -> bool {
         match self {
+            QuestCondition::None => true,
             QuestCondition::ActionIs(action) => action_in_progress.action.name == *action,
             QuestCondition::ActionIsNot(action) => action_in_progress.action.name != *action,
             QuestCondition::ActionCount {
@@ -38,14 +49,32 @@ impl QuestCondition {
                 current >= required
             }
             QuestCondition::TimeGeq(time) => action_in_progress.end >= *time,
+            QuestCondition::Completed(quest) => completed_quests.contains_key(quest),
             QuestCondition::And(conditions) => conditions
                 .iter_mut()
-                .all(|condition| condition.update(action_in_progress)),
+                .all(|condition| condition.update(action_in_progress, completed_quests)),
             QuestCondition::Or(conditions) => conditions
                 .iter_mut()
-                .any(|condition| condition.update(action_in_progress)),
+                .any(|condition| condition.update(action_in_progress, completed_quests)),
+            QuestCondition::AnyN(conditions, n) => {
+                conditions
+                    .iter_mut()
+                    .filter_map(|condition| {
+                        if condition.update(action_in_progress, completed_quests) {
+                            Some(())
+                        } else {
+                            None
+                        }
+                    })
+                    .count()
+                    >= *n
+            }
         }
     }
+}
+
+pub fn none() -> QuestCondition {
+    QuestCondition::None
 }
 
 pub fn action_is(action: impl ToString) -> QuestCondition {
@@ -66,6 +95,14 @@ pub fn action_count(action: impl ToString, count: usize) -> QuestCondition {
 
 pub fn time_geq(time: GameTime) -> QuestCondition {
     QuestCondition::TimeGeq(time)
+}
+
+pub fn completed(quest: impl ToString) -> QuestCondition {
+    QuestCondition::Completed(quest.to_string())
+}
+
+pub fn any_n(conditions: impl AsRef<[QuestCondition]>, n: usize) -> QuestCondition {
+    QuestCondition::AnyN(conditions.as_ref().into(), n)
 }
 
 impl BitAnd for QuestCondition {

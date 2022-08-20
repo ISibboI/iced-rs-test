@@ -1,5 +1,6 @@
 use crate::game_state::actions::ActionInProgress;
 use crate::game_state::story::quests::{Quest, QUESTS};
+use log::debug;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fmt::Debug;
@@ -18,8 +19,9 @@ impl Story {
 
         let mut completed = Vec::new();
         for active_quest in self.active_quests.values_mut() {
-            if active_quest.update(action_in_progress) {
+            if active_quest.update(action_in_progress, &self.completed_quests) {
                 completed.push(active_quest.clone());
+                debug!("Quest completed: {active_quest:?}")
             }
         }
 
@@ -46,6 +48,7 @@ impl Story {
                 .all(|precondition| self.completed_quests.contains_key(precondition))
             {
                 self.active_quests.insert(quest.id.clone(), quest.clone());
+                debug!("Quest activated: {quest:?}");
             }
         }
     }

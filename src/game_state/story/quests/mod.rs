@@ -1,4 +1,6 @@
-use crate::game_state::actions::{ActionInProgress, ACTION_SLEEP, ACTION_TAVERN};
+use crate::game_state::actions::{
+    ActionInProgress, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
+};
 use crate::game_state::story::quests::quest_conditions::*;
 use crate::game_state::time::GameTime;
 use lazy_static::lazy_static;
@@ -8,7 +10,11 @@ use std::collections::HashMap;
 pub mod quest_conditions;
 
 lazy_static! {
-    pub static ref QUESTS: HashMap<String, Quest> = [
+    pub static ref QUESTS: HashMap<String, Quest> = init_quests();
+}
+
+fn init_quests() -> HashMap<String, Quest> {
+    [
         Quest::new(
             "init",
             "Wake up!",
@@ -22,10 +28,12 @@ lazy_static! {
         Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", ["init"], action_count("Study logic", 5)),
         Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", ["init"], action_count("Read", 5)),
         Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", ["init"], action_count(ACTION_TAVERN, 5)),
+        Quest::hidden("fight_monsters_pre", [], any_n([completed("train_str"), completed("train_sta"), completed("train_dex"), completed("train_int"), completed("train_wis"), completed("train_chr")], 2)),
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", ["fight_monsters_pre"], action_count(ACTION_FIGHT_MONSTERS, 10)),
     ]
-    .into_iter()
-    .map(|quest| (quest.id.clone(), quest))
-    .collect();
+        .into_iter()
+        .map(|quest| (quest.id.clone(), quest))
+        .collect()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -35,6 +43,7 @@ pub struct Quest {
     pub description: String,
     pub precondition: Vec<String>,
     pub condition: QuestCondition,
+    pub hidden: bool,
 }
 
 impl Quest {
@@ -55,10 +64,34 @@ impl Quest {
                 .map(|s| s.to_string())
                 .collect(),
             condition: condition.into(),
+            hidden: false,
         }
     }
 
-    pub fn update(&mut self, action_in_progress: &ActionInProgress) -> bool {
-        self.condition.update(action_in_progress)
+    fn hidden<'a>(
+        id: impl ToString,
+        precondition: impl AsRef<[&'a str]>,
+        condition: impl Into<QuestCondition>,
+    ) -> Self {
+        Self {
+            id: id.to_string(),
+            title: Default::default(),
+            description: Default::default(),
+            precondition: precondition
+                .as_ref()
+                .iter()
+                .map(|s| s.to_string())
+                .collect(),
+            condition: condition.into(),
+            hidden: true,
+        }
+    }
+
+    pub fn update(
+        &mut self,
+        action_in_progress: &ActionInProgress,
+        completed_quests: &HashMap<String, Quest>,
+    ) -> bool {
+        self.condition.update(action_in_progress, completed_quests)
     }
 }
