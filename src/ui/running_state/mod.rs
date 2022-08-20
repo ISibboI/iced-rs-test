@@ -34,6 +34,7 @@ pub struct RunningState {
 
     action_picker_state: pick_list::State<String>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
+    combat_location_picker_state: pick_list::State<String>,
     quest_column_scrollable_state: scrollable::State,
 }
 
@@ -45,6 +46,7 @@ pub enum RunningMessage {
 
     ActionChanged(String),
     CombatStyleChanged(CombatStyle),
+    CombatLocationChanged(String),
 }
 
 impl RunningState {
@@ -55,6 +57,7 @@ impl RunningState {
             fps: Default::default(),
             action_picker_state: Default::default(),
             combat_style_picker_state: Default::default(),
+            combat_location_picker_state: Default::default(),
             quest_column_scrollable_state: Default::default(),
         }
     }
@@ -122,6 +125,9 @@ impl RunningState {
             }
             RunningMessage::CombatStyleChanged(combat_style) => {
                 self.game_state.selected_combat_style = combat_style;
+            }
+            RunningMessage::CombatLocationChanged(combat_location) => {
+                self.game_state.selected_combat_location = combat_location;
             }
         }
 
@@ -202,6 +208,19 @@ impl RunningState {
                 "Damage per minute:",
                 label_column_width,
                 format!("{:.0}", self.game_state.damage_output()),
+            ))
+            .push(labelled_element(
+                "Combat location:",
+                label_column_width,
+                PickList::new(
+                    &mut self.combat_location_picker_state,
+                    self.game_state
+                        .list_feasible_locations()
+                        .map(|location| location.name.clone())
+                        .collect::<Vec<_>>(),
+                    Some(self.game_state.selected_combat_location.clone()),
+                    |combat_location| RunningMessage::CombatLocationChanged(combat_location).into(),
+                ),
             ));
 
         Column::new()

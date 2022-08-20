@@ -3,8 +3,9 @@ use crate::game_state::actions::{
     ACTION_WAIT,
 };
 use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
-use crate::game_state::combat::{CombatStyle, SpawnedMonster};
+use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
+use crate::game_state::location::{Location, LOCATIONS, LOCATION_VILLAGE};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
 use chrono::{DateTime, Duration, Utc};
@@ -17,6 +18,7 @@ pub mod actions;
 pub mod character;
 pub mod combat;
 pub mod currency;
+pub mod location;
 pub mod story;
 pub mod time;
 
@@ -30,6 +32,7 @@ pub struct GameState {
     pub current_action: ActionInProgress,
     pub selected_action: String,
     pub selected_combat_style: CombatStyle,
+    pub selected_combat_location: String,
     pub current_time: GameTime,
     pub last_update: DateTime<Utc>,
     pub story: Story,
@@ -52,6 +55,7 @@ impl GameState {
             },
             selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
+            selected_combat_location: LOCATION_VILLAGE.to_string(),
             current_time: Default::default(),
             last_update: DateTime::from(SystemTime::now()),
             story: Default::default(),
@@ -132,7 +136,8 @@ impl GameState {
             let action = ACTIONS.get(&self.selected_action).unwrap().clone();
 
             if action.name == ACTION_FIGHT_MONSTERS {
-                let monster = SpawnedMonster::spawn(self.character.level);
+                let location = LOCATIONS.get(&self.selected_combat_location).unwrap();
+                let monster = location.spawn();
                 let damage = self.damage_output();
                 let duration = GameTime::from_milliseconds(
                     (monster.hitpoints as f64 / damage * 60_000.0).round() as i128,
@@ -188,6 +193,12 @@ impl GameState {
         ACTIONS
             .values()
             .filter(move |action| level >= action.required_level)
+    }
+
+    pub fn list_feasible_locations<'output>(
+        &self,
+    ) -> impl 'output + Iterator<Item = &'output Location> {
+        LOCATIONS.values()
     }
 
     pub fn damage_output(&self) -> f64 {
