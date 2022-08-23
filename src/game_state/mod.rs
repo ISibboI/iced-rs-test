@@ -84,7 +84,7 @@ impl GameState {
             debug!("New action: {:?}", self.current_action);
         }
 
-        self.last_update = self.last_update + Duration::milliseconds(passed_real_milliseconds);
+        self.last_update += Duration::milliseconds(passed_real_milliseconds);
     }
 
     fn next_action(&mut self) {
