@@ -16,4 +16,4 @@ COPY src/ src/
 COPY index.html .
 RUN trunk build --release
 
-CMD ["trunk", "serve", "--release", "--no-autoreload"]
+CMD ["trunk", "serve", "--release", "--no-autoreload", "--address", "0.0.0.0"]
