@@ -3,9 +3,11 @@ use crate::ui::ApplicationState;
 use clap::Parser;
 use iced::{Application, Settings};
 use log::{error, info, LevelFilter};
+#[cfg(not(target_arch = "wasm32"))]
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 mod game_state;
+mod savegames;
 mod text_utils;
 mod ui;
 
@@ -19,6 +21,7 @@ pub struct Configuration {
 }
 
 fn initialize_logging(log_level: LevelFilter) {
+    #[cfg(not(target_arch = "wasm32"))]
     CombinedLogger::init(vec![TermLogger::new(
         log_level,
         ConfigBuilder::default()
@@ -28,6 +31,13 @@ fn initialize_logging(log_level: LevelFilter) {
         ColorChoice::Auto,
     )])
     .unwrap();
+
+    #[cfg(all(target_arch = "wasm32", debug_assertions))]
+    let log_level = log_level.max(LevelFilter::Debug);
+    #[cfg(target_arch = "wasm32")]
+    wasm_logger::init(
+        wasm_logger::Config::new(log_level.to_level().unwrap()).module_prefix("iced_rs_test"),
+    );
 
     info!("Logging initialised successfully");
 }

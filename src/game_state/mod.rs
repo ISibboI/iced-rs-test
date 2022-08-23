@@ -12,7 +12,6 @@ use chrono::{DateTime, Duration, Utc};
 use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use std::time::SystemTime;
 
 pub mod actions;
 pub mod character;
@@ -57,7 +56,7 @@ impl GameState {
             selected_combat_style,
             selected_combat_location: LOCATION_VILLAGE.to_string(),
             current_time: Default::default(),
-            last_update: DateTime::from(SystemTime::now()),
+            last_update: Utc::now(),
             story: Default::default(),
         }
     }

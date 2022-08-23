@@ -6,7 +6,6 @@ use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
 use lazy_static::lazy_static;
 use log::{debug, info};
-use std::time::SystemTime;
 
 lazy_static! {
     pub static ref BULK_UPDATE_STEP_SIZE: Duration = Duration::hours(1);
@@ -39,7 +38,7 @@ impl BulkUpdateState {
                 |game_state| BulkUpdateMessage::Step(game_state).into(),
             ),
             BulkUpdateMessage::Step(game_state) => {
-                let current_time = DateTime::from(SystemTime::now());
+                let current_time = Utc::now();
                 let next_delta =
                     (current_time - game_state.last_update).min(*BULK_UPDATE_STEP_SIZE);
                 self.update_count += 1;
@@ -72,7 +71,7 @@ impl BulkUpdateState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let current_time = DateTime::from(SystemTime::now());
+        let current_time = Utc::now();
         let total_steps: u64 = ((current_time - self.initial_time).num_milliseconds() as f64
             / BULK_UPDATE_STEP_SIZE.num_milliseconds() as f64)
             .ceil() as u64;

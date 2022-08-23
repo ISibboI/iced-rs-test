@@ -1,14 +1,13 @@
 use crate::game_state::actions::ACTION_FIGHT_MONSTERS;
 use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
+use crate::savegames::{save_game_owned, SaveError};
 use crate::text_utils::a_or_an;
 use crate::ui::elements::{
     attribute, currency, labelled_element, labelled_label, scrollable_quest_column, title,
 };
 use crate::ui::Message;
 use crate::{Configuration, GameState};
-use async_std::fs::File;
-use async_std::io::{BufWriter, WriteExt};
 use async_std::task::sleep;
 use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
@@ -18,19 +17,22 @@ use iced::{
     Space, Text,
 };
 use iced_native::widget::ProgressBar;
-use log::{info, warn};
+use lazy_static::lazy_static;
+use log::{error, info, warn};
 use std::cmp::Ordering;
 use std::collections::VecDeque;
-use std::sync::Arc;
-use std::time::SystemTime;
 
 pub const UI_SLEEP_BETWEEN_UPDATES: core::time::Duration = core::time::Duration::from_millis(0);
+lazy_static! {
+    pub static ref AUTOSAVE_INTERVAL: Duration = Duration::seconds(10);
+}
 
 #[derive(Debug, Clone)]
 pub struct RunningState {
     game_state: GameState,
     frame_times: VecDeque<DateTime<Utc>>,
     fps: Option<f32>,
+    last_save: DateTime<Utc>,
 
     action_picker_state: pick_list::State<String>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
@@ -42,6 +44,7 @@ pub struct RunningState {
 pub enum RunningMessage {
     Init,
     Update,
+    GameSaved(Result<(), SaveError>),
     SaveAndQuit,
 
     ActionChanged(String),
@@ -55,6 +58,7 @@ impl RunningState {
             game_state,
             frame_times: Default::default(),
             fps: Default::default(),
+            last_save: Utc::now(),
             action_picker_state: Default::default(),
             combat_style_picker_state: Default::default(),
             combat_location_picker_state: Default::default(),
@@ -74,7 +78,8 @@ impl RunningState {
                 })
             }
             RunningMessage::Update => {
-                let current_time = DateTime::from(SystemTime::now());
+                // measure time delta
+                let current_time = Utc::now();
                 let passed_real_milliseconds =
                     (current_time - self.game_state.last_update).num_milliseconds();
                 if passed_real_milliseconds > 60_000 {
@@ -83,9 +88,11 @@ impl RunningState {
                         passed_real_milliseconds as f64 / 1000.0
                     );
                 }
+
+                // update game state
                 self.game_state.update(passed_real_milliseconds);
 
-                // measure frame time
+                // measure fps
                 {
                     let size = self.frame_times.len();
                     self.frame_times.push_back(current_time);
@@ -103,12 +110,30 @@ impl RunningState {
                     }
                 }
 
-                return Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
-                    RunningMessage::Update.into()
-                });
+                if current_time - self.last_save >= *AUTOSAVE_INTERVAL {
+                    // save game periodically
+                    self.last_save = current_time;
+
+                    return Command::batch([
+                        Command::perform(save_game_owned(self.game_state.clone()), |result| {
+                            RunningMessage::GameSaved(result).into()
+                        }),
+                        Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
+                            RunningMessage::Update.into()
+                        }),
+                    ]);
+                } else {
+                    return Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
+                        RunningMessage::Update.into()
+                    });
+                }
             }
+            RunningMessage::GameSaved(result) => match result {
+                Ok(()) => info!("Game saved successfully"),
+                Err(error) => error!("Error saving game: {error:?}"),
+            },
             RunningMessage::SaveAndQuit => {
-                return Command::perform(save_game(self.game_state.clone()), |result| {
+                return Command::perform(save_game_owned(self.game_state.clone()), |result| {
                     match result {
                         Ok(()) => {
                             info!("Game saved successfully!");
@@ -357,41 +382,5 @@ impl RunningState {
                     ),
             )
             .into()
-    }
-}
-
-async fn save_game(game_state: GameState) -> Result<(), SaveError> {
-    let path = &game_state.savegame_file;
-    let savegame_file = File::create(path).await?;
-    let savegame = serde_json::to_vec(&game_state)?;
-    let mut writer = BufWriter::new(savegame_file);
-    writer.write_all(&savegame).await?;
-    writer.flush().await?;
-    Ok(())
-}
-
-#[derive(Debug, Clone)]
-pub enum SaveError {
-    IoError(Arc<std::io::Error>),
-    JsonError(Arc<serde_json::Error>),
-}
-
-impl From<std::io::Error> for SaveError {
-    fn from(error: std::io::Error) -> Self {
-        Self::IoError(Arc::new(error))
-    }
-}
-impl From<serde_json::Error> for SaveError {
-    fn from(error: serde_json::Error) -> Self {
-        Self::JsonError(Arc::new(error))
-    }
-}
-
-impl ToString for SaveError {
-    fn to_string(&self) -> String {
-        match self {
-            SaveError::IoError(error) => format!("IO error: {}", error),
-            SaveError::JsonError(error) => format!("Serialization error: {}", error),
-        }
     }
 }
