@@ -1,10 +1,20 @@
+use crate::game_state::actions::{ActionInProgress, ACTION_FIGHT_MONSTERS};
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
+use crate::game_state::event_log::GameEvent;
 use crate::game_state::story::Story;
+use crate::text_utils::a_or_an;
+use crate::GameState;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{scrollable, Alignment, Color, Column, Element, Length, Row, Scrollable, Space, Text};
 use iced_native::widget::ProgressBar;
+use lazy_static::lazy_static;
+use std::cmp::Ordering;
 use std::collections::VecDeque;
+
+lazy_static! {
+    pub static ref ERROR_COLOR: Color = Color::from_rgb8(220, 10, 10);
+}
 
 pub fn title<'a, T: 'a>(title: impl ToString) -> Column<'a, T> {
     Column::new()
@@ -151,4 +161,99 @@ pub fn scrollable_quest_column<'a, T: 'a>(
     Scrollable::new(scrollable_state)
         .scrollbar_width(20)
         .push(quest_column)
+}
+
+pub fn event_log<'a, T: 'a>(
+    game_state: &GameState,
+    scrollable_state: &'a mut scrollable::State,
+) -> Scrollable<'a, T> {
+    let mut event_column = Column::new()
+        .width(Length::Shrink)
+        .height(Length::Shrink)
+        .spacing(5)
+        .padding(5);
+    for event in game_state.log.iter_rev() {
+        event_column = event_column.push(event_string(event, game_state));
+    }
+    Scrollable::new(scrollable_state)
+        .scrollbar_width(20)
+        .push(event_column)
+}
+
+pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row<'a, T> {
+    match event {
+        GameEvent::Action(action) => completed_action_description(action, game_state),
+    }
+}
+
+pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T> {
+    let current_action_currency_reward = game_state.current_action.currency_reward;
+    let action_descriptor_row = Row::new().push(Text::new(&format!(
+        "{} is currently {}{}",
+        game_state.character.name,
+        if game_state.current_action.action.name == ACTION_FIGHT_MONSTERS {
+            let monster_name = game_state
+                .current_action
+                .monster
+                .as_ref()
+                .unwrap()
+                .to_lowercase_string();
+            let a = a_or_an(&monster_name);
+            format!("fighting {a} {monster_name}")
+        } else {
+            game_state
+                .current_action
+                .action
+                .verb_progressive
+                .to_string()
+        },
+        match current_action_currency_reward.cmp(&Currency::zero()) {
+            Ordering::Less => " costing him ",
+            Ordering::Equal => "",
+            Ordering::Greater => " earning ",
+        },
+    )));
+    let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
+        action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
+    } else {
+        action_descriptor_row
+    };
+    if !game_state.current_action.success {
+        action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+    } else {
+        action_descriptor_row
+    }
+}
+
+pub fn completed_action_description<'a, T: 'a>(
+    action: &ActionInProgress,
+    game_state: &GameState,
+) -> Row<'a, T> {
+    let current_action_currency_reward = action.currency_reward;
+    let action_descriptor_row = Row::new().push(Text::new(&format!(
+        "{} {}{}",
+        game_state.character.name,
+        if action.action.name == ACTION_FIGHT_MONSTERS {
+            let monster_name = action.monster.as_ref().unwrap().to_lowercase_string();
+            let a = a_or_an(&monster_name);
+            format!("fought {a} {monster_name}")
+        } else {
+            action.action.verb_simple_past.to_string()
+        },
+        match current_action_currency_reward.cmp(&Currency::zero()) {
+            Ordering::Less => " costing him ",
+            Ordering::Equal => "",
+            Ordering::Greater => " earning ",
+        },
+    )));
+    let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
+        action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
+    } else {
+        action_descriptor_row
+    };
+    if !action.success {
+        action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+    } else {
+        action_descriptor_row
+    }
 }

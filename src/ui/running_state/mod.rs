@@ -1,10 +1,8 @@
-use crate::game_state::actions::ACTION_FIGHT_MONSTERS;
 use crate::game_state::combat::CombatStyle;
-use crate::game_state::currency::Currency;
 use crate::savegames::{save_game_owned, SaveError};
-use crate::text_utils::a_or_an;
 use crate::ui::elements::{
-    attribute, currency, labelled_element, labelled_label, scrollable_quest_column, title,
+    active_action_description, attribute, currency, event_log, labelled_element, labelled_label,
+    scrollable_quest_column, title,
 };
 use crate::ui::Message;
 use crate::{Configuration, GameState};
@@ -13,13 +11,11 @@ use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
 use iced::alignment::Horizontal;
 use iced::{
-    pick_list, scrollable, Alignment, Color, Column, Command, Element, Length, PickList, Row,
-    Space, Text,
+    pick_list, scrollable, Alignment, Column, Command, Element, Length, PickList, Row, Space, Text,
 };
 use iced_native::widget::ProgressBar;
 use lazy_static::lazy_static;
 use log::{error, info, warn};
-use std::cmp::Ordering;
 use std::collections::VecDeque;
 
 pub const UI_SLEEP_BETWEEN_UPDATES: core::time::Duration = core::time::Duration::from_millis(0);
@@ -38,6 +34,7 @@ pub struct RunningState {
     combat_style_picker_state: pick_list::State<CombatStyle>,
     combat_location_picker_state: pick_list::State<String>,
     quest_column_scrollable_state: scrollable::State,
+    event_log_scrollable_state: scrollable::State,
 }
 
 #[derive(Clone, Debug)]
@@ -63,6 +60,7 @@ impl RunningState {
             combat_style_picker_state: Default::default(),
             combat_location_picker_state: Default::default(),
             quest_column_scrollable_state: Default::default(),
+            event_log_scrollable_state: Default::default(),
         }
     }
 
@@ -161,45 +159,6 @@ impl RunningState {
 
     pub fn view(&mut self) -> Element<Message> {
         let label_column_width = 160;
-        let error_color = Color::from_rgb8(220, 10, 10);
-
-        let current_action_currency_reward = self.game_state.current_action.currency_reward;
-        let action_descriptor_row = Row::new().push(Text::new(&format!(
-            "{} is currently {}{}",
-            self.game_state.character.name,
-            if self.game_state.current_action.action.name == ACTION_FIGHT_MONSTERS {
-                let monster_name = self
-                    .game_state
-                    .current_action
-                    .monster
-                    .as_ref()
-                    .unwrap()
-                    .to_lowercase_string();
-                let a = a_or_an(&monster_name);
-                format!("fighting {a} {monster_name}")
-            } else {
-                self.game_state
-                    .current_action
-                    .action
-                    .verb_progressive
-                    .to_string()
-            },
-            match current_action_currency_reward.cmp(&Currency::zero()) {
-                Ordering::Less => " costing him ",
-                Ordering::Equal => "",
-                Ordering::Greater => " earning ",
-            },
-        )));
-        let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
-            action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
-        } else {
-            action_descriptor_row
-        };
-        let action_descriptor_row = if !self.game_state.current_action.success {
-            action_descriptor_row.push(Text::new(" (failure)").color(error_color))
-        } else {
-            action_descriptor_row
-        };
 
         let action_column = Column::new()
             .width(Length::Shrink)
@@ -370,11 +329,19 @@ impl RunningState {
                                             &self.game_state.story,
                                             &mut self.quest_column_scrollable_state,
                                         )
-                                        .width(Length::Units(400))
+                                        .width(Length::Units(300))
+                                        .height(Length::Fill),
+                                    )
+                                    .push(
+                                        event_log(
+                                            &self.game_state,
+                                            &mut self.event_log_scrollable_state,
+                                        )
+                                        .width(Length::Units(300))
                                         .height(Length::Fill),
                                     ),
                             )
-                            .push(action_descriptor_row)
+                            .push(active_action_description(&self.game_state))
                             .push(ProgressBar::new(
                                 0.0..=1.0,
                                 self.game_state.current_action_progress(),

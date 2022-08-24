@@ -5,6 +5,7 @@ use crate::game_state::actions::{
 use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
 use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
+use crate::game_state::event_log::EventLog;
 use crate::game_state::location::{Location, LOCATIONS, LOCATION_VILLAGE};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
@@ -17,6 +18,7 @@ pub mod actions;
 pub mod character;
 pub mod combat;
 pub mod currency;
+pub mod event_log;
 pub mod location;
 pub mod story;
 pub mod time;
@@ -35,6 +37,7 @@ pub struct GameState {
     pub current_time: GameTime,
     pub last_update: DateTime<Utc>,
     pub story: Story,
+    pub log: EventLog,
 }
 
 impl GameState {
@@ -58,6 +61,7 @@ impl GameState {
             current_time: Default::default(),
             last_update: Utc::now(),
             story: Default::default(),
+            log: EventLog::default(),
         }
     }
 
@@ -78,6 +82,7 @@ impl GameState {
 
                 self.story.update(&self.current_action);
             }
+            self.log.log(self.current_action.clone());
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
