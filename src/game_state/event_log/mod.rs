@@ -1,14 +1,20 @@
 use crate::game_state::actions::ActionInProgress;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
+
+pub static EVENT_LOG_SIZE: usize = 100;
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct EventLog {
-    events: Vec<GameEvent>,
+    events: VecDeque<GameEvent>,
 }
 
 impl EventLog {
     pub fn log(&mut self, event: impl Into<GameEvent>) {
-        self.events.push(event.into());
+        while self.events.len() >= EVENT_LOG_SIZE - 1 {
+            self.events.pop_front();
+        }
+        self.events.push_back(event.into());
     }
 
     pub fn iter_rev(&self) -> impl Iterator<Item = &GameEvent> {
@@ -24,11 +30,5 @@ pub enum GameEvent {
 impl From<ActionInProgress> for GameEvent {
     fn from(action: ActionInProgress) -> Self {
         Self::Action(action)
-    }
-}
-
-impl AsRef<[GameEvent]> for EventLog {
-    fn as_ref(&self) -> &[GameEvent] {
-        self.events.as_ref()
     }
 }

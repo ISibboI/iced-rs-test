@@ -48,5 +48,7 @@ fn main() {
 
     let mut settings = Settings::with_flags(configuration);
     settings.exit_on_close_request = false;
+    settings.window.resizable = false;
+    settings.window.size = (1500, 800);
     ApplicationState::run(settings).unwrap_or_else(|err| error!("Error: {err}"));
 }
