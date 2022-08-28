@@ -56,16 +56,19 @@ impl BulkUpdateState {
                         |game_state| BulkUpdateMessage::Step(game_state).into(),
                     )
                 } else {
-                    info!("Finished bulk update");
                     Command::perform(
-                        do_nothing(Box::new(RunningState::new(*game_state))),
-                        |running_state| {
-                            Message::ChangeState(Box::new(ApplicationUiState::Running(
-                                running_state,
-                            )))
-                        },
+                        update(game_state, next_delta.num_milliseconds()),
+                        |game_state| BulkUpdateMessage::Finished(game_state).into(),
                     )
                 }
+            }
+            BulkUpdateMessage::Finished(game_state) => {
+                info!("Finished bulk update");
+                Command::perform(do_nothing(game_state), |game_state| {
+                    Message::ChangeState(Box::new(ApplicationUiState::Running(Box::new(
+                        RunningState::new(*game_state),
+                    ))))
+                })
             }
         }
     }
@@ -98,4 +101,5 @@ async fn update(mut game_state: Box<GameState>, delta_milliseconds: i64) -> Box<
 pub enum BulkUpdateMessage {
     Init,
     Step(Box<GameState>),
+    Finished(Box<GameState>),
 }

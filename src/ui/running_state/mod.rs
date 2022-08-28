@@ -4,7 +4,7 @@ use crate::ui::elements::{
     active_action_description, attribute, complete_minute_time, currency, event_log,
     labelled_element, labelled_label, scrollable_quest_column, title,
 };
-use crate::ui::{do_nothing, Message};
+use crate::ui::Message;
 use crate::{Configuration, GameState};
 use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
@@ -14,7 +14,7 @@ use iced::{
 };
 use iced_native::widget::ProgressBar;
 use lazy_static::lazy_static;
-use log::{error, info, warn};
+use log::{error, info, trace, warn};
 use std::collections::VecDeque;
 
 lazy_static! {
@@ -68,9 +68,7 @@ impl RunningState {
         message: RunningMessage,
     ) -> Command<Message> {
         match message {
-            RunningMessage::Init => {
-                return Command::perform(do_nothing(()), |()| RunningMessage::Update.into())
-            }
+            RunningMessage::Init => {}
             RunningMessage::Update => {
                 // measure time delta
                 let current_time = Utc::now();
@@ -79,6 +77,11 @@ impl RunningState {
                 if passed_real_milliseconds > 60_000 {
                     warn!(
                         "Making {:.0} seconds worth of updates",
+                        passed_real_milliseconds as f64 / 1000.0
+                    );
+                } else {
+                    trace!(
+                        "Making {:.3} seconds worth of updates",
                         passed_real_milliseconds as f64 / 1000.0
                     );
                 }
