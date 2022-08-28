@@ -106,7 +106,9 @@ impl CreateNewGameState {
             .spacing(5)
             .align_items(Alignment::Center)
             .width(Length::Fill)
-            .push(title("Create New Game"))
+            .push(title())
+            .push(Text::new("Create New Game").size(40))
+            .push(Space::new(Length::Shrink, Length::Units(10)))
             .push(
                 Container::new(
                     Column::new()

@@ -3,7 +3,7 @@ use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState}
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
 use crate::ui::running_state::{RunningMessage, RunningState};
-use crate::Configuration;
+use crate::{Configuration, TITLE};
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
@@ -62,7 +62,7 @@ impl Application for ApplicationState {
     }
 
     fn title(&self) -> String {
-        "Progress Quest".into()
+        TITLE.into()
     }
 
     fn update(&mut self, message: Self::Message) -> Command<Self::Message> {

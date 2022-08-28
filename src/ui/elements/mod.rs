@@ -4,10 +4,12 @@ use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
-use crate::text_utils::a_or_an;
-use crate::GameState;
+use crate::text_utils::{a_or_an, ordinal_suffix};
+use crate::{GameState, TITLE};
 use iced::alignment::{Horizontal, Vertical};
-use iced::{scrollable, Alignment, Color, Column, Element, Length, Row, Scrollable, Space, Text};
+use iced::{
+    scrollable, Alignment, Color, Column, Container, Element, Length, Row, Scrollable, Space, Text,
+};
 use iced_native::widget::ProgressBar;
 use lazy_static::lazy_static;
 use std::cmp::Ordering;
@@ -17,16 +19,19 @@ lazy_static! {
     pub static ref ERROR_COLOR: Color = Color::from_rgb8(220, 10, 10);
 }
 
-pub fn title<'a, T: 'a>(title: impl ToString) -> Column<'a, T> {
-    Column::new()
-        .push(Space::new(Length::Shrink, Length::Units(20)))
-        .push(
-            Text::new(title.to_string())
-                .size(100)
-                .horizontal_alignment(Horizontal::Center)
-                .width(Length::Fill),
-        )
-        .push(Space::new(Length::Shrink, Length::Units(20)))
+pub fn title<'a, T: 'a>() -> Container<'a, T> {
+    Container::new(
+        Column::new()
+            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(
+                Text::new(TITLE)
+                    .size(100)
+                    .horizontal_alignment(Horizontal::Center)
+                    .width(Length::Fill),
+            )
+            .push(Space::new(Length::Shrink, Length::Units(20))),
+    )
+    // TODO .style()
 }
 
 pub fn labelled_element<'a, T: 'a, E: Into<Element<'a, T>>>(
@@ -178,12 +183,12 @@ pub fn event_log<'a, T: 'a>(
         let mut last_date = event.time.floor_day();
         for event in game_state.log.iter_rev() {
             if last_date.days() != event.time.days() {
-                event_column = event_column.push(date(last_date));
+                event_column = event_column.push(date_without_era(last_date));
                 last_date = event.time.floor_day();
             }
             event_column = event_column.push(event_string(event, game_state));
         }
-        event_column = event_column.push(date(last_date));
+        event_column = event_column.push(date_without_era(last_date));
     }
 
     Scrollable::new(scrollable_state)
@@ -269,13 +274,9 @@ pub fn completed_action_description<'a, T: 'a>(
     }
 }
 
-pub fn complete_minute_time(time: GameTime) -> Text {
+pub fn clock_time(time: GameTime) -> Text {
     Text::new(&format!(
-        "{}y {}m {}w {}d {}h {}m",
-        time.years(),
-        time.month_of_year(),
-        time.week_of_month(),
-        time.day_of_week(),
+        "{:02}:{:02}",
         time.hour_of_day(),
         time.minute_of_hour(),
     ))
@@ -283,10 +284,22 @@ pub fn complete_minute_time(time: GameTime) -> Text {
 
 pub fn date(time: GameTime) -> Text {
     Text::new(&format!(
-        "{}y {}m {}w {}d",
+        "{}, {} of {}, {}{} year of the {} era",
+        time.day_of_week_str(),
+        time.day_of_month_str_ord(),
+        time.month_of_year_str_common(),
         time.years(),
-        time.month_of_year(),
-        time.week_of_month(),
-        time.day_of_week(),
+        ordinal_suffix(time.years()),
+        time.era_str(),
+    ))
+}
+
+pub fn date_without_era(time: GameTime) -> Text {
+    Text::new(&format!(
+        "{}, {} of {}, {}",
+        time.day_of_week_str(),
+        time.day_of_month_str_ord(),
+        time.month_of_year_str_common(),
+        time.years(),
     ))
 }

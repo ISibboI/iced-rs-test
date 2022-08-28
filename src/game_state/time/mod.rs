@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::{Deserialize, Serialize};
 use std::ops;
 
@@ -11,18 +13,33 @@ pub const SECONDS_PER_MINUTE: i128 = 60;
 pub const MINUTES_PER_HOUR: i128 = 60;
 pub const HOURS_PER_DAY: i128 = 24;
 pub const DAYS_PER_WEEK: i128 = 7;
-pub const WEEKS_PER_MONTH: i128 = 4;
-pub const DAYS_PER_MONTH: i128 = DAYS_PER_WEEK * WEEKS_PER_MONTH;
+pub const DAYS_PER_MONTH: [i128; 12] = [31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+pub const FIRST_DAY_OF_MONTH: [i128; 12] = [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334];
+pub const DAYS_PER_YEAR: i128 = 365;
 pub const MONTHS_PER_YEAR: i128 = 12;
+pub const YEARS_PER_FINISHED_ERA: [i128; 2] = [2344, 1698];
+pub const FIRST_YEAR_OF_ERA: [i128; 3] = [0, 2344, 4042];
 
 pub const MILLISECONDS_PER_MINUTE: i128 = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
 pub const MILLISECONDS_PER_HOUR: i128 = MILLISECONDS_PER_MINUTE * MINUTES_PER_HOUR;
 pub const MILLISECONDS_PER_DAY: i128 = MILLISECONDS_PER_HOUR * HOURS_PER_DAY;
 pub const MILLISECONDS_PER_WEEK: i128 = MILLISECONDS_PER_DAY * DAYS_PER_WEEK;
-pub const MILLISECONDS_PER_MONTH: i128 = MILLISECONDS_PER_WEEK * WEEKS_PER_MONTH;
-pub const MILLISECONDS_PER_YEAR: i128 = MILLISECONDS_PER_MONTH * MONTHS_PER_YEAR;
+pub const MILLISECONDS_PER_MONTH: [i128; 12] = [
+    DAYS_PER_MONTH[0] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[1] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[2] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[3] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[4] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[5] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[6] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[7] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[8] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[9] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[10] * MILLISECONDS_PER_DAY,
+    DAYS_PER_MONTH[11] * MILLISECONDS_PER_DAY,
+];
+pub const MILLISECONDS_PER_YEAR: i128 = MILLISECONDS_PER_DAY * DAYS_PER_YEAR;
 
-#[allow(dead_code)]
 impl GameTime {
     pub const fn milliseconds(&self) -> i128 {
         self.time
@@ -48,12 +65,20 @@ impl GameTime {
         self.time / MILLISECONDS_PER_WEEK
     }
 
-    pub const fn months(&self) -> i128 {
-        self.time / MILLISECONDS_PER_MONTH
-    }
-
     pub const fn years(&self) -> i128 {
         self.time / MILLISECONDS_PER_YEAR
+    }
+
+    pub const fn eras(&self) -> i8 {
+        let years = self.years();
+        let mut era = FIRST_YEAR_OF_ERA.len();
+        loop {
+            era -= 1;
+            assert!(era < FIRST_YEAR_OF_ERA.len());
+            if years >= FIRST_YEAR_OF_ERA[era] {
+                return era as i8;
+            }
+        }
     }
 
     pub const fn from_milliseconds(milliseconds: i128) -> Self {
@@ -90,15 +115,15 @@ impl GameTime {
         }
     }
 
-    pub const fn from_months(months: i128) -> Self {
-        Self {
-            time: months * MILLISECONDS_PER_MONTH,
-        }
-    }
-
     pub const fn from_years(years: i128) -> Self {
         Self {
             time: years * MILLISECONDS_PER_YEAR,
+        }
+    }
+
+    pub const fn from_eras(eras: i128) -> Self {
+        Self {
+            time: FIRST_YEAR_OF_ERA[eras as usize] * MILLISECONDS_PER_YEAR,
         }
     }
 
@@ -123,72 +148,27 @@ impl GameTime {
     }
 
     pub const fn day_of_month(&self) -> i8 {
-        (self.days() % DAYS_PER_MONTH) as i8
+        (self.days() - self.floor_month().days()) as i8
     }
 
-    pub const fn week_of_month(&self) -> i8 {
-        (self.weeks() % WEEKS_PER_MONTH) as i8
+    pub const fn day_of_year(&self) -> i16 {
+        (self.days() - self.floor_year().days()) as i16
     }
 
     pub const fn month_of_year(&self) -> i8 {
-        (self.months() % MONTHS_PER_YEAR) as i8
-    }
-
-    pub const fn day_of_week_ord(&self) -> i8 {
-        self.day_of_week() + 1
-    }
-
-    pub const fn month_of_year_ord(&self) -> i8 {
-        self.month_of_year() + 1
-    }
-
-    pub const fn day_of_week_str(&self) -> &'static str {
-        match self.day_of_week() {
-            0 => "mandas",
-            1 => "tirdas",
-            2 => "kemdas",
-            3 => "tordas",
-            4 => "perdas",
-            5 => "landas",
-            6 => "sondas",
-            _ => unreachable!(),
+        let days = self.day_of_year();
+        let mut month = FIRST_DAY_OF_MONTH.len();
+        loop {
+            month -= 1;
+            assert!(month < FIRST_DAY_OF_MONTH.len());
+            if days as i128 >= FIRST_DAY_OF_MONTH[month] {
+                return month as i8;
+            }
         }
     }
 
-    pub const fn month_of_year_str_old(&self) -> &'static str {
-        match self.month_of_year() {
-            0 => "ismon",   // ice month
-            1 => "tiinmon", // thaw month
-            2 => "saadmon", // seed month
-            3 => "renmon",  // rain month
-            4 => "blomon",  // flower month
-            5 => "lirtmon", // light month
-            6 => "tysmon",  // calm month
-            7 => "skormon", // harvest month
-            8 => "hostmon", // fall month
-            9 => "mutmon",  // mud month
-            10 => "murmon", // dark month
-            11 => "jolmon", // winter solstice month
-            _ => unreachable!(),
-        }
-    }
-
-    pub const fn month_of_year_str_common(&self) -> &'static str {
-        match self.month_of_year() {
-            0 => "white earth",    // ice month
-            1 => "sun's hope",     // thaw month
-            2 => "first seed",     // seed month
-            3 => "cloud break",    // rain month
-            4 => "flowery fields", // flower month
-            5 => "eternal light",  // light month
-            6 => "calm dreams",    // calm month
-            7 => "harvest",        // harvest month
-            8 => "leaves' fall",   // fall month
-            9 => "wet mud",        // mud month
-            10 => "dark skies",    // dark month
-            11 => "frost fire",    // winter solstice month
-            _ => unreachable!(),
-        }
+    pub const fn year_of_era(&self) -> i16 {
+        (self.years() - self.floor_era().years()) as i16
     }
 
     pub const fn floor_day(&self) -> Self {
@@ -203,10 +183,147 @@ impl GameTime {
         }
     }
 
+    pub const fn floor_month(&self) -> Self {
+        assert!(self.time >= 0);
+        Self {
+            time: self.years() * MILLISECONDS_PER_YEAR
+                + FIRST_DAY_OF_MONTH[self.month_of_year() as usize] * MILLISECONDS_PER_DAY,
+        }
+    }
+
+    pub const fn floor_year(&self) -> Self {
+        Self {
+            time: self.years() * MILLISECONDS_PER_YEAR,
+        }
+    }
+
+    pub const fn floor_era(&self) -> Self {
+        assert!(self.time >= 0);
+        Self {
+            time: FIRST_YEAR_OF_ERA[self.eras() as usize] * MILLISECONDS_PER_YEAR,
+        }
+    }
+
     /// Modulo the length of a day, return the time as a clock would show it.
     pub const fn time_of_day(&self) -> Self {
         Self {
             time: self.time % MILLISECONDS_PER_DAY,
+        }
+    }
+
+    pub const fn day_of_week_ord(&self) -> i8 {
+        self.day_of_week() + 1
+    }
+
+    pub const fn day_of_month_ord(&self) -> i8 {
+        self.day_of_month() + 1
+    }
+
+    pub const fn month_of_year_ord(&self) -> i8 {
+        self.month_of_year() + 1
+    }
+
+    pub const fn era_ord(&self) -> i8 {
+        self.eras() + 1
+    }
+
+    pub const fn day_of_week_str(&self) -> &'static str {
+        match self.day_of_week_ord() {
+            1 => "Mandas",
+            2 => "Tirdas",
+            3 => "Kemdas",
+            4 => "Tordas",
+            5 => "Perdas",
+            6 => "Landas",
+            7 => "Sondas",
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_old(&self) -> &'static str {
+        match self.month_of_year_ord() {
+            1 => "Ismon",   // ice month
+            2 => "Tiinmon", // thaw month
+            3 => "Saadmon", // seed month
+            4 => "Renmon",  // rain month
+            5 => "Blomon",  // flower month
+            6 => "Lirtmon", // light month
+            7 => "Tysmon",  // calm month
+            8 => "Skormon", // harvest month
+            9 => "Hostmon", // fall month
+            10 => "Mutmon", // mud month
+            11 => "Murmon", // dark month
+            12 => "Jolmon", // winter solstice month
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn day_of_month_str_ord(&self) -> &'static str {
+        match self.day_of_month_ord() {
+            1 => "1st",
+            2 => "2nd",
+            3 => "3rd",
+            4 => "4th",
+            5 => "5th",
+            6 => "6th",
+            7 => "7th",
+            8 => "8th",
+            9 => "9th",
+            10 => "10th",
+            11 => "11th",
+            12 => "12th",
+            13 => "13th",
+            14 => "14th",
+            15 => "15th",
+            16 => "16th",
+            17 => "17th",
+            18 => "18th",
+            19 => "19th",
+            20 => "20th",
+            21 => "21st",
+            22 => "22nd",
+            23 => "23rd",
+            24 => "24th",
+            25 => "25th",
+            26 => "26th",
+            27 => "27th",
+            28 => "28th",
+            29 => "29th",
+            30 => "30th",
+            31 => "31st",
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_common(&self) -> &'static str {
+        match self.month_of_year_ord() {
+            1 => "White Earth",    // ice month
+            2 => "Sun's Hope",     // thaw month
+            3 => "First Seed",     // seed month
+            4 => "Cloud Break",    // rain month
+            5 => "Flowery Fields", // flower month
+            6 => "Eternal Light",  // light month
+            7 => "Calm Dreams",    // calm month
+            8 => "Harvest",        // harvest month
+            9 => "Leaves' Fall",   // fall month
+            10 => "Wet Mud",       // mud month
+            11 => "Dark Skies",    // dark month
+            12 => "Frost Fire",    // winter solstice month
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn era_str(&self) -> &'static str {
+        match self.era_ord() {
+            1 => "1st",
+            2 => "2nd",
+            3 => "3rd",
+            4 => "4th",
+            5 => "5th",
+            6 => "6th",
+            7 => "7th",
+            8 => "8th",
+            _ => unreachable!(),
         }
     }
 }
@@ -260,5 +377,170 @@ impl ops::Mul<GameTime> for i64 {
         GameTime {
             time: rhs.time * i128::from(self),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::game_state::time::{
+        GameTime, DAYS_PER_MONTH, FIRST_DAY_OF_MONTH, FIRST_YEAR_OF_ERA, YEARS_PER_FINISHED_ERA,
+    };
+
+    #[test]
+    fn test_first_days_of_months() {
+        let first_day_of_month: Vec<_> = DAYS_PER_MONTH
+            .iter()
+            .scan(0, |acc, &days_per_month| {
+                let result = *acc;
+                *acc += days_per_month;
+                Some(result)
+            })
+            .collect();
+        assert_eq!(first_day_of_month.as_slice(), FIRST_DAY_OF_MONTH);
+    }
+
+    #[test]
+    fn test_month_of_year() {
+        assert_eq!(GameTime::from_days(30).month_of_year(), 0);
+        assert_eq!(
+            (GameTime::from_days(31) - GameTime::from_milliseconds(1)).month_of_year(),
+            0
+        );
+        assert_eq!(GameTime::from_days(31).month_of_year(), 1);
+        assert_eq!(GameTime::from_days(32).month_of_year(), 1);
+
+        assert_eq!(
+            (GameTime::from_days(30) + GameTime::from_years(2)).month_of_year(),
+            0
+        );
+        assert_eq!(
+            (GameTime::from_days(31) - GameTime::from_milliseconds(1) + GameTime::from_years(4))
+                .month_of_year(),
+            0
+        );
+        assert_eq!(
+            (GameTime::from_days(31) + GameTime::from_years(5)).month_of_year(),
+            1
+        );
+        assert_eq!(
+            (GameTime::from_days(32) + GameTime::from_years(6)).month_of_year(),
+            1
+        );
+
+        assert_eq!(
+            (GameTime::from_days(89) + GameTime::from_years(2)).month_of_year(),
+            2
+        );
+        assert_eq!(
+            (GameTime::from_days(90) - GameTime::from_milliseconds(1) + GameTime::from_years(4))
+                .month_of_year(),
+            2
+        );
+        assert_eq!(
+            (GameTime::from_days(90) + GameTime::from_years(5)).month_of_year(),
+            3
+        );
+        assert_eq!(
+            (GameTime::from_days(91) + GameTime::from_years(6)).month_of_year(),
+            3
+        );
+    }
+
+    #[test]
+    fn test_floor_month() {
+        assert_eq!(
+            GameTime::from_days(30).floor_month(),
+            GameTime::from_days(0)
+        );
+        assert_eq!(
+            (GameTime::from_days(31) - GameTime::from_milliseconds(1)).floor_month(),
+            GameTime::from_days(0)
+        );
+        assert_eq!(
+            GameTime::from_days(31).floor_month(),
+            GameTime::from_days(31)
+        );
+        assert_eq!(
+            GameTime::from_days(32).floor_month(),
+            GameTime::from_days(31)
+        );
+
+        assert_eq!(
+            (GameTime::from_days(30) + GameTime::from_years(2)).floor_month(),
+            GameTime::from_days(0) + GameTime::from_years(2)
+        );
+        assert_eq!(
+            (GameTime::from_days(31) - GameTime::from_milliseconds(1) + GameTime::from_years(4))
+                .floor_month(),
+            GameTime::from_days(0) + GameTime::from_years(4)
+        );
+        assert_eq!(
+            (GameTime::from_days(31) + GameTime::from_years(5)).floor_month(),
+            GameTime::from_days(31) + GameTime::from_years(5)
+        );
+        assert_eq!(
+            (GameTime::from_days(32) + GameTime::from_years(6)).floor_month(),
+            GameTime::from_days(31) + GameTime::from_years(6)
+        );
+
+        assert_eq!(
+            (GameTime::from_days(89) + GameTime::from_years(2)).floor_month(),
+            GameTime::from_days(59) + GameTime::from_years(2)
+        );
+        assert_eq!(
+            (GameTime::from_days(90) - GameTime::from_milliseconds(1) + GameTime::from_years(4))
+                .floor_month(),
+            GameTime::from_days(59) + GameTime::from_years(4)
+        );
+        assert_eq!(
+            (GameTime::from_days(90) + GameTime::from_years(5)).floor_month(),
+            GameTime::from_days(90) + GameTime::from_years(5)
+        );
+        assert_eq!(
+            (GameTime::from_days(91) + GameTime::from_years(6)).floor_month(),
+            GameTime::from_days(90) + GameTime::from_years(6)
+        );
+    }
+
+    #[test]
+    fn test_first_years_of_eras() {
+        let first_year_of_era: Vec<_> = YEARS_PER_FINISHED_ERA
+            .iter()
+            .scan(0, |acc, &days_per_month| {
+                *acc += days_per_month;
+                Some(*acc)
+            })
+            .collect();
+        assert_eq!(0, FIRST_YEAR_OF_ERA[0]);
+        assert_eq!(first_year_of_era.as_slice(), &FIRST_YEAR_OF_ERA[1..]);
+    }
+
+    #[test]
+    fn test_eras() {
+        assert_eq!(GameTime::from_years(3).eras(), 0);
+        assert_eq!(
+            (GameTime::from_years(FIRST_YEAR_OF_ERA[1]) - GameTime::from_milliseconds(1)).eras(),
+            0
+        );
+        assert_eq!(GameTime::from_years(FIRST_YEAR_OF_ERA[1]).eras(), 1);
+        assert_eq!(
+            (GameTime::from_years(FIRST_YEAR_OF_ERA[1]) + GameTime::from_years(10)).eras(),
+            1
+        );
+    }
+
+    #[test]
+    fn test_year_of_era() {
+        assert_eq!(GameTime::from_years(3).year_of_era(), 3);
+        assert_eq!(
+            (GameTime::from_years(FIRST_YEAR_OF_ERA[1]) - GameTime::from_milliseconds(1))
+                .year_of_era() as i128,
+            FIRST_YEAR_OF_ERA[1] - 1
+        );
+        assert_eq!(GameTime::from_years(FIRST_YEAR_OF_ERA[1]).year_of_era(), 0);
+        assert_eq!(
+            (GameTime::from_years(FIRST_YEAR_OF_ERA[1]) + GameTime::from_years(10)).year_of_era(),
+            10
+        );
     }
 }

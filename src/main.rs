@@ -11,6 +11,8 @@ mod savegames;
 mod text_utils;
 mod ui;
 
+pub const TITLE: &str = "Hero Quest";
+
 #[derive(Parser, Debug)]
 pub struct Configuration {
     #[clap(long, default_value = "savegame.json")]

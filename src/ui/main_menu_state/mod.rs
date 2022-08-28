@@ -1,4 +1,5 @@
 use crate::ui::create_new_game_state::CreateNewGameState;
+use crate::ui::elements::title;
 use crate::ui::load_game_state::LoadGameState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::Configuration;
@@ -84,9 +85,7 @@ impl MainMenuState {
             .spacing(5)
             .align_items(Alignment::Center)
             .width(Length::Fill)
-            .push(Space::new(Length::Shrink, Length::Units(20)))
-            .push(Text::new("Progress Quest").size(100))
-            .push(Space::new(Length::Shrink, Length::Units(20)))
+            .push(title())
             .push(savegame_file_input)
             .push(load_game_button)
             .push(new_game_button);

@@ -16,3 +16,19 @@ pub fn a_or_an(word: &str) -> &'static str {
         "a"
     }
 }
+
+pub fn ordinal_suffix(number: impl Into<i128>) -> &'static str {
+    let number = number.into().abs();
+    let lsd = number % 10;
+    let slsd = (number % 100) / 10;
+    if slsd != 1 {
+        match lsd {
+            1 => "st",
+            2 => "nd",
+            3 => "rd",
+            _ => "th",
+        }
+    } else {
+        "th"
+    }
+}
