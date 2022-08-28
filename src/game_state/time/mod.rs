@@ -12,6 +12,7 @@ pub const MINUTES_PER_HOUR: i128 = 60;
 pub const HOURS_PER_DAY: i128 = 24;
 pub const DAYS_PER_WEEK: i128 = 7;
 pub const WEEKS_PER_MONTH: i128 = 4;
+pub const DAYS_PER_MONTH: i128 = DAYS_PER_WEEK * WEEKS_PER_MONTH;
 pub const MONTHS_PER_YEAR: i128 = 12;
 
 pub const MILLISECONDS_PER_MINUTE: i128 = MILLISECONDS_PER_SECOND * SECONDS_PER_MINUTE;
@@ -121,12 +122,73 @@ impl GameTime {
         (self.days() % DAYS_PER_WEEK) as i8
     }
 
+    pub const fn day_of_month(&self) -> i8 {
+        (self.days() % DAYS_PER_MONTH) as i8
+    }
+
     pub const fn week_of_month(&self) -> i8 {
         (self.weeks() % WEEKS_PER_MONTH) as i8
     }
 
     pub const fn month_of_year(&self) -> i8 {
         (self.months() % MONTHS_PER_YEAR) as i8
+    }
+
+    pub const fn day_of_week_ord(&self) -> i8 {
+        self.day_of_week() + 1
+    }
+
+    pub const fn month_of_year_ord(&self) -> i8 {
+        self.month_of_year() + 1
+    }
+
+    pub const fn day_of_week_str(&self) -> &'static str {
+        match self.day_of_week() {
+            0 => "mandas",
+            1 => "tirdas",
+            2 => "kemdas",
+            3 => "tordas",
+            4 => "perdas",
+            5 => "landas",
+            6 => "sondas",
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_old(&self) -> &'static str {
+        match self.month_of_year() {
+            0 => "ismon",   // ice month
+            1 => "tiinmon", // thaw month
+            2 => "saadmon", // seed month
+            3 => "renmon",  // rain month
+            4 => "blomon",  // flower month
+            5 => "lirtmon", // light month
+            6 => "tysmon",  // calm month
+            7 => "skormon", // harvest month
+            8 => "hostmon", // fall month
+            9 => "mutmon",  // mud month
+            10 => "murmon", // dark month
+            11 => "jolmon", // winter solstice month
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_common(&self) -> &'static str {
+        match self.month_of_year() {
+            0 => "white earth",    // ice month
+            1 => "sun's hope",     // thaw month
+            2 => "first seed",     // seed month
+            3 => "cloud break",    // rain month
+            4 => "flowery fields", // flower month
+            5 => "eternal light",  // light month
+            6 => "calm dreams",    // calm month
+            7 => "harvest",        // harvest month
+            8 => "leaves' fall",   // fall month
+            9 => "wet mud",        // mud month
+            10 => "dark skies",    // dark month
+            11 => "frost fire",    // winter solstice month
+            _ => unreachable!(),
+        }
     }
 
     pub const fn floor_day(&self) -> Self {
