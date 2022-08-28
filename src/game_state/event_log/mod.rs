@@ -1,4 +1,5 @@
 use crate::game_state::actions::ActionInProgress;
+use crate::game_state::time::GameTime;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
@@ -23,12 +24,21 @@ impl EventLog {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum GameEvent {
+pub struct GameEvent {
+    pub time: GameTime,
+    pub kind: GameEventKind,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum GameEventKind {
     Action(ActionInProgress),
 }
 
 impl From<ActionInProgress> for GameEvent {
     fn from(action: ActionInProgress) -> Self {
-        Self::Action(action)
+        Self {
+            time: action.end,
+            kind: GameEventKind::Action(action),
+        }
     }
 }

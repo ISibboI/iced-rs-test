@@ -1,8 +1,8 @@
 use crate::game_state::combat::CombatStyle;
 use crate::savegames::{save_game_owned, SaveError};
 use crate::ui::elements::{
-    active_action_description, attribute, currency, event_log, labelled_element, labelled_label,
-    scrollable_quest_column, title,
+    active_action_description, attribute, complete_minute_time, currency, event_log,
+    labelled_element, labelled_label, scrollable_quest_column, title,
 };
 use crate::ui::Message;
 use crate::{Configuration, GameState};
@@ -245,16 +245,8 @@ impl RunningState {
                                     .horizontal_alignment(Horizontal::Center),
                             )
                             .push(
-                                Text::new(&format!(
-                                    "{}y {}m {}w {}d {}h {}m",
-                                    self.game_state.current_time.years(),
-                                    self.game_state.current_time.month_of_year(),
-                                    self.game_state.current_time.week_of_month(),
-                                    self.game_state.current_time.day_of_week(),
-                                    self.game_state.current_time.hour_of_day(),
-                                    self.game_state.current_time.minute_of_hour(),
-                                ))
-                                .horizontal_alignment(Horizontal::Center),
+                                complete_minute_time(self.game_state.current_time)
+                                    .horizontal_alignment(Horizontal::Center),
                             )
                             .push(currency(self.game_state.character.currency, true))
                             .push(Space::new(Length::Shrink, Length::Units(20)))

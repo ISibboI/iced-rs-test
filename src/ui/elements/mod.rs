@@ -1,8 +1,9 @@
 use crate::game_state::actions::{ActionInProgress, ACTION_FIGHT_MONSTERS};
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
-use crate::game_state::event_log::GameEvent;
+use crate::game_state::event_log::{GameEvent, GameEventKind};
 use crate::game_state::story::Story;
+use crate::game_state::time::GameTime;
 use crate::text_utils::a_or_an;
 use crate::GameState;
 use iced::alignment::{Horizontal, Vertical};
@@ -172,17 +173,27 @@ pub fn event_log<'a, T: 'a>(
         .height(Length::Shrink)
         .spacing(5)
         .padding(5);
-    for event in game_state.log.iter_rev() {
-        event_column = event_column.push(event_string(event, game_state));
+
+    if let Some(event) = game_state.log.iter_rev().next() {
+        let mut last_date = event.time.floor_day();
+        for event in game_state.log.iter_rev() {
+            if last_date.days() != event.time.days() {
+                event_column = event_column.push(date(last_date));
+                last_date = event.time.floor_day();
+            }
+            event_column = event_column.push(event_string(event, game_state));
+        }
+        event_column = event_column.push(date(last_date));
     }
+
     Scrollable::new(scrollable_state)
         .scrollbar_width(20)
         .push(event_column)
 }
 
 pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row<'a, T> {
-    match event {
-        GameEvent::Action(action) => completed_action_description(action, game_state),
+    match &event.kind {
+        GameEventKind::Action(action) => completed_action_description(action, game_state),
     }
 }
 
@@ -256,4 +267,26 @@ pub fn completed_action_description<'a, T: 'a>(
     } else {
         action_descriptor_row
     }
+}
+
+pub fn complete_minute_time(time: GameTime) -> Text {
+    Text::new(&format!(
+        "{}y {}m {}w {}d {}h {}m",
+        time.years(),
+        time.month_of_year(),
+        time.week_of_month(),
+        time.day_of_week(),
+        time.hour_of_day(),
+        time.minute_of_hour(),
+    ))
+}
+
+pub fn date(time: GameTime) -> Text {
+    Text::new(&format!(
+        "{}y {}m {}w {}d",
+        time.years(),
+        time.month_of_year(),
+        time.week_of_month(),
+        time.day_of_week(),
+    ))
 }
