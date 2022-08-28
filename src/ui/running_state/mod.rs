@@ -4,9 +4,8 @@ use crate::ui::elements::{
     active_action_description, attribute, complete_minute_time, currency, event_log,
     labelled_element, labelled_label, scrollable_quest_column, title,
 };
-use crate::ui::Message;
+use crate::ui::{do_nothing, Message};
 use crate::{Configuration, GameState};
-use async_std::task::sleep;
 use chrono::{DateTime, Duration, Utc};
 use enum_iterator::all;
 use iced::alignment::Horizontal;
@@ -18,7 +17,6 @@ use lazy_static::lazy_static;
 use log::{error, info, warn};
 use std::collections::VecDeque;
 
-pub const UI_SLEEP_BETWEEN_UPDATES: core::time::Duration = core::time::Duration::from_millis(0);
 lazy_static! {
     pub static ref AUTOSAVE_INTERVAL: Duration = Duration::seconds(10);
 }
@@ -71,9 +69,7 @@ impl RunningState {
     ) -> Command<Message> {
         match message {
             RunningMessage::Init => {
-                return Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
-                    RunningMessage::Update.into()
-                })
+                return Command::perform(do_nothing(()), |()| RunningMessage::Update.into())
             }
             RunningMessage::Update => {
                 // measure time delta
@@ -112,17 +108,8 @@ impl RunningState {
                     // save game periodically
                     self.last_save = current_time;
 
-                    return Command::batch([
-                        Command::perform(save_game_owned(self.game_state.clone()), |result| {
-                            RunningMessage::GameSaved(result).into()
-                        }),
-                        Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
-                            RunningMessage::Update.into()
-                        }),
-                    ]);
-                } else {
-                    return Command::perform(sleep(UI_SLEEP_BETWEEN_UPDATES), |()| {
-                        RunningMessage::Update.into()
+                    return Command::perform(save_game_owned(self.game_state.clone()), |result| {
+                        RunningMessage::GameSaved(result).into()
                     });
                 }
             }
