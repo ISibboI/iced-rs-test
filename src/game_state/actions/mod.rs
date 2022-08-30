@@ -14,7 +14,7 @@ lazy_static! {
         Action::new("Tavern", "relaxing in the tavern", "relaxed in the tavern", ActionType::Rest, CharacterAttributeProgressFactor::from_charisma(1.0), Currency::from_copper(-10), 0),
         Action::new("Lift weights", "lifting weights", "lifted weights", ActionType::Train, CharacterAttributeProgressFactor::from_strength(1.0), Currency::zero(), 0),
         Action::new("Jog", "jogging", "jogged", ActionType::Train, CharacterAttributeProgressFactor::from_stamina(1.0), Currency::zero(), 0),
-        Action::new("Practice juggling", "juggled", "practicing juggling", ActionType::Train, CharacterAttributeProgressFactor::from_dexterity(1.0), Currency::zero(), 0),
+        Action::new("Practice juggling", "juggled", "practiced juggling", ActionType::Train, CharacterAttributeProgressFactor::from_dexterity(1.0), Currency::zero(), 0),
         Action::new("Study logic", "studying logic", "studied logic", ActionType::Train, CharacterAttributeProgressFactor::from_intelligence(1.0), Currency::zero(), 0),
         Action::new("Read", "reading", "read", ActionType::Train, CharacterAttributeProgressFactor::from_wisdom(1.0), Currency::zero(), 0),
         // most values computed depending on fighting style, monster, etc.

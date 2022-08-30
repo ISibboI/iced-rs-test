@@ -8,8 +8,8 @@ use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, Terminal
 
 mod game_state;
 mod savegames;
-mod text_utils;
 mod ui;
+mod utils;
 
 pub const TITLE: &str = "Hero Quest";
 

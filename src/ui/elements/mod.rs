@@ -4,7 +4,7 @@ use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
-use crate::text_utils::{a_or_an, ordinal_suffix};
+use crate::utils::text::{a_or_an, ordinal_suffix};
 use crate::{GameState, TITLE};
 use iced::alignment::{Horizontal, Vertical};
 use iced::{
@@ -149,21 +149,43 @@ pub fn scrollable_quest_column<'a, T: 'a>(
         .spacing(5)
         .padding(5)
         .push(Text::new("Active quests:").size(24));
-    for quest in story.active_quests.values().filter(|quest| !quest.hidden) {
-        quest_column = quest_column
-            .push(Text::new(&quest.title))
-            .push(Text::new(&quest.description).size(16));
-    }
-    quest_column = quest_column.push(Text::new("Completed quests:").size(24));
     for quest in story
-        .completed_quests
-        .values()
-        .filter(|quest| !quest.hidden)
+        .active_quests_by_activation_time
+        .iter()
+        .rev()
+        .filter_map(|(_, id)| {
+            let quest = story.active_quests.get(id).unwrap();
+            if quest.hidden {
+                None
+            } else {
+                Some(quest)
+            }
+        })
     {
         quest_column = quest_column
             .push(Text::new(&quest.title))
             .push(Text::new(&quest.description).size(16));
     }
+
+    quest_column = quest_column.push(Text::new("Completed quests:").size(24));
+    for quest in story
+        .completed_quests_by_completion_time
+        .iter()
+        .rev()
+        .filter_map(|(_, id)| {
+            let quest = story.completed_quests.get(id).unwrap();
+            if quest.hidden {
+                None
+            } else {
+                Some(quest)
+            }
+        })
+    {
+        quest_column = quest_column
+            .push(Text::new(&quest.title))
+            .push(Text::new(&quest.description).size(16));
+    }
+
     Scrollable::new(scrollable_state)
         .scrollbar_width(20)
         .push(quest_column)
