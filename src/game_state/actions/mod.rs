@@ -9,19 +9,20 @@ use std::collections::BTreeMap;
 
 lazy_static! {
     pub static ref ACTIONS: BTreeMap<String, Action> = [
-        Action::new("Wait", "waiting", "waited", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
-        Action::new("Sleep", "sleeping", "slept", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
-        Action::new("Tavern", "relaxing in the tavern", "relaxed in the tavern", ActionType::Rest, CharacterAttributeProgressFactor::from_charisma(1.0), Currency::from_copper(-10), 0),
+        Action::new(ACTION_WAIT, "waiting", "waited", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
+        Action::new(ACTION_SLEEP, "sleeping", "slept", ActionType::Rest, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
+        Action::new(ACTION_TAVERN, "relaxing in the tavern", "relaxed in the tavern", ActionType::Rest, CharacterAttributeProgressFactor::from_charisma(1.0), Currency::from_copper(-10), 0),
         Action::new("Lift weights", "lifting weights", "lifted weights", ActionType::Train, CharacterAttributeProgressFactor::from_strength(1.0), Currency::zero(), 0),
         Action::new("Jog", "jogging", "jogged", ActionType::Train, CharacterAttributeProgressFactor::from_stamina(1.0), Currency::zero(), 0),
         Action::new("Practice juggling", "juggled", "practiced juggling", ActionType::Train, CharacterAttributeProgressFactor::from_dexterity(1.0), Currency::zero(), 0),
         Action::new("Study logic", "studying logic", "studied logic", ActionType::Train, CharacterAttributeProgressFactor::from_intelligence(1.0), Currency::zero(), 0),
         Action::new("Read", "reading", "read", ActionType::Train, CharacterAttributeProgressFactor::from_wisdom(1.0), Currency::zero(), 0),
         // most values computed depending on fighting style, monster, etc.
-        Action::new("Fight monsters", "fighting monsters", "fought monsters", ActionType::Combat, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
+        Action::new(ACTION_FIGHT_MONSTERS, "fighting monsters", "fought monsters", ActionType::Combat, CharacterAttributeProgressFactor::zero(), Currency::zero(), 0),
     ].into_iter().map(|action| (action.name.clone(), action)).collect();
 }
 
+pub static ACTION_INITIALISE: &str = "Initialise";
 pub static ACTION_WAIT: &str = "Wait";
 pub static ACTION_SLEEP: &str = "Sleep";
 pub static ACTION_TAVERN: &str = "Tavern";
@@ -88,5 +89,25 @@ pub struct ActionInProgress {
 impl ActionInProgress {
     pub fn length(&self) -> GameTime {
         self.end - self.start
+    }
+}
+
+pub fn initial_action() -> ActionInProgress {
+    ActionInProgress {
+        action: Action::new(
+            ACTION_INITIALISE,
+            "initialising",
+            "initialised",
+            ActionType::Rest,
+            CharacterAttributeProgressFactor::zero(),
+            Currency::zero(),
+            0,
+        ),
+        start: Default::default(),
+        end: Default::default(),
+        attribute_progress: CharacterAttributeProgress::zero(),
+        monster: None,
+        currency_reward: Currency::zero(),
+        success: true,
     }
 }

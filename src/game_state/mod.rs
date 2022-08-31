@@ -1,6 +1,6 @@
 use crate::game_state::actions::{
-    Action, ActionInProgress, ACTIONS, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
-    ACTION_WAIT,
+    initial_action, Action, ActionInProgress, ACTIONS, ACTION_FIGHT_MONSTERS, ACTION_INITIALISE,
+    ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
 };
 use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
 use crate::game_state::combat::CombatStyle;
@@ -46,15 +46,7 @@ impl GameState {
         Self {
             savegame_file,
             character: Character::new(name, race),
-            current_action: ActionInProgress {
-                action: ACTIONS.get(ACTION_SLEEP).unwrap().clone(),
-                start: Default::default(),
-                end: Default::default(),
-                attribute_progress: CharacterAttributeProgress::zero(),
-                monster: None,
-                currency_reward: Currency::zero(),
-                success: true,
-            },
+            current_action: initial_action(),
             selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
             selected_combat_location: LOCATION_VILLAGE.to_string(),
@@ -82,7 +74,9 @@ impl GameState {
 
                 self.story.update(&self.current_action);
             }
-            self.log.log(self.current_action.clone());
+            if self.current_action.action.name != ACTION_INITIALISE {
+                self.log.log(self.current_action.clone());
+            }
 
             self.next_action();
             debug!("New action: {:?}", self.current_action);
