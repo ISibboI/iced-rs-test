@@ -23,6 +23,9 @@ pub struct Configuration {
 
     #[clap(long, default_value = "60.0")]
     target_fps: f32,
+
+    #[clap(long)]
+    profile: bool,
 }
 
 fn initialize_logging(log_level: LevelFilter) {

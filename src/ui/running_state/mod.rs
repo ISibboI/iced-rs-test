@@ -26,6 +26,7 @@ pub struct RunningState {
     fps: Option<f32>,
     last_save: DateTime<Utc>,
     main_view_state: MainViewState,
+    last_view_duration: Duration,
 }
 
 #[derive(Clone, Debug)]
@@ -50,6 +51,7 @@ impl RunningState {
             fps: Default::default(),
             last_save: Utc::now(),
             main_view_state: MainViewState::new(),
+            last_view_duration: Duration::zero(),
         }
     }
 
@@ -65,7 +67,7 @@ impl RunningState {
                 let current_time = Utc::now();
                 let passed_real_milliseconds =
                     (current_time - self.game_state.last_update).num_milliseconds();
-                if passed_real_milliseconds > 60_000 {
+                if passed_real_milliseconds > 5_000 {
                     warn!(
                         "Making {:.0} seconds worth of updates",
                         passed_real_milliseconds as f64 / 1000.0
@@ -78,7 +80,17 @@ impl RunningState {
                 }
 
                 // update game state
+                let pre_update = Utc::now();
                 self.game_state.update(passed_real_milliseconds);
+                let post_update = Utc::now();
+                let update_duration = post_update - pre_update;
+                if configuration.profile {
+                    info!(
+                        "Update/View times: {}ms/{}ms",
+                        update_duration.num_milliseconds(),
+                        self.last_view_duration.num_milliseconds()
+                    );
+                }
 
                 // measure fps
                 {
@@ -147,7 +159,8 @@ impl RunningState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        Column::new()
+        let pre_view = Utc::now();
+        let result = Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
             .push(title())
@@ -249,6 +262,9 @@ impl RunningState {
                     )
                     .push(self.main_view_state.view(&self.game_state)),
             )
-            .into()
+            .into();
+        let post_view = Utc::now();
+        self.last_view_duration = post_view - pre_view;
+        result
     }
 }
