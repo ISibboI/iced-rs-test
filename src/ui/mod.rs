@@ -13,6 +13,7 @@ mod elements;
 mod load_game_state;
 mod main_menu_state;
 mod running_state;
+mod style;
 
 #[derive(Debug)]
 pub struct ApplicationState {

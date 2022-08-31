@@ -1,21 +1,18 @@
 use crate::game_state::combat::CombatStyle;
 use crate::savegames::{save_game_owned, SaveError};
-use crate::ui::elements::{
-    active_action_description, attribute, clock_time, currency, date, event_log, labelled_element,
-    labelled_label, scrollable_quest_column, title,
-};
+use crate::ui::elements::{attribute, clock_time, currency, date, title};
+use crate::ui::running_state::main_view::{MainViewMessage, MainViewState};
 use crate::ui::Message;
 use crate::{Configuration, GameState};
 use chrono::{DateTime, Duration, Utc};
-use enum_iterator::all;
 use iced::alignment::Horizontal;
-use iced::{
-    pick_list, scrollable, Alignment, Column, Command, Element, Length, PickList, Row, Space, Text,
-};
+use iced::{Alignment, Column, Command, Element, Length, Row, Space, Text};
 use iced_native::widget::ProgressBar;
 use lazy_static::lazy_static;
 use log::{error, info, trace, warn};
 use std::collections::VecDeque;
+
+mod main_view;
 
 lazy_static! {
     pub static ref AUTOSAVE_INTERVAL: Duration = Duration::seconds(10);
@@ -27,12 +24,7 @@ pub struct RunningState {
     frame_times: VecDeque<DateTime<Utc>>,
     fps: Option<f32>,
     last_save: DateTime<Utc>,
-
-    action_picker_state: pick_list::State<String>,
-    combat_style_picker_state: pick_list::State<CombatStyle>,
-    combat_location_picker_state: pick_list::State<String>,
-    quest_column_scrollable_state: scrollable::State,
-    event_log_scrollable_state: scrollable::State,
+    main_view_state: MainViewState,
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +37,7 @@ pub enum RunningMessage {
     ActionChanged(String),
     CombatStyleChanged(CombatStyle),
     CombatLocationChanged(String),
+    MainView(MainViewMessage),
 }
 
 impl RunningState {
@@ -54,17 +47,13 @@ impl RunningState {
             frame_times: Default::default(),
             fps: Default::default(),
             last_save: Utc::now(),
-            action_picker_state: Default::default(),
-            combat_style_picker_state: Default::default(),
-            combat_location_picker_state: Default::default(),
-            quest_column_scrollable_state: Default::default(),
-            event_log_scrollable_state: Default::default(),
+            main_view_state: MainViewState::new(),
         }
     }
 
     pub fn update(
         &mut self,
-        _configuration: &Configuration,
+        configuration: &Configuration,
         message: RunningMessage,
     ) -> Command<Message> {
         match message {
@@ -142,61 +131,17 @@ impl RunningState {
             RunningMessage::CombatLocationChanged(combat_location) => {
                 self.game_state.selected_combat_location = combat_location;
             }
+            RunningMessage::MainView(main_view_message) => {
+                return self
+                    .main_view_state
+                    .update(configuration, main_view_message)
+            }
         }
 
         Command::none()
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        let label_column_width = 160;
-
-        let action_column = Column::new()
-            .width(Length::Shrink)
-            .height(Length::Fill)
-            .spacing(5)
-            .padding(5)
-            .push(labelled_element(
-                "Selected action:",
-                label_column_width,
-                PickList::new(
-                    &mut self.action_picker_state,
-                    self.game_state
-                        .list_feasible_actions()
-                        .map(|action| action.name.clone())
-                        .collect::<Vec<_>>(),
-                    Some(self.game_state.selected_action.clone()),
-                    |action| RunningMessage::ActionChanged(action).into(),
-                ),
-            ))
-            .push(labelled_element(
-                "Combat style:",
-                label_column_width,
-                PickList::new(
-                    &mut self.combat_style_picker_state,
-                    all::<CombatStyle>().collect::<Vec<_>>(),
-                    Some(self.game_state.selected_combat_style.clone()),
-                    |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
-                ),
-            ))
-            .push(labelled_label(
-                "Damage per minute:",
-                label_column_width,
-                format!("{:.0}", self.game_state.damage_output()),
-            ))
-            .push(labelled_element(
-                "Combat location:",
-                label_column_width,
-                PickList::new(
-                    &mut self.combat_location_picker_state,
-                    self.game_state
-                        .list_feasible_locations()
-                        .map(|location| location.name.clone())
-                        .collect::<Vec<_>>(),
-                    Some(self.game_state.selected_combat_location.clone()),
-                    |combat_location| RunningMessage::CombatLocationChanged(combat_location).into(),
-                ),
-            ));
-
         Column::new()
             .width(Length::Fill)
             .height(Length::Fill)
@@ -297,42 +242,7 @@ impl RunningState {
                                 .size(12),
                             ),
                     )
-                    .push(
-                        Column::new()
-                            .width(Length::Fill)
-                            .height(Length::Fill)
-                            .spacing(5)
-                            .padding(5)
-                            .push(
-                                Row::new()
-                                    .width(Length::Fill)
-                                    .height(Length::Fill)
-                                    .spacing(5)
-                                    .padding(5)
-                                    .push(action_column)
-                                    .push(
-                                        scrollable_quest_column(
-                                            &self.game_state.story,
-                                            &mut self.quest_column_scrollable_state,
-                                        )
-                                        .width(Length::Units(300))
-                                        .height(Length::Fill),
-                                    )
-                                    .push(
-                                        event_log(
-                                            &self.game_state,
-                                            &mut self.event_log_scrollable_state,
-                                        )
-                                        .width(Length::Units(300))
-                                        .height(Length::Fill),
-                                    ),
-                            )
-                            .push(active_action_description(&self.game_state))
-                            .push(ProgressBar::new(
-                                0.0..=1.0,
-                                self.game_state.current_action_progress(),
-                            )),
-                    ),
+                    .push(self.main_view_state.view(&self.game_state)),
             )
             .into()
     }
