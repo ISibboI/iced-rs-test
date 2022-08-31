@@ -1,4 +1,4 @@
-use crate::game_state::actions::ActionInProgress;
+use crate::game_state::actions::{ActionInProgress, Actions};
 use crate::game_state::story::quests::quest_conditions::QuestConditionEvaluation;
 use crate::game_state::story::quests::{init_quests, CompiledQuest, QuestId};
 use crate::game_state::time::GameTime;
@@ -21,6 +21,25 @@ pub struct Story {
 }
 
 impl Story {
+    pub fn new(actions: &Actions) -> Self {
+        let mut result = Self {
+            inactive_quests: init_quests(actions),
+            active_quests: Default::default(),
+            active_quests_by_activation_time: Default::default(),
+            completed_quests: Default::default(),
+            completed_quests_by_completion_time: Default::default(),
+        };
+        let all_quests: Vec<_> = result.inactive_quests.keys().copied().collect();
+        result.update_activation_and_completion(
+            GameTime::default(),
+            Default::default(),
+            Default::default(),
+            all_quests.clone(),
+            all_quests,
+        );
+        result
+    }
+
     /// Check the given quests for activation.
     fn activate_quests(
         &mut self,
@@ -157,26 +176,5 @@ impl Story {
                 })
                 .collect();
         }
-    }
-}
-
-impl Default for Story {
-    fn default() -> Self {
-        let mut result = Self {
-            inactive_quests: init_quests(),
-            active_quests: Default::default(),
-            active_quests_by_activation_time: Default::default(),
-            completed_quests: Default::default(),
-            completed_quests_by_completion_time: Default::default(),
-        };
-        let all_quests: Vec<_> = result.inactive_quests.keys().copied().collect();
-        result.update_activation_and_completion(
-            GameTime::default(),
-            Default::default(),
-            Default::default(),
-            all_quests.clone(),
-            all_quests,
-        );
-        result
     }
 }

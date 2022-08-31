@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use crate::game_state::actions::ActionInProgress;
+use crate::game_state::actions::{ActionId, ActionInProgress};
 use crate::game_state::story::quests::{QuestId, QuestStateMarker};
 use crate::game_state::time::GameTime;
 use serde::{Deserialize, Serialize};
@@ -52,15 +52,15 @@ pub enum QuestCondition {
 pub enum CompiledQuestCondition {
     None,
     ActionIs {
-        action: String,
+        action: ActionId,
         fulfilled: bool,
     },
     ActionIsNot {
-        action: String,
+        action: ActionId,
         fulfilled: bool,
     },
     ActionCount {
-        action: String,
+        action: ActionId,
         current: usize,
         required: usize,
     },
@@ -96,20 +96,24 @@ pub enum CompiledQuestCondition {
 }
 
 impl QuestCondition {
-    pub fn compile(self, id_map: &HashMap<String, QuestId>) -> CompiledQuestCondition {
+    pub fn compile(
+        self,
+        quest_id_map: &HashMap<String, QuestId>,
+        action_id_map: &HashMap<String, ActionId>,
+    ) -> CompiledQuestCondition {
         match self {
             QuestCondition::None => CompiledQuestCondition::None,
             QuestCondition::ActionIs { action } => CompiledQuestCondition::ActionIs {
-                action,
+                action: *action_id_map.get(&action).unwrap(),
                 fulfilled: false,
             },
             QuestCondition::ActionIsNot { action } => CompiledQuestCondition::ActionIsNot {
-                action,
+                action: *action_id_map.get(&action).unwrap(),
                 fulfilled: false,
             },
             QuestCondition::ActionCount { action, required } => {
                 CompiledQuestCondition::ActionCount {
-                    action,
+                    action: *action_id_map.get(&action).unwrap(),
                     required,
                     current: 0,
                 }
@@ -119,33 +123,33 @@ impl QuestCondition {
                 fulfilled: false,
             },
             QuestCondition::Inactive { quest } => CompiledQuestCondition::Inactive {
-                quest: *id_map.get(&quest).unwrap(),
+                quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
             QuestCondition::Active { quest } => CompiledQuestCondition::Active {
-                quest: *id_map.get(&quest).unwrap(),
+                quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
             QuestCondition::Completed { quest } => CompiledQuestCondition::Completed {
-                quest: *id_map.get(&quest).unwrap(),
+                quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
             QuestCondition::And { conditions } => CompiledQuestCondition::And {
                 conditions: conditions
                     .into_iter()
-                    .map(|condition| condition.compile(id_map))
+                    .map(|condition| condition.compile(quest_id_map, action_id_map))
                     .collect(),
             },
             QuestCondition::Or { conditions } => CompiledQuestCondition::Or {
                 conditions: conditions
                     .into_iter()
-                    .map(|condition| condition.compile(id_map))
+                    .map(|condition| condition.compile(quest_id_map, action_id_map))
                     .collect(),
             },
             QuestCondition::AnyN { conditions, n } => CompiledQuestCondition::AnyN {
                 conditions: conditions
                     .into_iter()
-                    .map(|condition| condition.compile(id_map))
+                    .map(|condition| condition.compile(quest_id_map, action_id_map))
                     .collect(),
                 n,
             },
@@ -161,7 +165,7 @@ impl CompiledQuestCondition {
         match self {
             CompiledQuestCondition::None => QuestConditionEvaluation::True,
             CompiledQuestCondition::ActionIs { action, fulfilled } => {
-                if action_in_progress.action.name == *action {
+                if action_in_progress.action == *action {
                     *fulfilled = true;
                     QuestConditionEvaluation::True
                 } else {
@@ -169,7 +173,7 @@ impl CompiledQuestCondition {
                 }
             }
             CompiledQuestCondition::ActionIsNot { action, fulfilled } => {
-                if action_in_progress.action.name != *action {
+                if action_in_progress.action != *action {
                     *fulfilled = true;
                     QuestConditionEvaluation::True
                 } else {
@@ -181,7 +185,7 @@ impl CompiledQuestCondition {
                 current,
                 required,
             } => {
-                if action_in_progress.action.name == *action {
+                if action_in_progress.action == *action {
                     *current += 1;
                 }
                 if current >= required {

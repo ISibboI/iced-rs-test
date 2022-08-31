@@ -1,6 +1,4 @@
-use crate::game_state::actions::{
-    ActionInProgress, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
-};
+use crate::game_state::actions::{ActionId, ActionInProgress, Actions};
 use crate::game_state::story::quests::quest_conditions::*;
 use crate::game_state::time::GameTime;
 use log::trace;
@@ -11,23 +9,23 @@ pub mod quest_conditions;
 #[cfg(test)]
 mod tests;
 
-pub fn init_quests() -> HashMap<QuestId, CompiledQuest> {
+pub fn init_quests(actions: &Actions) -> HashMap<QuestId, CompiledQuest> {
     let quests = vec![
         Quest::new(
             "init",
             "Wake up!",
             "Wait until six o'clock, and you will wake up to a new day full of adventure!",
             none(),
-            action_is(ACTION_SLEEP) & time_geq(GameTime::from_seconds(1)) // dodge the initial dummy sleeping action that ends at time 0
+            action_is("Sleep"),
         ),
         Quest::new("train_str", "Lift weights", "Lift weights a few times to gain some strength.", completed("init"), action_count("Lift weights", 5)),
         Quest::new("train_sta", "Go for a run", "Jog around a bit to increase your stamina.", completed("init"), action_count("Jog", 5)),
         Quest::new("train_dex", "Try out juggling", "Practice some juggling to improve your dexterity.", completed("init"), action_count("Practice juggling", 5)),
         Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", completed("init"), action_count("Study logic", 5)),
         Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", completed("init"), action_count("Read", 5)),
-        Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", completed("init"), action_count(ACTION_TAVERN, 5)),
+        Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", completed("init"), action_count("Tavern", 5)),
         Quest::hidden("fight_monsters_pre", none(), any_n([completed("train_str"), completed("train_sta"), completed("train_dex"), completed("train_int"), completed("train_wis"), completed("train_chr")], 2)),
-        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", completed("fight_monsters_pre"), action_count(ACTION_FIGHT_MONSTERS, 10)),
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", completed("fight_monsters_pre"), action_count("Fight monsters", 10)),
     ];
     let id_map: HashMap<_, QuestId> = quests
         .iter()
@@ -38,7 +36,7 @@ pub fn init_quests() -> HashMap<QuestId, CompiledQuest> {
     quests
         .into_iter()
         .map(|quest| {
-            let compiled_quest = quest.compile(&id_map);
+            let compiled_quest = quest.compile(&id_map, actions.actions_by_name());
             (compiled_quest.id, compiled_quest)
         })
         .collect()
@@ -104,14 +102,18 @@ impl Quest {
         }
     }
 
-    fn compile(self, id_map: &HashMap<String, QuestId>) -> CompiledQuest {
+    fn compile(
+        self,
+        quest_id_map: &HashMap<String, QuestId>,
+        action_id_map: &HashMap<String, ActionId>,
+    ) -> CompiledQuest {
         CompiledQuest {
-            id: *id_map.get(&self.id_str).unwrap(),
+            id: *quest_id_map.get(&self.id_str).unwrap(),
             id_str: self.id_str,
             title: self.title,
             description: self.description,
-            precondition: self.precondition.compile(id_map),
-            condition: self.condition.compile(id_map),
+            precondition: self.precondition.compile(quest_id_map, action_id_map),
+            condition: self.condition.compile(quest_id_map, action_id_map),
             hidden: self.hidden,
             state: QuestState::Inactive,
         }
@@ -133,9 +135,9 @@ impl CompiledQuest {
                         activation_time: action_in_progress.end,
                     };
                     trace!(
-                        "Quest {} was activated by action {}",
+                        "Quest {} was activated by action {:?}",
                         self.id_str,
-                        action_in_progress.action.name
+                        action_in_progress.action
                     );
                 }
                 result
@@ -148,9 +150,9 @@ impl CompiledQuest {
                         completion_time: action_in_progress.end,
                     };
                     trace!(
-                        "Quest {} was completed by action {}",
+                        "Quest {} was completed by action {:?}",
                         self.id_str,
-                        action_in_progress.action.name
+                        action_in_progress.action
                     );
                 }
                 result

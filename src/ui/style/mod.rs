@@ -1,4 +1,5 @@
-use iced::{button, container, Background, Color, Vector};
+use iced::radio::Style;
+use iced::{button, container, radio, Background, Color, Vector};
 
 pub const WHITE: Color = Color {
     r: 1.0,
@@ -7,6 +8,12 @@ pub const WHITE: Color = Color {
     a: 1.0,
 };
 pub const LIGHT_GREY: Color = Color {
+    r: 0.9,
+    g: 0.9,
+    b: 0.9,
+    a: 1.0,
+};
+pub const GREY: Color = Color {
     r: 0.8,
     g: 0.8,
     b: 0.8,
@@ -60,7 +67,7 @@ impl button::StyleSheet for SelectedButtonStyleSheet {
     fn active(&self) -> button::Style {
         button::Style {
             shadow_offset: Vector::new(0.0, 0.0),
-            background: Some(Background::Color(LIGHT_GREY)),
+            background: Some(Background::Color(GREY)),
             border_radius: 5.0,
             border_width: 1.0,
             border_color: BLACK,
@@ -72,5 +79,29 @@ impl button::StyleSheet for SelectedButtonStyleSheet {
 impl SelectedButtonStyleSheet {
     pub fn style_sheet() -> Box<dyn button::StyleSheet> {
         Box::new(Self)
+    }
+}
+
+pub struct RadioStyleSheet;
+
+impl radio::StyleSheet for RadioStyleSheet {
+    fn active(&self) -> Style {
+        radio::Style {
+            background: Background::Color(LIGHT_GREY),
+            dot_color: BLACK,
+            border_width: 0.5,
+            border_color: BLACK,
+            text_color: None,
+        }
+    }
+
+    fn hovered(&self) -> Style {
+        radio::Style {
+            background: Background::Color(GREY),
+            dot_color: BLACK,
+            border_width: 0.5,
+            border_color: BLACK,
+            text_color: None,
+        }
     }
 }

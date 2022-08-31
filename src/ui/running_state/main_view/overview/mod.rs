@@ -1,12 +1,10 @@
 use crate::game_state::combat::CombatStyle;
-use crate::ui::elements::{
-    active_action_description, event_log, labelled_element, labelled_label, scrollable_quest_column,
-};
+use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;
-use crate::{Configuration, GameState};
+use crate::GameState;
 use enum_iterator::all;
-use iced::{pick_list, scrollable, Column, Command, Element, Length, PickList, ProgressBar, Row};
+use iced::{pick_list, scrollable, Column, Element, Length, PickList, Row};
 
 #[derive(Debug, Clone)]
 pub struct OverviewState {
@@ -17,9 +15,6 @@ pub struct OverviewState {
     event_log_scrollable_state: scrollable::State,
 }
 
-#[derive(Clone, Debug)]
-pub enum OverviewMessage {}
-
 impl OverviewState {
     pub fn new() -> Self {
         Self {
@@ -29,14 +24,6 @@ impl OverviewState {
             quest_column_scrollable_state: Default::default(),
             event_log_scrollable_state: Default::default(),
         }
-    }
-
-    pub fn update(
-        &mut self,
-        _configuration: &Configuration,
-        _message: OverviewMessage,
-    ) -> Command<Message> {
-        Command::none()
     }
 
     pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
@@ -53,11 +40,18 @@ impl OverviewState {
                 PickList::new(
                     &mut self.action_picker_state,
                     game_state
-                        .list_feasible_actions()
-                        .map(|action| action.name.clone())
+                        .actions
+                        .list_choosable()
+                        .map(|action| game_state.actions.action(action).name.clone())
                         .collect::<Vec<_>>(),
-                    Some(game_state.selected_action.clone()),
-                    |action| RunningMessage::ActionChanged(action).into(),
+                    Some(
+                        game_state
+                            .actions
+                            .action(game_state.actions.selected_action)
+                            .name
+                            .clone(),
+                    ),
+                    |action| RunningMessage::ActionChangedString(action).into(),
                 ),
             ))
             .push(labelled_element(
@@ -115,11 +109,6 @@ impl OverviewState {
                             .height(Length::Fill),
                     ),
             )
-            .push(active_action_description(game_state))
-            .push(ProgressBar::new(
-                0.0..=1.0,
-                game_state.current_action_progress(),
-            ))
             .into()
     }
 }

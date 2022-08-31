@@ -1,4 +1,4 @@
-use crate::game_state::actions::{ActionInProgress, ACTION_FIGHT_MONSTERS};
+use crate::game_state::actions::{DerefActionInProgress, ACTION_FIGHT_MONSTERS};
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
@@ -220,18 +220,20 @@ pub fn event_log<'a, T: 'a>(
 
 pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row<'a, T> {
     match &event.kind {
-        GameEventKind::Action(action) => completed_action_description(action, game_state),
+        GameEventKind::Action(action) => {
+            completed_action_description(&action.resolve(&game_state.actions), game_state)
+        }
     }
 }
 
 pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T> {
-    let current_action_currency_reward = game_state.current_action.currency_reward;
+    let current_action = game_state.actions.in_progress();
+    let current_action_currency_reward = current_action.currency_reward;
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} is currently {}{}",
         game_state.character.name,
-        if game_state.current_action.action.name == ACTION_FIGHT_MONSTERS {
-            let monster_name = game_state
-                .current_action
+        if current_action.action.id == ACTION_FIGHT_MONSTERS {
+            let monster_name = current_action
                 .monster
                 .as_ref()
                 .unwrap()
@@ -239,11 +241,7 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
             let a = a_or_an(&monster_name);
             format!("fighting {a} {monster_name}")
         } else {
-            game_state
-                .current_action
-                .action
-                .verb_progressive
-                .to_string()
+            current_action.action.verb_progressive.to_string()
         },
         match current_action_currency_reward.cmp(&Currency::zero()) {
             Ordering::Less => " costing him ",
@@ -256,22 +254,22 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
     } else {
         action_descriptor_row
     };
-    if !game_state.current_action.success {
+    if !current_action.success {
         action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
     } else {
         action_descriptor_row
     }
 }
 
-pub fn completed_action_description<'a, T: 'a>(
-    action: &ActionInProgress,
+pub fn completed_action_description<'result, 'action, T: 'result>(
+    action: &DerefActionInProgress<'action>,
     game_state: &GameState,
-) -> Row<'a, T> {
+) -> Row<'result, T> {
     let current_action_currency_reward = action.currency_reward;
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} {}{}",
         game_state.character.name,
-        if action.action.name == ACTION_FIGHT_MONSTERS {
+        if action.action.id == ACTION_FIGHT_MONSTERS {
             let monster_name = action.monster.as_ref().unwrap().to_lowercase_string();
             let a = a_or_an(&monster_name);
             format!("fought {a} {monster_name}")

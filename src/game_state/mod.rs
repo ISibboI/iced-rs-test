@@ -1,6 +1,5 @@
 use crate::game_state::actions::{
-    initial_action, Action, ActionInProgress, ACTIONS, ACTION_FIGHT_MONSTERS, ACTION_INITIALISE,
-    ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
+    ActionInProgress, Actions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
 };
 use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
 use crate::game_state::combat::CombatStyle;
@@ -13,6 +12,7 @@ use chrono::{DateTime, Duration, Utc};
 use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 
 pub mod actions;
 pub mod character;
@@ -30,12 +30,11 @@ pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 pub struct GameState {
     pub savegame_file: String,
     pub character: Character,
-    pub current_action: ActionInProgress,
-    pub selected_action: String,
     pub selected_combat_style: CombatStyle,
     pub selected_combat_location: String,
     pub current_time: GameTime,
     pub last_update: DateTime<Utc>,
+    pub actions: Actions,
     pub story: Story,
     pub log: EventLog,
 }
@@ -43,18 +42,22 @@ pub struct GameState {
 impl GameState {
     pub fn new(savegame_file: String, name: String, race: CharacterRace) -> Self {
         let selected_combat_style = race.starting_combat_style();
-        Self {
+        let actions = Actions::new();
+        let story = Story::new(&actions);
+
+        let mut result = Self {
             savegame_file,
             character: Character::new(name, race),
-            current_action: initial_action(),
-            selected_action: ACTION_WAIT.to_string(),
             selected_combat_style,
             selected_combat_location: LOCATION_VILLAGE.to_string(),
             current_time: Default::default(),
             last_update: Utc::now(),
-            story: Default::default(),
+            actions,
+            story,
             log: EventLog::default(),
-        }
+        };
+        result.update(0);
+        result
     }
 
     pub fn update(&mut self, passed_real_milliseconds: i64) {
@@ -66,34 +69,39 @@ impl GameState {
         let passed_game_time = passed_real_milliseconds * GAME_TIME_PER_MILLISECOND;
         self.current_time += passed_game_time;
 
-        while self.current_action.end < self.current_time {
-            if self.current_action.success {
+        if !self.actions.has_action_in_progress() {
+            self.next_action(self.current_time);
+            debug!("New action: {:?}", self.actions.in_progress());
+        }
+
+        while self.actions.in_progress().end < self.current_time {
+            if self.actions.in_progress().success {
                 self.character
-                    .add_attribute_progress(self.current_action.attribute_progress);
-                self.character.currency += self.current_action.currency_reward;
+                    .add_attribute_progress(self.actions.in_progress().attribute_progress);
+                self.character.currency += self.actions.in_progress().currency_reward;
 
-                self.story.update(&self.current_action);
+                self.story.update(&self.actions.in_progress());
             }
-            if self.current_action.action.name != ACTION_INITIALISE {
-                self.log.log(self.current_action.clone());
-            }
+            self.log.log(self.actions.in_progress().deref().clone());
 
-            self.next_action();
-            debug!("New action: {:?}", self.current_action);
+            self.next_action(self.actions.in_progress().end);
+            debug!("New action: {:?}", self.actions.in_progress());
         }
 
         self.last_update += Duration::milliseconds(passed_real_milliseconds);
     }
 
-    fn next_action(&mut self) {
+    fn next_action(&mut self, start_time: GameTime) {
         let earliest_tavern_time = GameTime::from_hours(19);
         let latest_tavern_time = GameTime::from_hours(21);
 
-        let start_time = self.current_action.end;
+        if self.actions.has_action_in_progress() {
+            assert_eq!(self.actions.in_progress().end, start_time);
+        }
         let hour_of_day = start_time.hour_of_day();
         let time_of_day = start_time.time_of_day();
 
-        let tavern_currency_gain = ACTIONS.get(ACTION_TAVERN).unwrap().currency_gain;
+        let tavern_currency_gain = self.actions.action(ACTION_TAVERN).currency_gain;
 
         let action = if !(6..22).contains(&hour_of_day) {
             // sleep until 6 in the morning
@@ -104,14 +112,14 @@ impl GameState {
             } + GameTime::from_hours(6);
             let duration = end_time - start_time;
 
-            let action = ACTIONS.get(ACTION_SLEEP).unwrap().clone();
+            let action = self.actions.action(ACTION_SLEEP);
             ActionInProgress {
+                action: action.id,
                 start: start_time,
                 end: end_time,
                 attribute_progress: action.attribute_progress_factor.into_progress(duration),
                 monster: None,
                 currency_reward: Currency::zero(),
-                action,
                 success: true,
             }
         } else if self.character.currency >= -tavern_currency_gain
@@ -119,21 +127,21 @@ impl GameState {
                 .gen_range(earliest_tavern_time.seconds()..=latest_tavern_time.seconds())
                 <= time_of_day.seconds()
         {
-            let action = ACTIONS.get(ACTION_TAVERN).unwrap().clone();
+            let action = self.actions.action(ACTION_TAVERN);
             let duration = GameTime::from_hours(1);
             ActionInProgress {
+                action: action.id,
                 start: start_time,
                 end: start_time + duration,
                 attribute_progress: action.attribute_progress_factor.into_progress(duration),
                 monster: None,
                 currency_reward: tavern_currency_gain,
-                action,
                 success: true,
             }
         } else {
-            let action = ACTIONS.get(&self.selected_action).unwrap().clone();
+            let action = self.actions.action(self.actions.selected_action);
 
-            if action.name == ACTION_FIGHT_MONSTERS {
+            if action.id == ACTION_FIGHT_MONSTERS {
                 let location = LOCATIONS.get(&self.selected_combat_location).unwrap();
                 let monster = location.spawn();
                 let damage = self.damage_output();
@@ -145,7 +153,7 @@ impl GameState {
                 let success = duration < MAX_COMBAT_DURATION;
 
                 ActionInProgress {
-                    action,
+                    action: action.id,
                     start: start_time,
                     end: start_time + duration,
                     attribute_progress,
@@ -156,41 +164,31 @@ impl GameState {
             } else {
                 let duration = GameTime::from_hours(1);
                 ActionInProgress {
+                    action: action.id,
                     start: start_time,
                     end: start_time + duration,
                     attribute_progress: action.attribute_progress_factor.into_progress(duration),
                     monster: None,
                     currency_reward: action.currency_gain,
-                    action,
                     success: true,
                 }
             }
         };
-        self.current_action = action;
+        self.actions.set_in_progress(action);
     }
 
     /// The progress of the current action as value between 0.0 and 1.0.
     pub fn current_action_progress(&self) -> f32 {
-        if self.current_action.length().seconds() <= 0
-            || self.current_action.end <= self.current_time
-        {
+        let current_action = self.actions.in_progress();
+        if current_action.length().seconds() <= 0 || current_action.end <= self.current_time {
             1.0
-        } else if self.current_action.start >= self.current_time {
+        } else if current_action.start >= self.current_time {
             0.0
         } else {
-            let duration = self.current_action.length().seconds() as f32;
-            let progress = (self.current_time - self.current_action.start).seconds() as f32;
+            let duration = current_action.length().seconds() as f32;
+            let progress = (self.current_time - current_action.start).seconds() as f32;
             progress / duration
         }
-    }
-
-    pub fn list_feasible_actions<'output>(
-        &self,
-    ) -> impl 'output + Iterator<Item = &'output Action> {
-        let level = self.character.level;
-        ACTIONS
-            .values()
-            .filter(move |action| level >= action.required_level)
     }
 
     pub fn list_feasible_locations<'output>(

@@ -1,10 +1,11 @@
-use crate::ui::running_state::main_view::action_picker::{ActionPickerMessage, ActionPickerState};
-use crate::ui::running_state::main_view::overview::{OverviewMessage, OverviewState};
+use crate::ui::elements::active_action_description;
+use crate::ui::running_state::main_view::action_picker::ActionPickerState;
+use crate::ui::running_state::main_view::overview::OverviewState;
 use crate::ui::running_state::RunningMessage;
 use crate::ui::style::{ButtonStyleSheet, FramedContainer, SelectedButtonStyleSheet};
 use crate::ui::Message;
 use crate::{Configuration, GameState};
-use iced::{button, Button, Column, Command, Container, Element, Row, Text};
+use iced::{button, Button, Column, Command, Container, Element, Length, ProgressBar, Row, Text};
 
 mod action_picker;
 mod overview;
@@ -23,8 +24,6 @@ pub struct MainViewState {
 #[derive(Clone, Debug)]
 pub enum MainViewMessage {
     SelectView(SelectedView),
-    Overview(OverviewMessage),
-    ActionPicker(ActionPickerMessage),
 }
 
 impl MainViewState {
@@ -42,19 +41,11 @@ impl MainViewState {
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        _configuration: &Configuration,
         message: MainViewMessage,
     ) -> Command<Message> {
         match message {
             MainViewMessage::SelectView(selected_view) => self.selected_view = selected_view,
-            MainViewMessage::Overview(overview_message) => {
-                return self.overview_state.update(configuration, overview_message);
-            }
-            MainViewMessage::ActionPicker(action_picker_message) => {
-                return self
-                    .action_picker_state
-                    .update(configuration, action_picker_message);
-            }
         }
 
         Command::none()
@@ -63,9 +54,12 @@ impl MainViewState {
     pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
         Container::new(
             Column::new()
+                .spacing(5)
+                .padding(5)
                 .push(
                     Container::new(
                         Row::new()
+                            .width(Length::Fill)
                             .padding(5)
                             .spacing(5)
                             .push(
@@ -109,7 +103,12 @@ impl MainViewState {
                     SelectedView::Overview => self.overview_state.view(game_state),
                     SelectedView::ActionPicker => self.action_picker_state.view(game_state),
                     SelectedView::Calendar => todo!(),
-                }),
+                })
+                .push(active_action_description(game_state))
+                .push(ProgressBar::new(
+                    0.0..=1.0,
+                    game_state.current_action_progress(),
+                )),
         )
         .padding(5)
         .style(FramedContainer)
