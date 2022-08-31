@@ -2,7 +2,7 @@ use crate::game_state::actions::{ActionInProgress, Actions};
 use crate::game_state::story::quests::quest_conditions::QuestConditionEvaluation;
 use crate::game_state::story::quests::{init_quests, CompiledQuest, QuestId};
 use crate::game_state::time::GameTime;
-use log::debug;
+use log::{debug, trace};
 use std::collections::{BTreeSet, HashMap, HashSet};
 use std::fmt::Debug;
 
@@ -30,12 +30,13 @@ impl Story {
             completed_quests_by_completion_time: Default::default(),
         };
         let all_quests: Vec<_> = result.inactive_quests.keys().copied().collect();
+        debug!("Doing initial story update");
         result.update_activation_and_completion(
             GameTime::default(),
             Default::default(),
             Default::default(),
-            all_quests.clone(),
             all_quests,
+            Default::default(),
         );
         result
     }
@@ -129,7 +130,9 @@ impl Story {
         mut activable_quests_by_state_change: Vec<QuestId>,
         mut completable_quests_by_state_change: Vec<QuestId>,
     ) {
-        while !activated_quests.is_empty() || !completed_quests.is_empty() {
+        let mut once = true;
+        while !activated_quests.is_empty() || !completed_quests.is_empty() || once {
+            once = false;
             self.activate_quests(activated_quests.iter().copied(), time);
             self.complete_quests(completed_quests.iter().copied(), time);
 
@@ -144,37 +147,58 @@ impl Story {
                 .into_iter()
                 .filter(|id| {
                     let inactive_quest = self.inactive_quests.get_mut(id).unwrap();
+                    assert!(inactive_quest.state.is_inactive());
                     inactive_quest.activate_quests(&old_activated_quests, time);
-                    let evaluation = inactive_quest.complete_quests(&old_completed_quests, time);
-                    if evaluation == QuestConditionEvaluation::True {
+                    assert!(!inactive_quest.state.is_completed());
+                    if inactive_quest.state.is_active() {
                         true
-                    } else if evaluation == QuestConditionEvaluation::FulfillableByQuestStateChanges
-                    {
-                        activable_quests_by_state_change.push(*id);
-                        false
                     } else {
-                        false
+                        assert!(inactive_quest.state.is_inactive());
+                        let evaluation =
+                            inactive_quest.complete_quests(&old_completed_quests, time);
+                        assert!(!inactive_quest.state.is_completed());
+                        if inactive_quest.state.is_active() {
+                            true
+                        } else if evaluation
+                            == QuestConditionEvaluation::FulfillableByQuestStateChanges
+                        {
+                            activable_quests_by_state_change.push(*id);
+                            false
+                        } else {
+                            false
+                        }
                     }
                 })
                 .collect();
+            trace!("Activated quests: {activated_quests:?}");
 
             completed_quests = old_completable_quests_by_state_change
                 .into_iter()
                 .filter(|id| {
                     let active_quest = self.active_quests.get_mut(id).unwrap();
+                    assert!(active_quest.state.is_active());
                     active_quest.activate_quests(&old_activated_quests, time);
-                    let evaluation = active_quest.complete_quests(&old_completed_quests, time);
-                    if evaluation == QuestConditionEvaluation::True {
+                    assert!(!active_quest.state.is_inactive());
+                    if active_quest.state.is_completed() {
                         true
-                    } else if evaluation == QuestConditionEvaluation::FulfillableByQuestStateChanges
-                    {
-                        completable_quests_by_state_change.push(*id);
-                        false
                     } else {
-                        false
+                        assert!(active_quest.state.is_active());
+                        let evaluation = active_quest.complete_quests(&old_completed_quests, time);
+                        assert!(!active_quest.state.is_inactive());
+                        if active_quest.state.is_completed() {
+                            true
+                        } else if evaluation
+                            == QuestConditionEvaluation::FulfillableByQuestStateChanges
+                        {
+                            completable_quests_by_state_change.push(*id);
+                            false
+                        } else {
+                            false
+                        }
                     }
                 })
                 .collect();
+            trace!("Completed quests: {activated_quests:?}");
         }
     }
 }
