@@ -399,6 +399,84 @@ impl CompiledQuestCondition {
             }
         }
     }
+
+    pub fn progress(&self) -> (f64, f64) {
+        match self {
+            CompiledQuestCondition::None => (0.0, 0.0),
+            CompiledQuestCondition::ActionIs { fulfilled, .. } => {
+                (bool_to_one_zero(*fulfilled), 1.0)
+            }
+            CompiledQuestCondition::ActionIsNot { fulfilled, .. } => {
+                (bool_to_one_zero(*fulfilled), 1.0)
+            }
+            CompiledQuestCondition::ActionCount {
+                current, required, ..
+            } => ((*current.min(required)) as f64, (*required) as f64),
+            CompiledQuestCondition::TimeGeq { fulfilled, .. } => {
+                (bool_to_one_zero(*fulfilled), 1.0)
+            }
+            CompiledQuestCondition::Inactive { state, .. } => {
+                (bool_to_one_zero(*state == QuestStateMarker::Inactive), 1.0)
+            }
+            CompiledQuestCondition::Active { state, .. } => {
+                (bool_to_one_zero(*state == QuestStateMarker::Active), 1.0)
+            }
+            CompiledQuestCondition::Completed { state, .. } => {
+                (bool_to_one_zero(*state == QuestStateMarker::Completed), 1.0)
+            }
+            CompiledQuestCondition::And { conditions } => {
+                conditions
+                    .iter()
+                    .fold((0.0, 0.0), |(progress, goal), condition| {
+                        let (additional_progress, additional_goal) = condition.progress();
+                        (progress + additional_progress, goal + additional_goal)
+                    })
+            }
+            CompiledQuestCondition::Or { conditions } => {
+                if conditions.is_empty() {
+                    (0.0, 0.0)
+                } else {
+                    let (relative_progress, goal) = conditions.iter().fold(
+                        (f64::MIN, f64::MAX),
+                        |(relative_progress, goal), condition| {
+                            let (additional_progress, additional_goal) = condition.progress();
+                            let additional_relative_progress =
+                                additional_progress / additional_goal;
+                            (
+                                relative_progress.max(additional_relative_progress),
+                                goal.min(additional_goal),
+                            )
+                        },
+                    );
+                    (relative_progress * goal, goal)
+                }
+            }
+            CompiledQuestCondition::AnyN { conditions, n } => {
+                if conditions.is_empty() || *n > conditions.len() {
+                    (0.0, 0.0)
+                } else {
+                    let mut relative_progresses = Vec::with_capacity(conditions.len());
+                    let mut goals = Vec::with_capacity(conditions.len());
+                    for condition in conditions {
+                        let (progress, goal) = condition.progress();
+                        relative_progresses.push(progress / goal);
+                        goals.push(goal);
+                    }
+                    relative_progresses.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+                    goals.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap());
+                    let goal = goals.iter().take(*n).sum();
+                    let progress =
+                        relative_progresses.iter().rev().take(*n).sum::<f64>() / (*n as f64) * goal;
+                    (progress, goal)
+                }
+            }
+        }
+    }
+
+    pub fn fulfilled(&self) -> bool {
+        let (a, b) = self.progress();
+        a == b
+    }
 }
 
 pub fn none() -> QuestCondition {
@@ -661,5 +739,13 @@ impl From<&mut bool> for QuestConditionEvaluation {
         } else {
             QuestConditionEvaluation::False
         }
+    }
+}
+
+fn bool_to_one_zero(b: bool) -> f64 {
+    if b {
+        1.0
+    } else {
+        0.0
     }
 }

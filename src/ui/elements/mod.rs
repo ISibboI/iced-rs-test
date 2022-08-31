@@ -162,9 +162,11 @@ pub fn scrollable_quest_column<'a, T: 'a>(
             }
         })
     {
+        let (progress, goal) = quest.condition.progress();
         quest_column = quest_column
             .push(Text::new(&quest.title))
-            .push(Text::new(&quest.description).size(16));
+            .push(Text::new(&quest.description).size(16))
+            .push(ProgressBar::new(0.0..=goal as f32, progress as f32).height(Length::Units(10)));
     }
 
     quest_column = quest_column.push(Text::new("Completed quests:").size(24));

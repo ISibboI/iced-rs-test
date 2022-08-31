@@ -24,8 +24,7 @@ pub fn init_quests(actions: &Actions) -> HashMap<QuestId, CompiledQuest> {
         Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", completed("init"), action_count("Study logic", 5)),
         Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", completed("init"), action_count("Read", 5)),
         Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", completed("init"), action_count("Tavern", 5)),
-        Quest::hidden("fight_monsters_pre", none(), any_n([completed("train_str"), completed("train_sta"), completed("train_dex"), completed("train_int"), completed("train_wis"), completed("train_chr")], 2)),
-        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", completed("fight_monsters_pre"), action_count("Fight monsters", 10)),
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([completed("train_str"), completed("train_sta"), completed("train_dex"), completed("train_int"), completed("train_wis"), completed("train_chr")], 2), action_count("Fight monsters", 10)),
     ];
     let id_map: HashMap<_, QuestId> = quests
         .iter()
@@ -87,6 +86,7 @@ impl Quest {
         }
     }
 
+    #[allow(dead_code)]
     fn hidden(
         id: impl ToString,
         precondition: impl Into<QuestCondition>,
