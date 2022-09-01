@@ -9,7 +9,7 @@ use std::fmt::Debug;
 use std::ops::{BitAnd, BitOr};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub enum QuestCondition {
+pub enum Condition {
     None,
     ActionIs {
         action: String,
@@ -26,30 +26,30 @@ pub enum QuestCondition {
         time: GameTime,
     },
 
-    Inactive {
+    QuestInactive {
         quest: String,
     },
-    Active {
+    QuestActive {
         quest: String,
     },
-    Completed {
+    QuestCompleted {
         quest: String,
     },
 
     And {
-        conditions: Vec<QuestCondition>,
+        conditions: Vec<Condition>,
     },
     Or {
-        conditions: Vec<QuestCondition>,
+        conditions: Vec<Condition>,
     },
     AnyN {
-        conditions: Vec<QuestCondition>,
+        conditions: Vec<Condition>,
         n: usize,
     },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub enum CompiledQuestCondition {
+pub enum CompiledCondition {
     None,
     ActionIs {
         action: ActionId,
@@ -84,69 +84,67 @@ pub enum CompiledQuestCondition {
     },
 
     And {
-        conditions: Vec<CompiledQuestCondition>,
+        conditions: Vec<CompiledCondition>,
     },
     Or {
-        conditions: Vec<CompiledQuestCondition>,
+        conditions: Vec<CompiledCondition>,
     },
     AnyN {
-        conditions: Vec<CompiledQuestCondition>,
+        conditions: Vec<CompiledCondition>,
         n: usize,
     },
 }
 
-impl QuestCondition {
+impl Condition {
     pub fn compile(
         self,
         quest_id_map: &HashMap<String, QuestId>,
         action_id_map: &HashMap<String, ActionId>,
-    ) -> CompiledQuestCondition {
+    ) -> CompiledCondition {
         match self {
-            QuestCondition::None => CompiledQuestCondition::None,
-            QuestCondition::ActionIs { action } => CompiledQuestCondition::ActionIs {
+            Condition::None => CompiledCondition::None,
+            Condition::ActionIs { action } => CompiledCondition::ActionIs {
                 action: *action_id_map.get(&action).unwrap(),
                 fulfilled: false,
             },
-            QuestCondition::ActionIsNot { action } => CompiledQuestCondition::ActionIsNot {
+            Condition::ActionIsNot { action } => CompiledCondition::ActionIsNot {
                 action: *action_id_map.get(&action).unwrap(),
                 fulfilled: false,
             },
-            QuestCondition::ActionCount { action, required } => {
-                CompiledQuestCondition::ActionCount {
-                    action: *action_id_map.get(&action).unwrap(),
-                    required,
-                    current: 0,
-                }
-            }
-            QuestCondition::TimeGeq { time } => CompiledQuestCondition::TimeGeq {
+            Condition::ActionCount { action, required } => CompiledCondition::ActionCount {
+                action: *action_id_map.get(&action).unwrap(),
+                required,
+                current: 0,
+            },
+            Condition::TimeGeq { time } => CompiledCondition::TimeGeq {
                 time,
                 fulfilled: false,
             },
-            QuestCondition::Inactive { quest } => CompiledQuestCondition::Inactive {
+            Condition::QuestInactive { quest } => CompiledCondition::Inactive {
                 quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
-            QuestCondition::Active { quest } => CompiledQuestCondition::Active {
+            Condition::QuestActive { quest } => CompiledCondition::Active {
                 quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
-            QuestCondition::Completed { quest } => CompiledQuestCondition::Completed {
+            Condition::QuestCompleted { quest } => CompiledCondition::Completed {
                 quest: *quest_id_map.get(&quest).unwrap(),
                 state: QuestStateMarker::Inactive,
             },
-            QuestCondition::And { conditions } => CompiledQuestCondition::And {
+            Condition::And { conditions } => CompiledCondition::And {
                 conditions: conditions
                     .into_iter()
                     .map(|condition| condition.compile(quest_id_map, action_id_map))
                     .collect(),
             },
-            QuestCondition::Or { conditions } => CompiledQuestCondition::Or {
+            Condition::Or { conditions } => CompiledCondition::Or {
                 conditions: conditions
                     .into_iter()
                     .map(|condition| condition.compile(quest_id_map, action_id_map))
                     .collect(),
             },
-            QuestCondition::AnyN { conditions, n } => CompiledQuestCondition::AnyN {
+            Condition::AnyN { conditions, n } => CompiledCondition::AnyN {
                 conditions: conditions
                     .into_iter()
                     .map(|condition| condition.compile(quest_id_map, action_id_map))
@@ -157,14 +155,14 @@ impl QuestCondition {
     }
 }
 
-impl CompiledQuestCondition {
+impl CompiledCondition {
     pub fn update_action_completed(
         &mut self,
         action_in_progress: &ActionInProgress,
     ) -> QuestConditionEvaluation {
         match self {
-            CompiledQuestCondition::None => QuestConditionEvaluation::True,
-            CompiledQuestCondition::ActionIs { action, fulfilled } => {
+            CompiledCondition::None => QuestConditionEvaluation::True,
+            CompiledCondition::ActionIs { action, fulfilled } => {
                 if action_in_progress.action == *action {
                     *fulfilled = true;
                     QuestConditionEvaluation::True
@@ -172,7 +170,7 @@ impl CompiledQuestCondition {
                     QuestConditionEvaluation::False
                 }
             }
-            CompiledQuestCondition::ActionIsNot { action, fulfilled } => {
+            CompiledCondition::ActionIsNot { action, fulfilled } => {
                 if action_in_progress.action != *action {
                     *fulfilled = true;
                     QuestConditionEvaluation::True
@@ -180,7 +178,7 @@ impl CompiledQuestCondition {
                     QuestConditionEvaluation::False
                 }
             }
-            CompiledQuestCondition::ActionCount {
+            CompiledCondition::ActionCount {
                 action,
                 current,
                 required,
@@ -194,7 +192,7 @@ impl CompiledQuestCondition {
                     QuestConditionEvaluation::False
                 }
             }
-            CompiledQuestCondition::TimeGeq { time, fulfilled } => {
+            CompiledCondition::TimeGeq { time, fulfilled } => {
                 if action_in_progress.end >= *time {
                     *fulfilled = true;
                     QuestConditionEvaluation::True
@@ -202,38 +200,38 @@ impl CompiledQuestCondition {
                     QuestConditionEvaluation::False
                 }
             }
-            CompiledQuestCondition::Inactive { state, .. } => {
+            CompiledCondition::Inactive { state, .. } => {
                 if state.is_inactive() {
                     QuestConditionEvaluation::True
                 } else {
                     QuestConditionEvaluation::FulfillableByQuestStateChanges
                 }
             }
-            CompiledQuestCondition::Active { state, .. } => {
+            CompiledCondition::Active { state, .. } => {
                 if state.is_active() {
                     QuestConditionEvaluation::True
                 } else {
                     QuestConditionEvaluation::FulfillableByQuestStateChanges
                 }
             }
-            CompiledQuestCondition::Completed { state, .. } => {
+            CompiledCondition::Completed { state, .. } => {
                 if state.is_completed() {
                     QuestConditionEvaluation::True
                 } else {
                     QuestConditionEvaluation::FulfillableByQuestStateChanges
                 }
             }
-            CompiledQuestCondition::And { conditions } => conditions
+            CompiledCondition::And { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::True, |result, condition| {
                     result & condition.update_action_completed(action_in_progress)
                 }),
-            CompiledQuestCondition::Or { conditions } => conditions
+            CompiledCondition::Or { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::False, |result, condition| {
                     result | condition.update_action_completed(action_in_progress)
                 }),
-            CompiledQuestCondition::AnyN { conditions, n } => {
+            CompiledCondition::AnyN { conditions, n } => {
                 let counts = conditions.iter_mut().fold(
                     QuestConditionEvaluationCounts::default(),
                     |mut counts, condition| {
@@ -251,14 +249,14 @@ impl CompiledQuestCondition {
         activated_quests: &HashSet<QuestId>,
     ) -> QuestConditionEvaluation {
         match self {
-            CompiledQuestCondition::None => QuestConditionEvaluation::True,
-            CompiledQuestCondition::ActionIs { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::ActionIsNot { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::ActionCount {
+            CompiledCondition::None => QuestConditionEvaluation::True,
+            CompiledCondition::ActionIs { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::ActionIsNot { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::ActionCount {
                 current, required, ..
             } => (current >= required).into(),
-            CompiledQuestCondition::TimeGeq { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::Inactive { quest, state } => {
+            CompiledCondition::TimeGeq { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::Inactive { quest, state } => {
                 if activated_quests.contains(quest) {
                     assert_eq!(*state, QuestStateMarker::Inactive);
                     *state = QuestStateMarker::Active;
@@ -269,7 +267,7 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::False,
                 }
             }
-            CompiledQuestCondition::Active { quest, state } => {
+            CompiledCondition::Active { quest, state } => {
                 if activated_quests.contains(quest) {
                     assert_eq!(*state, QuestStateMarker::Inactive);
                     *state = QuestStateMarker::Active;
@@ -282,7 +280,7 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::False,
                 }
             }
-            CompiledQuestCondition::Completed { quest, state } => {
+            CompiledCondition::Completed { quest, state } => {
                 if activated_quests.contains(quest) {
                     assert_eq!(*state, QuestStateMarker::Inactive);
                     *state = QuestStateMarker::Active;
@@ -297,17 +295,17 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::True,
                 }
             }
-            CompiledQuestCondition::And { conditions } => conditions
+            CompiledCondition::And { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::True, |result, condition| {
                     result & condition.activate_quests(activated_quests)
                 }),
-            CompiledQuestCondition::Or { conditions } => conditions
+            CompiledCondition::Or { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::False, |result, condition| {
                     result | condition.activate_quests(activated_quests)
                 }),
-            CompiledQuestCondition::AnyN { conditions, n } => {
+            CompiledCondition::AnyN { conditions, n } => {
                 let counts = conditions.iter_mut().fold(
                     QuestConditionEvaluationCounts::default(),
                     |mut counts, condition| {
@@ -325,14 +323,14 @@ impl CompiledQuestCondition {
         completed_quests: &HashSet<QuestId>,
     ) -> QuestConditionEvaluation {
         match self {
-            CompiledQuestCondition::None => QuestConditionEvaluation::True,
-            CompiledQuestCondition::ActionIs { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::ActionIsNot { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::ActionCount {
+            CompiledCondition::None => QuestConditionEvaluation::True,
+            CompiledCondition::ActionIs { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::ActionIsNot { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::ActionCount {
                 current, required, ..
             } => (current >= required).into(),
-            CompiledQuestCondition::TimeGeq { fulfilled, .. } => fulfilled.into(),
-            CompiledQuestCondition::Inactive { quest, state } => {
+            CompiledCondition::TimeGeq { fulfilled, .. } => fulfilled.into(),
+            CompiledCondition::Inactive { quest, state } => {
                 if completed_quests.contains(quest) {
                     assert!(
                         *state == QuestStateMarker::Inactive || *state == QuestStateMarker::Active
@@ -345,7 +343,7 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::False,
                 }
             }
-            CompiledQuestCondition::Active { quest, state } => {
+            CompiledCondition::Active { quest, state } => {
                 if completed_quests.contains(quest) {
                     assert!(
                         *state == QuestStateMarker::Inactive || *state == QuestStateMarker::Active
@@ -360,7 +358,7 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::False,
                 }
             }
-            CompiledQuestCondition::Completed { quest, state } => {
+            CompiledCondition::Completed { quest, state } => {
                 if completed_quests.contains(quest) {
                     assert!(
                         *state == QuestStateMarker::Inactive || *state == QuestStateMarker::Active
@@ -377,17 +375,17 @@ impl CompiledQuestCondition {
                     QuestStateMarker::Completed => QuestConditionEvaluation::True,
                 }
             }
-            CompiledQuestCondition::And { conditions } => conditions
+            CompiledCondition::And { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::True, |result, condition| {
                     result & condition.complete_quests(completed_quests)
                 }),
-            CompiledQuestCondition::Or { conditions } => conditions
+            CompiledCondition::Or { conditions } => conditions
                 .iter_mut()
                 .fold(QuestConditionEvaluation::False, |result, condition| {
                     result | condition.complete_quests(completed_quests)
                 }),
-            CompiledQuestCondition::AnyN { conditions, n } => {
+            CompiledCondition::AnyN { conditions, n } => {
                 let counts = conditions.iter_mut().fold(
                     QuestConditionEvaluationCounts::default(),
                     |mut counts, condition| {
@@ -402,29 +400,23 @@ impl CompiledQuestCondition {
 
     pub fn progress(&self) -> (f64, f64) {
         match self {
-            CompiledQuestCondition::None => (0.0, 0.0),
-            CompiledQuestCondition::ActionIs { fulfilled, .. } => {
-                (bool_to_one_zero(*fulfilled), 1.0)
-            }
-            CompiledQuestCondition::ActionIsNot { fulfilled, .. } => {
-                (bool_to_one_zero(*fulfilled), 1.0)
-            }
-            CompiledQuestCondition::ActionCount {
+            CompiledCondition::None => (0.0, 0.0),
+            CompiledCondition::ActionIs { fulfilled, .. } => (bool_to_one_zero(*fulfilled), 1.0),
+            CompiledCondition::ActionIsNot { fulfilled, .. } => (bool_to_one_zero(*fulfilled), 1.0),
+            CompiledCondition::ActionCount {
                 current, required, ..
             } => ((*current.min(required)) as f64, (*required) as f64),
-            CompiledQuestCondition::TimeGeq { fulfilled, .. } => {
-                (bool_to_one_zero(*fulfilled), 1.0)
-            }
-            CompiledQuestCondition::Inactive { state, .. } => {
+            CompiledCondition::TimeGeq { fulfilled, .. } => (bool_to_one_zero(*fulfilled), 1.0),
+            CompiledCondition::Inactive { state, .. } => {
                 (bool_to_one_zero(*state == QuestStateMarker::Inactive), 1.0)
             }
-            CompiledQuestCondition::Active { state, .. } => {
+            CompiledCondition::Active { state, .. } => {
                 (bool_to_one_zero(*state == QuestStateMarker::Active), 1.0)
             }
-            CompiledQuestCondition::Completed { state, .. } => {
+            CompiledCondition::Completed { state, .. } => {
                 (bool_to_one_zero(*state == QuestStateMarker::Completed), 1.0)
             }
-            CompiledQuestCondition::And { conditions } => {
+            CompiledCondition::And { conditions } => {
                 conditions
                     .iter()
                     .fold((0.0, 0.0), |(progress, goal), condition| {
@@ -432,7 +424,7 @@ impl CompiledQuestCondition {
                         (progress + additional_progress, goal + additional_goal)
                     })
             }
-            CompiledQuestCondition::Or { conditions } => {
+            CompiledCondition::Or { conditions } => {
                 if conditions.is_empty() {
                     (0.0, 0.0)
                 } else {
@@ -451,7 +443,7 @@ impl CompiledQuestCondition {
                     (relative_progress * goal, goal)
                 }
             }
-            CompiledQuestCondition::AnyN { conditions, n } => {
+            CompiledCondition::AnyN { conditions, n } => {
                 if conditions.is_empty() || *n > conditions.len() {
                     (0.0, 0.0)
                 } else {
@@ -479,68 +471,68 @@ impl CompiledQuestCondition {
     }
 }
 
-pub fn none() -> QuestCondition {
-    QuestCondition::None
+pub fn none() -> Condition {
+    Condition::None
 }
 
-pub fn action_is(action: impl ToString) -> QuestCondition {
-    QuestCondition::ActionIs {
+pub fn action_is(action: impl ToString) -> Condition {
+    Condition::ActionIs {
         action: action.to_string(),
     }
 }
 
-pub fn action_is_not(action: impl ToString) -> QuestCondition {
-    QuestCondition::ActionIsNot {
+pub fn action_is_not(action: impl ToString) -> Condition {
+    Condition::ActionIsNot {
         action: action.to_string(),
     }
 }
 
-pub fn action_count(action: impl ToString, count: usize) -> QuestCondition {
-    QuestCondition::ActionCount {
+pub fn action_count(action: impl ToString, count: usize) -> Condition {
+    Condition::ActionCount {
         action: action.to_string(),
         required: count,
     }
 }
 
-pub fn time_geq(time: GameTime) -> QuestCondition {
-    QuestCondition::TimeGeq { time }
+pub fn time_geq(time: GameTime) -> Condition {
+    Condition::TimeGeq { time }
 }
 
-pub fn inactive(quest: impl ToString) -> QuestCondition {
-    QuestCondition::Inactive {
+pub fn quest_inactive(quest: impl ToString) -> Condition {
+    Condition::QuestInactive {
         quest: quest.to_string(),
     }
 }
 
-pub fn active(quest: impl ToString) -> QuestCondition {
-    QuestCondition::Active {
+pub fn quest_active(quest: impl ToString) -> Condition {
+    Condition::QuestActive {
         quest: quest.to_string(),
     }
 }
 
-pub fn completed(quest: impl ToString) -> QuestCondition {
-    QuestCondition::Completed {
+pub fn quest_completed(quest: impl ToString) -> Condition {
+    Condition::QuestCompleted {
         quest: quest.to_string(),
     }
 }
 
-pub fn any_n(conditions: impl AsRef<[QuestCondition]>, n: usize) -> QuestCondition {
-    QuestCondition::AnyN {
+pub fn any_n(conditions: impl AsRef<[Condition]>, n: usize) -> Condition {
+    Condition::AnyN {
         conditions: conditions.as_ref().into(),
         n,
     }
 }
 
-impl BitAnd for QuestCondition {
-    type Output = QuestCondition;
+impl BitAnd for Condition {
+    type Output = Condition;
 
     fn bitand(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (
-                QuestCondition::And {
+                Condition::And {
                     conditions: mut conditions_self,
                 },
-                QuestCondition::And {
+                Condition::And {
                     conditions: mut conditions_rhs,
                 },
             ) => {
@@ -550,7 +542,7 @@ impl BitAnd for QuestCondition {
                 }
             }
             (
-                QuestCondition::And {
+                Condition::And {
                     conditions: mut conditions_self,
                 },
                 rhs,
@@ -562,7 +554,7 @@ impl BitAnd for QuestCondition {
             }
             (
                 lhs,
-                QuestCondition::And {
+                Condition::And {
                     conditions: mut conditions_rhs,
                 },
             ) => {
@@ -578,16 +570,16 @@ impl BitAnd for QuestCondition {
     }
 }
 
-impl BitOr for QuestCondition {
-    type Output = QuestCondition;
+impl BitOr for Condition {
+    type Output = Condition;
 
     fn bitor(self, rhs: Self) -> Self::Output {
         match (self, rhs) {
             (
-                QuestCondition::Or {
+                Condition::Or {
                     conditions: mut conditions_self,
                 },
-                QuestCondition::Or {
+                Condition::Or {
                     conditions: mut conditions_rhs,
                 },
             ) => {
@@ -597,7 +589,7 @@ impl BitOr for QuestCondition {
                 }
             }
             (
-                QuestCondition::Or {
+                Condition::Or {
                     conditions: mut conditions_self,
                 },
                 rhs,
@@ -609,7 +601,7 @@ impl BitOr for QuestCondition {
             }
             (
                 lhs,
-                QuestCondition::Or {
+                Condition::Or {
                     conditions: mut conditions_rhs,
                 },
             ) => {

@@ -17,6 +17,7 @@ use std::ops::Deref;
 pub mod actions;
 pub mod character;
 pub mod combat;
+pub mod conditions;
 pub mod currency;
 pub mod event_log;
 pub mod location;

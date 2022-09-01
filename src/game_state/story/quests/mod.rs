@@ -1,11 +1,10 @@
 use crate::game_state::actions::{ActionId, ActionInProgress, Actions};
-use crate::game_state::story::quests::quest_conditions::*;
+use crate::game_state::conditions::*;
 use crate::game_state::time::GameTime;
 use log::trace;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
-pub mod quest_conditions;
 #[cfg(test)]
 mod tests;
 
@@ -18,13 +17,13 @@ pub fn init_quests(actions: &Actions) -> HashMap<QuestId, CompiledQuest> {
             none(),
             action_is("Sleep"),
         ),
-        Quest::new("train_str", "Lift weights", "Lift weights a few times to gain some strength.", completed("init"), action_count("Lift weights", 5)),
-        Quest::new("train_sta", "Go for a run", "Jog around a bit to increase your stamina.", completed("init"), action_count("Jog", 5)),
-        Quest::new("train_dex", "Try out juggling", "Practice some juggling to improve your dexterity.", completed("init"), action_count("Practice juggling", 5)),
-        Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", completed("init"), action_count("Study logic", 5)),
-        Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", completed("init"), action_count("Read", 5)),
-        Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", completed("init"), action_count("Tavern", 5)),
-        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([completed("train_str"), completed("train_sta"), completed("train_dex"), completed("train_int"), completed("train_wis"), completed("train_chr")], 2), action_count("Fight monsters", 10)),
+        Quest::new("train_str", "Lift weights", "Lift weights a few times to gain some strength.", quest_completed("init"), action_count("Lift weights", 5)),
+        Quest::new("train_sta", "Go for a run", "Jog around a bit to increase your stamina.", quest_completed("init"), action_count("Jog", 5)),
+        Quest::new("train_dex", "Try out juggling", "Practice some juggling to improve your dexterity.", quest_completed("init"), action_count("Practice juggling", 5)),
+        Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", quest_completed("init"), action_count("Study logic", 5)),
+        Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", quest_completed("init"), action_count("Read", 5)),
+        Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", quest_completed("init"), action_count("Tavern", 5)),
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([quest_completed("train_str"), quest_completed("train_sta"), quest_completed("train_dex"), quest_completed("train_int"), quest_completed("train_wis"), quest_completed("train_chr")], 2), action_count("Fight monsters", 10)),
     ];
     let id_map: HashMap<_, QuestId> = quests
         .iter()
@@ -51,8 +50,8 @@ struct Quest {
     pub id_str: String,
     pub title: String,
     pub description: String,
-    pub precondition: QuestCondition,
-    pub condition: QuestCondition,
+    pub precondition: Condition,
+    pub condition: Condition,
     pub hidden: bool,
 }
 
@@ -62,8 +61,8 @@ pub struct CompiledQuest {
     pub id_str: String,
     pub title: String,
     pub description: String,
-    pub precondition: CompiledQuestCondition,
-    pub condition: CompiledQuestCondition,
+    pub precondition: CompiledCondition,
+    pub condition: CompiledCondition,
     pub hidden: bool,
     pub state: QuestState,
 }
@@ -73,8 +72,8 @@ impl Quest {
         id: impl ToString,
         title: impl ToString,
         description: impl ToString,
-        precondition: impl Into<QuestCondition>,
-        condition: impl Into<QuestCondition>,
+        precondition: impl Into<Condition>,
+        condition: impl Into<Condition>,
     ) -> Self {
         Self {
             id_str: id.to_string(),
@@ -89,8 +88,8 @@ impl Quest {
     #[allow(dead_code)]
     fn hidden(
         id: impl ToString,
-        precondition: impl Into<QuestCondition>,
-        condition: impl Into<QuestCondition>,
+        precondition: impl Into<Condition>,
+        condition: impl Into<Condition>,
     ) -> Self {
         Self {
             id_str: id.to_string(),

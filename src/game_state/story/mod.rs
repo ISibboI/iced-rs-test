@@ -1,5 +1,5 @@
 use crate::game_state::actions::{ActionInProgress, Actions};
-use crate::game_state::story::quests::quest_conditions::QuestConditionEvaluation;
+use crate::game_state::conditions::QuestConditionEvaluation;
 use crate::game_state::story::quests::{init_quests, CompiledQuest, QuestId};
 use crate::game_state::time::GameTime;
 use log::{debug, trace};
