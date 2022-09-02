@@ -12,6 +12,8 @@ use crate::GameState;
 #[cfg(target_arch = "wasm32")]
 pub use browser_based::{load_game, save_game};
 
+pub mod pathbuf_serde;
+
 #[derive(Debug, Clone)]
 #[allow(dead_code)]
 pub enum LoadError {

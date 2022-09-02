@@ -3,18 +3,17 @@ use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
 use crate::game_state::player_actions::{
-    init_actions, ActionInProgress, PlayerActions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP,
-    ACTION_TAVERN,
+    ActionInProgress, PlayerActions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
 };
-use crate::game_state::story::quests::init_quests;
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
-use crate::game_state::triggers::{init_triggers, CompiledGameAction, CompiledGameEvent};
-use crate::game_state::world::locations::{CompiledLocation, LocationId};
+use crate::game_state::triggers::{CompiledGameAction, CompiledGameEvent};
 use crate::game_state::world::World;
-use crate::game_template::GameTemplate;
+use crate::game_template::CompiledGameTemplate;
+use crate::savegames::pathbuf_serde::PathBufSerde;
+use async_std::path::PathBuf;
 use chrono::{DateTime, Duration, Utc};
-use event_trigger_action_system::{CompiledTriggers, Triggers};
+use event_trigger_action_system::CompiledTriggers;
 use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
@@ -36,7 +35,7 @@ pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
-    pub savegame_file: String,
+    pub savegame_file: PathBufSerde,
     pub character: Character,
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
@@ -49,13 +48,16 @@ pub struct GameState {
 }
 
 impl GameState {
-    pub fn new(savegame_file: String, name: String, race: CharacterRace) -> Self {
-        let game_template = GameTemplate::default().compile();
-
+    pub fn new(
+        game_template: CompiledGameTemplate,
+        savegame_file: PathBuf,
+        name: String,
+        race: CharacterRace,
+    ) -> Self {
         let selected_combat_style = race.starting_combat_style();
 
         let mut result = Self {
-            savegame_file,
+            savegame_file: savegame_file.into(),
             character: Character::new(name, race),
             selected_combat_style,
             current_time: Default::default(),
@@ -251,12 +253,6 @@ impl GameState {
             let progress = (self.current_time - current_action.start).seconds() as f32;
             progress / duration
         }
-    }
-
-    pub fn list_feasible_locations<'output>(
-        &'output self,
-    ) -> impl 'output + Iterator<Item = &'output CompiledLocation> {
-        self.world.locations()
     }
 
     pub fn damage_output(&self) -> f64 {

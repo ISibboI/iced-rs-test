@@ -1,5 +1,6 @@
 use crate::game_state::GameState;
 use crate::ui::ApplicationState;
+use async_std::path::PathBuf;
 use clap::Parser;
 use iced::{Application, Settings};
 use log::{error, info, LevelFilter};
@@ -17,7 +18,10 @@ pub const TITLE: &str = "Hero Quest";
 #[derive(Parser, Debug)]
 pub struct Configuration {
     #[clap(long, default_value = "savegame.json")]
-    savegame_file: String,
+    savegame_file: PathBuf,
+
+    #[clap(long, default_value = "game.tpl")]
+    game_template_file: PathBuf,
 
     #[clap(long, default_value = "Info")]
     log_level: LevelFilter,

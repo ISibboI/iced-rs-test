@@ -1,18 +1,15 @@
 use crate::game_state::combat::CombatStyle;
-use crate::game_state::world::locations::LocationId;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;
 use crate::GameState;
 use enum_iterator::all;
 use iced::{pick_list, scrollable, Column, Element, Length, PickList, Row};
-use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct OverviewState {
     action_picker_state: pick_list::State<String>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
-    combat_location_picker_state: pick_list::State<String>,
     quest_column_scrollable_state: scrollable::State,
     event_log_scrollable_state: scrollable::State,
 }
@@ -22,7 +19,6 @@ impl OverviewState {
         Self {
             action_picker_state: Default::default(),
             combat_style_picker_state: Default::default(),
-            combat_location_picker_state: Default::default(),
             quest_column_scrollable_state: Default::default(),
             event_log_scrollable_state: Default::default(),
         }
@@ -70,20 +66,7 @@ impl OverviewState {
                 "Damage per minute:",
                 label_column_width,
                 format!("{:.0}", game_state.damage_output()),
-            ))
-            /*.push(labelled_element(
-                "Combat world:",
-                label_column_width,
-                PickList::new(
-                    &mut self.combat_location_picker_state,
-                    game_state
-                        .list_feasible_locations()
-                        .map(|location| location.name.clone())
-                        .collect::<Vec<_>>(),
-                    Some(game_state.world.location(game_state.world.selected_location).name.clone()),
-                    |(_, location_id)| RunningMessage::CombatLocationChanged(location_id).into(),
-                ),
-            ))*/;
+            ));
 
         Column::new()
             .width(Length::Fill)

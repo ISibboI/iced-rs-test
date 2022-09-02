@@ -15,7 +15,7 @@ pub static ACTION_SLEEP: PlayerActionId = PlayerActionId(1);
 pub static ACTION_TAVERN: PlayerActionId = PlayerActionId(2);
 pub static ACTION_FIGHT_MONSTERS: PlayerActionId = PlayerActionId(3);
 
-pub fn init_actions() -> Vec<PlayerAction> {
+/*pub fn init_actions() -> Vec<PlayerAction> {
     vec![
         PlayerAction::new(
             "wait",
@@ -100,7 +100,7 @@ pub fn init_actions() -> Vec<PlayerAction> {
             Currency::zero(),
         ),
     ]
-}
+}*/
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct PlayerActions {
@@ -317,24 +317,15 @@ impl ToString for CompiledPlayerAction {
 
 impl PlayerActionState {
     pub fn is_inactive(&self) -> bool {
-        match self {
-            PlayerActionState::Inactive => true,
-            _ => false,
-        }
+        matches!(self, PlayerActionState::Inactive)
     }
 
     pub fn is_active(&self) -> bool {
-        match self {
-            PlayerActionState::Active { .. } => true,
-            _ => false,
-        }
+        matches!(self, PlayerActionState::Active { .. })
     }
 
     pub fn is_deactivated(&self) -> bool {
-        match self {
-            PlayerActionState::Deactivated { .. } => true,
-            _ => false,
-        }
+        matches!(self, PlayerActionState::Deactivated { .. })
     }
 }
 

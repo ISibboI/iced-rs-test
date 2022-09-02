@@ -1,17 +1,14 @@
-use crate::game_state::player_actions::{ActionInProgress, PlayerActionId, PlayerActions};
 use crate::game_state::time::GameTime;
-use crate::game_state::triggers::GameEvent;
 use crate::game_template::IdMaps;
-use event_trigger_action_system::{none, TriggerCondition, TriggerHandle};
+use event_trigger_action_system::TriggerHandle;
 use serde::{Deserialize, Serialize};
-use std::collections::{HashMap, HashSet};
 
 #[cfg(test)]
 mod tests;
 
-pub fn init_quests() -> Vec<Quest> {
+/*pub fn init_quests() -> Vec<Quest> {
     vec![
-        /*Quest::new(
+        Quest::new(
             "init",
             "Wake up!",
             "Wait until six o'clock, and you will wake up to a new day full of adventure!",
@@ -24,9 +21,9 @@ pub fn init_quests() -> Vec<Quest> {
         Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", quest_completed("init"), action_count("Study logic", 5)),
         Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", quest_completed("init"), action_count("Read", 5)),
         Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", quest_completed("init"), action_count("Tavern", 5)),
-        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([quest_completed("train_str"), quest_completed("train_sta"), quest_completed("train_dex"), quest_completed("train_int"), quest_completed("train_wis"), quest_completed("train_chr")], 2), action_count("Fight monsters", 10)),*/
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([quest_completed("train_str"), quest_completed("train_sta"), quest_completed("train_dex"), quest_completed("train_int"), quest_completed("train_wis"), quest_completed("train_chr")], 2), action_count("Fight monsters", 10)),
     ]
-}
+}*/
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,

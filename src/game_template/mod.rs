@@ -11,6 +11,7 @@ use event_trigger_action_system::{CompiledTriggers, Trigger, TriggerHandle};
 use std::collections::HashMap;
 
 pub mod game_initialisation;
+pub mod parser;
 
 #[derive(Debug, Default)]
 pub struct GameTemplate {
@@ -23,7 +24,7 @@ pub struct GameTemplate {
     triggers: Vec<Trigger<GameEvent, GameAction>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompiledGameTemplate {
     pub initialisation: CompiledGameInitialisation,
     pub actions: PlayerActions,

@@ -3,23 +3,25 @@ use crate::ui::elements::title;
 use crate::ui::load_game_state::LoadGameState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::Configuration;
+use async_std::path::PathBuf;
 use iced::alignment::Horizontal;
 use iced::{
     button, text_input, Alignment, Button, Color, Column, Command, Element, Length, Space, Text,
     TextInput,
 };
+use std::borrow::Borrow;
 
 #[derive(Debug, Clone)]
 pub struct MainMenuState {
     savegame_file_input: text_input::State,
-    savegame_file: String,
+    savegame_file: PathBuf,
     message: Option<String>,
     load_game_button: button::State,
     new_game_button: button::State,
 }
 
 impl MainMenuState {
-    pub fn new(default_savegame_file: String, message: Option<String>) -> Self {
+    pub fn new(default_savegame_file: PathBuf, message: Option<String>) -> Self {
         Self {
             savegame_file_input: Default::default(),
             savegame_file: default_savegame_file,
@@ -60,8 +62,8 @@ impl MainMenuState {
         let savegame_file_input = TextInput::new(
             &mut self.savegame_file_input,
             "",
-            &self.savegame_file,
-            |input| MainMenuMessage::SavegameFileInputChanged(input).into(),
+            self.savegame_file.to_string_lossy().borrow(),
+            |input| MainMenuMessage::SavegameFileInputChanged(PathBuf::from(input)).into(),
         )
         .padding(5)
         .width(Length::Units(200));
@@ -107,5 +109,5 @@ pub enum MainMenuMessage {
     Init,
     LoadGame,
     NewGame,
-    SavegameFileInputChanged(String),
+    SavegameFileInputChanged(PathBuf),
 }

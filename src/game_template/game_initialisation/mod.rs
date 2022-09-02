@@ -6,7 +6,7 @@ pub struct GameInitialisation {
     pub starting_location: String,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct CompiledGameInitialisation {
     pub starting_location: LocationId,
 }

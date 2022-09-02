@@ -3,17 +3,18 @@ use crate::ui::bulk_update_state::BulkUpdateState;
 use crate::ui::main_menu_state::MainMenuState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
+use async_std::path::PathBuf;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
 use log::{info, warn};
 
 #[derive(Debug, Clone)]
 pub struct LoadGameState {
-    path: String,
+    path: PathBuf,
 }
 
 impl LoadGameState {
-    pub fn new(path: String) -> Self {
+    pub fn new(path: PathBuf) -> Self {
         Self { path }
     }
 
@@ -24,7 +25,7 @@ impl LoadGameState {
     ) -> Command<Message> {
         match message {
             LoadGameMessage::Init => {
-                info!("Loading '{}'", self.path);
+                info!("Loading {:?}", self.path);
                 Command::perform(load_game(self.path.clone()), |loaded| {
                     LoadGameMessage::Loaded(Box::new(loaded)).into()
                 })

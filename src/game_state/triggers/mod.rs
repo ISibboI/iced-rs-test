@@ -3,12 +3,8 @@ use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::story::quests::QuestId;
 use crate::game_state::world::monsters::MonsterId;
 use crate::game_template::IdMaps;
-use event_trigger_action_system::{Trigger, TriggerAction, TriggerEvent, TriggerIdentifier};
+use event_trigger_action_system::{TriggerAction, TriggerEvent, TriggerIdentifier};
 use serde::{Deserialize, Serialize};
-
-pub fn init_triggers() -> Vec<Trigger<GameEvent, GameAction>> {
-    vec![]
-}
 
 #[derive(Debug)]
 pub enum GameEvent {
@@ -175,26 +171,94 @@ impl TriggerEvent for CompiledGameEvent {
                 CompiledGameEventIdentifier::PlayerCharismaChanged
             }
             CompiledGameEvent::ActionStarted { id } => {
-                CompiledGameEventIdentifier::ActionStarted { id: id.clone() }
+                CompiledGameEventIdentifier::ActionStarted { id: *id }
             }
             CompiledGameEvent::ActionCompleted { id } => {
-                CompiledGameEventIdentifier::ActionCompleted { id: id.clone() }
+                CompiledGameEventIdentifier::ActionCompleted { id: *id }
             }
             CompiledGameEvent::MonsterKilled { id } => {
-                CompiledGameEventIdentifier::MonsterKilled { id: id.clone() }
+                CompiledGameEventIdentifier::MonsterKilled { id: *id }
             }
             CompiledGameEvent::MonsterFailed { id } => {
-                CompiledGameEventIdentifier::MonsterFailed { id: id.clone() }
+                CompiledGameEventIdentifier::MonsterFailed { id: *id }
             }
         }
     }
 
     fn value_geq(&self, other: &Self) -> Option<bool> {
-        todo!()
+        match (self, other) {
+            (
+                CompiledGameEvent::CurrencyChanged { value: value_lhs },
+                CompiledGameEvent::CurrencyChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerLevelChanged { value: value_lhs },
+                CompiledGameEvent::PlayerLevelChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerStrengthChanged { value: value_lhs },
+                CompiledGameEvent::PlayerStrengthChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerStaminaChanged { value: value_lhs },
+                CompiledGameEvent::PlayerStaminaChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerDexterityChanged { value: value_lhs },
+                CompiledGameEvent::PlayerDexterityChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerIntelligenceChanged { value: value_lhs },
+                CompiledGameEvent::PlayerIntelligenceChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerWisdomChanged { value: value_lhs },
+                CompiledGameEvent::PlayerWisdomChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::PlayerCharismaChanged { value: value_lhs },
+                CompiledGameEvent::PlayerCharismaChanged { value: value_rhs },
+            ) => Some(value_lhs >= value_rhs),
+            _ => None,
+        }
     }
 
     fn value_geq_progress(&self, other: &Self) -> Option<f64> {
-        todo!()
+        match (self, other) {
+            (
+                CompiledGameEvent::CurrencyChanged { value: value_lhs },
+                CompiledGameEvent::CurrencyChanged { value: value_rhs },
+            ) => Some(value_lhs.copper() as f64 / value_rhs.copper() as f64),
+            (
+                CompiledGameEvent::PlayerLevelChanged { value: value_lhs },
+                CompiledGameEvent::PlayerLevelChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerStrengthChanged { value: value_lhs },
+                CompiledGameEvent::PlayerStrengthChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerStaminaChanged { value: value_lhs },
+                CompiledGameEvent::PlayerStaminaChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerDexterityChanged { value: value_lhs },
+                CompiledGameEvent::PlayerDexterityChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerIntelligenceChanged { value: value_lhs },
+                CompiledGameEvent::PlayerIntelligenceChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerWisdomChanged { value: value_lhs },
+                CompiledGameEvent::PlayerWisdomChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::PlayerCharismaChanged { value: value_lhs },
+                CompiledGameEvent::PlayerCharismaChanged { value: value_rhs },
+            ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            _ => None,
+        }
     }
 }
 

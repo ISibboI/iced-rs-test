@@ -1,7 +1,5 @@
-use crate::game_state::world::events::{
-    CompiledExplorationEvent, CompiledWeightedExplorationEvent, WeightedExplorationEvent,
-};
-use crate::game_state::world::locations::{CompiledLocation, Location, LocationId};
+use crate::game_state::world::events::CompiledExplorationEvent;
+use crate::game_state::world::locations::{CompiledLocation, LocationId};
 use crate::game_state::world::monsters::CompiledMonster;
 use serde::{Deserialize, Serialize};
 
@@ -33,9 +31,7 @@ impl World {
     }
 
     #[deprecated]
-    pub fn locations<'output>(
-        &'output self,
-    ) -> impl 'output + Iterator<Item = &'output CompiledLocation> {
+    pub fn locations(&self) -> impl '_ + Iterator<Item = &'_ CompiledLocation> {
         self.locations.iter()
     }
 
@@ -44,10 +40,9 @@ impl World {
     }
 }
 
-#[deprecated]
-pub fn init_locations() -> Vec<Location> {
+/*pub fn init_locations() -> Vec<Location> {
     vec![
-        /*Location::new(LOCATION_VILLAGE, [("rat", 1.0)], [("normal", 1.0)]),
+        Location::new(LOCATION_VILLAGE, [("rat", 1.0)], [("normal", 1.0)]),
         Location::new(
             "Forest",
             [("rat", 0.1), ("hare", 1.0), ("deer", 1.0)],
@@ -70,11 +65,9 @@ pub fn init_locations() -> Vec<Location> {
                 ("strong", 0.1),
                 ("weak", 0.1),
             ],
-        ),*/
+        ),
     ]
-}
-
-pub static LOCATION_VILLAGE: &str = "Village";
+}*/
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WeightedMonster {
