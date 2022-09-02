@@ -159,39 +159,6 @@ impl QuestState {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub enum QuestStateMarker {
-    Inactive,
-    Active,
-    Completed,
-}
-
-impl QuestStateMarker {
-    pub fn is_inactive(&self) -> bool {
-        matches!(self, QuestStateMarker::Inactive)
-    }
-
-    pub fn is_active(&self) -> bool {
-        matches!(self, QuestStateMarker::Active { .. })
-    }
-
-    pub fn is_completed(&self) -> bool {
-        matches!(self, QuestStateMarker::Completed { .. })
-    }
-}
-
-impl From<QuestState> for QuestStateMarker {
-    fn from(state: QuestState) -> Self {
-        match state {
-            QuestState::Inactive => QuestStateMarker::Inactive,
-            QuestState::Active { .. } => QuestStateMarker::Active,
-            QuestState::Completed { .. } => QuestStateMarker::Completed,
-            QuestState::FailedWhileInactive { .. } => todo!(),
-            QuestState::FailedWhileActive { .. } => todo!(),
-        }
-    }
-}
-
 impl From<usize> for QuestId {
     fn from(n: usize) -> Self {
         QuestId(n)

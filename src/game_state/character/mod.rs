@@ -1,10 +1,11 @@
 use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
+use crate::game_state::triggers::CompiledGameEvent;
 use enum_iterator::Sequence;
 use rand_distr::num_traits::Zero;
 use serde::{Deserialize, Serialize};
-use std::ops;
+use std::{iter, ops};
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct CharacterAttributes {
@@ -66,20 +67,27 @@ impl Character {
         }
     }
 
-    pub fn add_attribute_progress(&mut self, progress: CharacterAttributeProgress) {
+    pub fn add_attribute_progress(
+        &mut self,
+        progress: CharacterAttributeProgress,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let events = iter::empty();
         let progress = progress * self.race.attribute_progress_factors();
         self.attribute_progress += progress;
-        self.attributes.check_progress(&mut self.attribute_progress);
+        let events = events.chain(self.attributes.check_progress(&mut self.attribute_progress));
 
-        self.add_level_progress(progress.sum());
+        events.chain(self.add_level_progress(progress.sum()))
     }
 
-    pub fn add_level_progress(&mut self, progress: u64) {
+    pub fn add_level_progress(&mut self, progress: u64) -> impl Iterator<Item = CompiledGameEvent> {
         self.level_progress += progress;
+        let mut level_event = None;
         while self.level_progress > self.required_level_progress() {
             self.level_progress -= self.required_level_progress();
             self.level += 1;
+            level_event = Some(CompiledGameEvent::PlayerLevelChanged { value: self.level });
         }
+        level_event.into_iter()
     }
 
     pub fn required_level_progress(&self) -> u64 {
@@ -175,36 +183,69 @@ impl CharacterAttributes {
         }
     }
 
-    pub fn check_progress(&mut self, progress: &mut CharacterAttributeProgress) {
+    pub fn check_progress(
+        &mut self,
+        progress: &mut CharacterAttributeProgress,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let mut strength_event = None;
         while progress.strength >= Self::required_attribute_progress(self.strength) {
             progress.strength -= Self::required_attribute_progress(self.strength);
             self.strength += 1;
+            strength_event = Some(CompiledGameEvent::PlayerStrengthChanged {
+                value: self.strength,
+            });
         }
 
+        let mut stamina_event = None;
         while progress.stamina >= Self::required_attribute_progress(self.stamina) {
             progress.stamina -= Self::required_attribute_progress(self.stamina);
             self.stamina += 1;
+            stamina_event = Some(CompiledGameEvent::PlayerStaminaChanged {
+                value: self.stamina,
+            });
         }
 
+        let mut dexterity_event = None;
         while progress.dexterity >= Self::required_attribute_progress(self.dexterity) {
             progress.dexterity -= Self::required_attribute_progress(self.dexterity);
             self.dexterity += 1;
+            dexterity_event = Some(CompiledGameEvent::PlayerDexterityChanged {
+                value: self.dexterity,
+            });
         }
 
+        let mut intelligence_event = None;
         while progress.intelligence >= Self::required_attribute_progress(self.intelligence) {
             progress.intelligence -= Self::required_attribute_progress(self.intelligence);
             self.intelligence += 1;
+            intelligence_event = Some(CompiledGameEvent::PlayerIntelligenceChanged {
+                value: self.intelligence,
+            });
         }
 
+        let mut wisdom_event = None;
         while progress.wisdom >= Self::required_attribute_progress(self.wisdom) {
             progress.wisdom -= Self::required_attribute_progress(self.wisdom);
             self.wisdom += 1;
+            wisdom_event = Some(CompiledGameEvent::PlayerWisdomChanged { value: self.wisdom });
         }
 
+        let mut charisma_event = None;
         while progress.charisma >= Self::required_attribute_progress(self.charisma) {
             progress.charisma -= Self::required_attribute_progress(self.charisma);
             self.charisma += 1;
+            charisma_event = Some(CompiledGameEvent::PlayerCharismaChanged {
+                value: self.charisma,
+            });
         }
+
+        strength_event
+            .into_iter()
+            .chain(stamina_event.into_iter())
+            .chain(dexterity_event.into_iter())
+            .chain(intelligence_event.into_iter())
+            .chain(wisdom_event.into_iter())
+            .chain(charisma_event.into_iter())
     }
 
     pub fn required_attribute_progress(attribute_level: u64) -> u64 {

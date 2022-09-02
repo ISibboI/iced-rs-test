@@ -2,16 +2,19 @@ use crate::game_state::world::events::{
     CompiledExplorationEvent, CompiledWeightedExplorationEvent, WeightedExplorationEvent,
 };
 use crate::game_state::world::locations::{CompiledLocation, Location, LocationId};
+use crate::game_state::world::monsters::CompiledMonster;
 use serde::{Deserialize, Serialize};
 
 pub mod events;
 pub mod locations;
+pub mod monsters;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct World {
     pub selected_location: LocationId,
     locations: Vec<CompiledLocation>,
     events: Vec<CompiledExplorationEvent>,
+    monsters: Vec<CompiledMonster>,
 }
 
 impl World {
@@ -19,11 +22,13 @@ impl World {
         starting_location: LocationId,
         locations: Vec<CompiledLocation>,
         events: Vec<CompiledExplorationEvent>,
+        monsters: Vec<CompiledMonster>,
     ) -> Self {
         Self {
             selected_location: starting_location,
             locations,
             events,
+            monsters,
         }
     }
 

@@ -4,6 +4,7 @@ use crate::game_state::story::Story;
 use crate::game_state::triggers::{CompiledGameEvent, GameAction, GameEvent};
 use crate::game_state::world::events::{ExplorationEvent, ExplorationEventId};
 use crate::game_state::world::locations::{Location, LocationId};
+use crate::game_state::world::monsters::{Monster, MonsterId};
 use crate::game_state::world::World;
 use crate::game_template::game_initialisation::{CompiledGameInitialisation, GameInitialisation};
 use event_trigger_action_system::{CompiledTriggers, Trigger, TriggerHandle};
@@ -18,6 +19,7 @@ pub struct GameTemplate {
     quests: Vec<Quest>,
     locations: Vec<Location>,
     exploration_events: Vec<ExplorationEvent>,
+    monsters: Vec<Monster>,
     triggers: Vec<Trigger<GameEvent, GameAction>>,
 }
 
@@ -36,6 +38,7 @@ pub struct IdMaps {
     pub quests: HashMap<String, QuestId>,
     pub locations: HashMap<String, LocationId>,
     pub exploration_events: HashMap<String, ExplorationEventId>,
+    pub monsters: HashMap<String, MonsterId>,
     pub triggers: HashMap<String, TriggerHandle>,
 }
 
@@ -49,6 +52,7 @@ impl IdMaps {
                 &game_template.exploration_events,
                 |exploration_event| exploration_event.id_str.clone(),
             ),
+            monsters: build_id_map(&game_template.monsters, |monster| monster.id_str.clone()),
             triggers: build_id_map(&game_template.triggers, |trigger| trigger.id_str.clone()),
         }
     }
@@ -82,6 +86,10 @@ impl GameTemplate {
                 self.exploration_events
                     .into_iter()
                     .map(|exploration_event| exploration_event.compile(&id_maps))
+                    .collect(),
+                self.monsters
+                    .into_iter()
+                    .map(|monster| monster.compile(&id_maps))
                     .collect(),
             ),
             triggers: CompiledTriggers::new(

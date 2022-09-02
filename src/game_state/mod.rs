@@ -9,7 +9,7 @@ use crate::game_state::player_actions::{
 use crate::game_state::story::quests::init_quests;
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
-use crate::game_state::triggers::{init_triggers, CompiledGameEvent};
+use crate::game_state::triggers::{init_triggers, CompiledGameAction, CompiledGameEvent};
 use crate::game_state::world::locations::{CompiledLocation, LocationId};
 use crate::game_state::world::World;
 use crate::game_template::GameTemplate;
@@ -18,6 +18,7 @@ use event_trigger_action_system::{CompiledTriggers, Triggers};
 use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::iter;
 use std::ops::Deref;
 
 pub mod character;
@@ -65,6 +66,7 @@ impl GameState {
             world: game_template.world,
             triggers: game_template.triggers,
         };
+        result.execute_all_triggered_actions();
         result.update(0);
         result
     }
@@ -79,26 +81,46 @@ impl GameState {
         self.current_time += passed_game_time;
 
         if !self.actions.has_action_in_progress() {
-            self.next_action(self.current_time);
+            let game_events = self.next_player_action(self.current_time);
+            self.triggers.execute_owned_events(game_events);
+            self.execute_all_triggered_actions();
             debug!("New action: {:?}", self.actions.in_progress());
         }
 
         while self.actions.in_progress().end < self.current_time {
+            let mut game_events = Vec::new();
             if self.actions.in_progress().success {
-                self.character
-                    .add_attribute_progress(self.actions.in_progress().attribute_progress);
+                game_events.extend(
+                    self.character
+                        .add_attribute_progress(self.actions.in_progress().attribute_progress),
+                );
                 self.character.currency += self.actions.in_progress().currency_reward;
+
+                if self.actions.in_progress().currency_reward != Currency::zero() {
+                    game_events.push(CompiledGameEvent::CurrencyChanged {
+                        value: self.character.currency,
+                    })
+                }
+                game_events.push(CompiledGameEvent::ActionCompleted {
+                    id: self.actions.in_progress().action.id,
+                });
             }
             self.log.log(self.actions.in_progress().deref().clone());
 
-            self.next_action(self.actions.in_progress().end);
+            game_events.extend(self.next_player_action(self.actions.in_progress().end));
             debug!("New action: {:?}", self.actions.in_progress());
+
+            self.triggers.execute_events(game_events.iter());
+            self.execute_all_triggered_actions();
         }
 
         self.last_update += Duration::milliseconds(passed_real_milliseconds);
     }
 
-    fn next_action(&mut self, start_time: GameTime) {
+    fn next_player_action(
+        &mut self,
+        start_time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
         let earliest_tavern_time = GameTime::from_hours(19);
         let latest_tavern_time = GameTime::from_hours(21);
 
@@ -182,6 +204,39 @@ impl GameState {
             }
         };
         self.actions.set_in_progress(action);
+        iter::once(CompiledGameEvent::ActionStarted {
+            id: self.actions.in_progress().action.id,
+        })
+    }
+
+    fn execute_all_triggered_actions(&mut self) {
+        while let Some(game_action) = self.triggers.consume_action() {
+            let game_events = self.execute_game_action(game_action);
+            self.triggers.execute_owned_events(game_events);
+        }
+    }
+
+    fn execute_game_action(
+        &mut self,
+        game_action: CompiledGameAction,
+    ) -> Box<dyn Iterator<Item = CompiledGameEvent>> {
+        match game_action {
+            CompiledGameAction::ActivateQuest { id } => {
+                Box::new(self.story.activate_quest(id, self.current_time))
+            }
+            CompiledGameAction::CompleteQuest { id } => {
+                Box::new(self.story.complete_quest(id, self.current_time))
+            }
+            CompiledGameAction::FailQuest { id } => {
+                Box::new(self.story.fail_quest(id, self.current_time))
+            }
+            CompiledGameAction::ActivateAction { id } => {
+                Box::new(self.actions.activate_action(id, self.current_time))
+            }
+            CompiledGameAction::DeactivateAction { id } => {
+                Box::new(self.actions.deactivate_action(id, self.current_time))
+            }
+        }
     }
 
     /// The progress of the current action as value between 0.0 and 1.0.
