@@ -257,6 +257,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "btreemultimap-value-ord"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8cf5b56bfddbf246cc27da2cc2795eba14cc73dd04d797e914c5d4bfd7be21b"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "bumpalo"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -764,6 +773,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
+name = "event-trigger-action-system"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a623c1ce6ae8e9338a7ed1a0cd9bb36678c034ca8330c8e85874485f763fe953"
+dependencies = [
+ "btreemultimap-value-ord",
+ "serde",
+]
+
+[[package]]
 name = "fastrand"
 version = "1.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1127,6 +1146,7 @@ dependencies = [
  "chrono",
  "clap",
  "enum-iterator",
+ "event-trigger-action-system",
  "getrandom",
  "iced",
  "iced_native",

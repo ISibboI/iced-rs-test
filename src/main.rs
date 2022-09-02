@@ -7,6 +7,7 @@ use log::{error, info, LevelFilter};
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 mod game_state;
+pub mod game_template;
 mod savegames;
 mod ui;
 mod utils;

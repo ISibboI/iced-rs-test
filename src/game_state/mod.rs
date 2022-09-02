@@ -1,28 +1,34 @@
-use crate::game_state::actions::{
-    ActionInProgress, Actions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
-};
 use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
 use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
-use crate::game_state::location::{Location, LOCATIONS, LOCATION_VILLAGE};
+use crate::game_state::player_actions::{
+    init_actions, ActionInProgress, PlayerActions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP,
+    ACTION_TAVERN,
+};
+use crate::game_state::story::quests::init_quests;
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
+use crate::game_state::triggers::{init_triggers, CompiledGameEvent};
+use crate::game_state::world::locations::{CompiledLocation, LocationId};
+use crate::game_state::world::World;
+use crate::game_template::GameTemplate;
 use chrono::{DateTime, Duration, Utc};
+use event_trigger_action_system::{CompiledTriggers, Triggers};
 use log::{debug, warn};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 
-pub mod actions;
 pub mod character;
 pub mod combat;
-pub mod conditions;
 pub mod currency;
 pub mod event_log;
-pub mod location;
+pub mod player_actions;
 pub mod story;
 pub mod time;
+pub mod triggers;
+pub mod world;
 
 pub const GAME_TIME_PER_MILLISECOND: GameTime = GameTime::from_milliseconds(900);
 pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
@@ -32,30 +38,32 @@ pub struct GameState {
     pub savegame_file: String,
     pub character: Character,
     pub selected_combat_style: CombatStyle,
-    pub selected_combat_location: String,
     pub current_time: GameTime,
     pub last_update: DateTime<Utc>,
-    pub actions: Actions,
-    pub story: Story,
     pub log: EventLog,
+    pub actions: PlayerActions,
+    pub story: Story,
+    pub world: World,
+    pub triggers: CompiledTriggers<CompiledGameEvent>,
 }
 
 impl GameState {
     pub fn new(savegame_file: String, name: String, race: CharacterRace) -> Self {
+        let game_template = GameTemplate::default().compile();
+
         let selected_combat_style = race.starting_combat_style();
-        let actions = Actions::new();
-        let story = Story::new(&actions);
 
         let mut result = Self {
             savegame_file,
             character: Character::new(name, race),
             selected_combat_style,
-            selected_combat_location: LOCATION_VILLAGE.to_string(),
             current_time: Default::default(),
             last_update: Utc::now(),
-            actions,
-            story,
             log: EventLog::default(),
+            actions: game_template.actions,
+            story: game_template.story,
+            world: game_template.world,
+            triggers: game_template.triggers,
         };
         result.update(0);
         result
@@ -80,8 +88,6 @@ impl GameState {
                 self.character
                     .add_attribute_progress(self.actions.in_progress().attribute_progress);
                 self.character.currency += self.actions.in_progress().currency_reward;
-
-                self.story.update(&self.actions.in_progress());
             }
             self.log.log(self.actions.in_progress().deref().clone());
 
@@ -143,7 +149,7 @@ impl GameState {
             let action = self.actions.action(self.actions.selected_action);
 
             if action.id == ACTION_FIGHT_MONSTERS {
-                let location = LOCATIONS.get(&self.selected_combat_location).unwrap();
+                let location = self.world.location(self.world.selected_location);
                 let monster = location.spawn();
                 let damage = self.damage_output();
                 let duration = GameTime::from_milliseconds(
@@ -193,9 +199,9 @@ impl GameState {
     }
 
     pub fn list_feasible_locations<'output>(
-        &self,
-    ) -> impl 'output + Iterator<Item = &'output Location> {
-        LOCATIONS.values()
+        &'output self,
+    ) -> impl 'output + Iterator<Item = &'output CompiledLocation> {
+        self.world.locations()
     }
 
     pub fn damage_output(&self) -> f64 {

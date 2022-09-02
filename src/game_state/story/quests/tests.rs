@@ -1,8 +1,8 @@
-use crate::game_state::actions::Actions;
+use crate::game_state::player_actions::PlayerActions;
 use crate::game_state::story::quests::init_quests;
 
 #[test]
 fn test_init_quests() {
-    let actions = Actions::new();
+    let actions = PlayerActions::new();
     init_quests(&actions);
 }

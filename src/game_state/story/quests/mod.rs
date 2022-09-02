@@ -1,16 +1,17 @@
-use crate::game_state::actions::{ActionId, ActionInProgress, Actions};
-use crate::game_state::conditions::*;
+use crate::game_state::player_actions::{ActionInProgress, PlayerActionId, PlayerActions};
 use crate::game_state::time::GameTime;
-use log::trace;
+use crate::game_state::triggers::GameEvent;
+use crate::game_template::IdMaps;
+use event_trigger_action_system::{none, TriggerCondition, TriggerHandle};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 #[cfg(test)]
 mod tests;
 
-pub fn init_quests(actions: &Actions) -> HashMap<QuestId, CompiledQuest> {
-    let quests = vec![
-        Quest::new(
+pub fn init_quests() -> Vec<Quest> {
+    vec![
+        /*Quest::new(
             "init",
             "Wake up!",
             "Wait until six o'clock, and you will wake up to a new day full of adventure!",
@@ -23,36 +24,24 @@ pub fn init_quests(actions: &Actions) -> HashMap<QuestId, CompiledQuest> {
         Quest::new("train_int", "Train your brain", "Read a book about logic to improve your intelligence.", quest_completed("init"), action_count("Study logic", 5)),
         Quest::new("train_wis", "Read a book", "Read a book about the world to increase your wisdom.", quest_completed("init"), action_count("Read", 5)),
         Quest::new("train_chr", "Talk to some strangers", "Visit the tavern and talk to some people to gain some charisma.", quest_completed("init"), action_count("Tavern", 5)),
-        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([quest_completed("train_str"), quest_completed("train_sta"), quest_completed("train_dex"), quest_completed("train_int"), quest_completed("train_wis"), quest_completed("train_chr")], 2), action_count("Fight monsters", 10)),
-    ];
-    let id_map: HashMap<_, QuestId> = quests
-        .iter()
-        .enumerate()
-        .map(|(id, quest)| (quest.id_str.clone(), id.into()))
-        .collect();
-
-    quests
-        .into_iter()
-        .map(|quest| {
-            let compiled_quest = quest.compile(&id_map, actions.actions_by_name());
-            (compiled_quest.id, compiled_quest)
-        })
-        .collect()
+        Quest::new("fight_monsters", "Fight some monsters", "You have done some basic training. Put it to work by being a hero and killing some beasts and bad guys!", any_n([quest_completed("train_str"), quest_completed("train_sta"), quest_completed("train_dex"), quest_completed("train_int"), quest_completed("train_wis"), quest_completed("train_chr")], 2), action_count("Fight monsters", 10)),*/
+    ]
 }
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
 )]
-pub struct QuestId(usize);
+pub struct QuestId(pub usize);
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct Quest {
+pub struct Quest {
     pub id_str: String,
     pub title: String,
     pub description: String,
-    pub precondition: Condition,
-    pub condition: Condition,
-    pub hidden: bool,
+    pub activation_condition: String,
+    pub completion_condition: String,
+    pub unactivated_failure_condition: String,
+    pub activated_failure_condition: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -61,9 +50,10 @@ pub struct CompiledQuest {
     pub id_str: String,
     pub title: String,
     pub description: String,
-    pub precondition: CompiledCondition,
-    pub condition: CompiledCondition,
-    pub hidden: bool,
+    pub activation_condition: TriggerHandle,
+    pub completion_condition: TriggerHandle,
+    pub unactivated_failure_condition: TriggerHandle,
+    pub activated_failure_condition: TriggerHandle,
     pub state: QuestState,
 }
 
@@ -72,153 +62,39 @@ impl Quest {
         id: impl ToString,
         title: impl ToString,
         description: impl ToString,
-        precondition: impl Into<Condition>,
-        condition: impl Into<Condition>,
+        activation_condition: impl ToString,
+        completion_condition: impl ToString,
+        unactivated_failure_condition: impl ToString,
+        activated_failure_condition: impl ToString,
     ) -> Self {
         Self {
             id_str: id.to_string(),
             title: title.to_string(),
             description: description.to_string(),
-            precondition: precondition.into(),
-            condition: condition.into(),
-            hidden: false,
+            activation_condition: activation_condition.to_string(),
+            completion_condition: completion_condition.to_string(),
+            unactivated_failure_condition: unactivated_failure_condition.to_string(),
+            activated_failure_condition: activated_failure_condition.to_string(),
         }
     }
 
-    #[allow(dead_code)]
-    fn hidden(
-        id: impl ToString,
-        precondition: impl Into<Condition>,
-        condition: impl Into<Condition>,
-    ) -> Self {
-        Self {
-            id_str: id.to_string(),
-            title: Default::default(),
-            description: Default::default(),
-            precondition: precondition.into(),
-            condition: condition.into(),
-            hidden: true,
-        }
-    }
-
-    fn compile(
-        self,
-        quest_id_map: &HashMap<String, QuestId>,
-        action_id_map: &HashMap<String, ActionId>,
-    ) -> CompiledQuest {
+    pub fn compile(self, id_maps: &IdMaps) -> CompiledQuest {
         CompiledQuest {
-            id: *quest_id_map.get(&self.id_str).unwrap(),
+            id: *id_maps.quests.get(&self.id_str).unwrap(),
             id_str: self.id_str,
             title: self.title,
             description: self.description,
-            precondition: self.precondition.compile(quest_id_map, action_id_map),
-            condition: self.condition.compile(quest_id_map, action_id_map),
-            hidden: self.hidden,
+            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
+            completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
+            unactivated_failure_condition: *id_maps
+                .triggers
+                .get(&self.unactivated_failure_condition)
+                .unwrap(),
+            activated_failure_condition: *id_maps
+                .triggers
+                .get(&self.activated_failure_condition)
+                .unwrap(),
             state: QuestState::Inactive,
-        }
-    }
-}
-
-impl CompiledQuest {
-    pub fn update_action_completed(
-        &mut self,
-        action_in_progress: &ActionInProgress,
-    ) -> QuestConditionEvaluation {
-        match self.state {
-            QuestState::Inactive => {
-                let result = self
-                    .precondition
-                    .update_action_completed(action_in_progress);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Active {
-                        activation_time: action_in_progress.end,
-                    };
-                    trace!(
-                        "Quest {} was activated by action {:?}",
-                        self.id_str,
-                        action_in_progress.action
-                    );
-                }
-                result
-            }
-            QuestState::Active { activation_time } => {
-                let result = self.condition.update_action_completed(action_in_progress);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Completed {
-                        activation_time,
-                        completion_time: action_in_progress.end,
-                    };
-                    trace!(
-                        "Quest {} was completed by action {:?}",
-                        self.id_str,
-                        action_in_progress.action
-                    );
-                }
-                result
-            }
-            QuestState::Completed { .. } => unreachable!("Completed actions are never updated"),
-        }
-    }
-
-    pub fn activate_quests(
-        &mut self,
-        activated_quests: &HashSet<QuestId>,
-        time: GameTime,
-    ) -> QuestConditionEvaluation {
-        match self.state {
-            QuestState::Inactive => {
-                let result = self.precondition.activate_quests(activated_quests);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Active {
-                        activation_time: time,
-                    };
-                    trace!("Quest {} was activated by activated quests", self.id_str);
-                }
-                result
-            }
-            QuestState::Active { activation_time } => {
-                let result = self.condition.activate_quests(activated_quests);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Completed {
-                        activation_time,
-                        completion_time: time,
-                    };
-                    trace!("Quest {} was completed by completed quests", self.id_str);
-                }
-                result
-            }
-            QuestState::Completed { .. } => unreachable!("Completed actions are never updated"),
-        }
-    }
-
-    pub fn complete_quests(
-        &mut self,
-        completed_quests: &HashSet<QuestId>,
-        time: GameTime,
-    ) -> QuestConditionEvaluation {
-        match self.state {
-            QuestState::Inactive => {
-                let result = self.precondition.complete_quests(completed_quests);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Active {
-                        activation_time: time,
-                    };
-                    trace!("Quest {} was activated by completed quests", self.id_str);
-                }
-                result
-            }
-            QuestState::Active { activation_time } => {
-                let result = self.condition.complete_quests(completed_quests);
-                if result == QuestConditionEvaluation::True {
-                    self.state = QuestState::Completed {
-                        activation_time,
-                        completion_time: time,
-                    };
-                    trace!("Quest {} was completed by completed quests", self.id_str);
-                }
-                result
-            }
-            QuestState::Completed { .. } => unreachable!("Completed actions are never updated"),
         }
     }
 }
@@ -232,6 +108,13 @@ pub enum QuestState {
     Completed {
         activation_time: GameTime,
         completion_time: GameTime,
+    },
+    FailedWhileInactive {
+        failure_time: GameTime,
+    },
+    FailedWhileActive {
+        activation_time: GameTime,
+        failure_time: GameTime,
     },
 }
 
@@ -256,6 +139,10 @@ impl QuestState {
             QuestState::Completed {
                 activation_time, ..
             } => Some(*activation_time),
+            QuestState::FailedWhileInactive { .. } => None,
+            QuestState::FailedWhileActive {
+                activation_time, ..
+            } => Some(*activation_time),
         }
     }
 
@@ -266,6 +153,8 @@ impl QuestState {
             QuestState::Completed {
                 completion_time, ..
             } => Some(*completion_time),
+            QuestState::FailedWhileInactive { .. } => None,
+            QuestState::FailedWhileActive { .. } => None,
         }
     }
 }
@@ -297,6 +186,8 @@ impl From<QuestState> for QuestStateMarker {
             QuestState::Inactive => QuestStateMarker::Inactive,
             QuestState::Active { .. } => QuestStateMarker::Active,
             QuestState::Completed { .. } => QuestStateMarker::Completed,
+            QuestState::FailedWhileInactive { .. } => todo!(),
+            QuestState::FailedWhileActive { .. } => todo!(),
         }
     }
 }

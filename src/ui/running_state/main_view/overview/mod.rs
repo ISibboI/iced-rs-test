@@ -1,10 +1,12 @@
 use crate::game_state::combat::CombatStyle;
+use crate::game_state::world::locations::LocationId;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;
 use crate::GameState;
 use enum_iterator::all;
 use iced::{pick_list, scrollable, Column, Element, Length, PickList, Row};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone)]
 pub struct OverviewState {
@@ -69,8 +71,8 @@ impl OverviewState {
                 label_column_width,
                 format!("{:.0}", game_state.damage_output()),
             ))
-            .push(labelled_element(
-                "Combat location:",
+            /*.push(labelled_element(
+                "Combat world:",
                 label_column_width,
                 PickList::new(
                     &mut self.combat_location_picker_state,
@@ -78,10 +80,10 @@ impl OverviewState {
                         .list_feasible_locations()
                         .map(|location| location.name.clone())
                         .collect::<Vec<_>>(),
-                    Some(game_state.selected_combat_location.clone()),
-                    |combat_location| RunningMessage::CombatLocationChanged(combat_location).into(),
+                    Some(game_state.world.location(game_state.world.selected_location).name.clone()),
+                    |(_, location_id)| RunningMessage::CombatLocationChanged(location_id).into(),
                 ),
-            ));
+            ))*/;
 
         Column::new()
             .width(Length::Fill)
@@ -98,6 +100,7 @@ impl OverviewState {
                     .push(
                         scrollable_quest_column(
                             &game_state.story,
+                            &game_state.triggers,
                             &mut self.quest_column_scrollable_state,
                         )
                         .width(Length::Units(300))

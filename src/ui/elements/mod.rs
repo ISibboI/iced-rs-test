@@ -1,11 +1,13 @@
-use crate::game_state::actions::{DerefActionInProgress, ACTION_FIGHT_MONSTERS};
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
+use crate::game_state::player_actions::{DerefActionInProgress, ACTION_FIGHT_MONSTERS};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
+use crate::game_state::triggers::CompiledGameEvent;
 use crate::utils::text::{a_or_an, ordinal_suffix};
 use crate::{GameState, TITLE};
+use event_trigger_action_system::CompiledTriggers;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{
     scrollable, Alignment, Color, Column, Container, Element, Length, Row, Scrollable, Space, Text,
@@ -141,6 +143,7 @@ pub fn currency<'a, T: 'a>(currency: Currency, align_center: bool) -> Row<'a, T>
 
 pub fn scrollable_quest_column<'a, T: 'a>(
     story: &Story,
+    triggers: &CompiledTriggers<CompiledGameEvent>,
     scrollable_state: &'a mut scrollable::State,
 ) -> Scrollable<'a, T> {
     let mut quest_column = Column::new()
@@ -149,20 +152,8 @@ pub fn scrollable_quest_column<'a, T: 'a>(
         .spacing(5)
         .padding(5)
         .push(Text::new("Active quests:").size(24));
-    for quest in story
-        .active_quests_by_activation_time
-        .iter()
-        .rev()
-        .filter_map(|(_, id)| {
-            let quest = story.active_quests.get(id).unwrap();
-            if quest.hidden {
-                None
-            } else {
-                Some(quest)
-            }
-        })
-    {
-        let (progress, goal) = quest.condition.progress();
+    for quest in story.iter_active_quests_by_activation_time().rev() {
+        let (progress, goal) = triggers.progress(quest.completion_condition).unwrap();
         quest_column = quest_column
             .push(Text::new(&quest.title))
             .push(Text::new(&quest.description).size(16))
@@ -170,19 +161,7 @@ pub fn scrollable_quest_column<'a, T: 'a>(
     }
 
     quest_column = quest_column.push(Text::new("Completed quests:").size(24));
-    for quest in story
-        .completed_quests_by_completion_time
-        .iter()
-        .rev()
-        .filter_map(|(_, id)| {
-            let quest = story.completed_quests.get(id).unwrap();
-            if quest.hidden {
-                None
-            } else {
-                Some(quest)
-            }
-        })
-    {
+    for quest in story.iter_completed_quests_by_completion_time().rev() {
         quest_column = quest_column
             .push(Text::new(&quest.title))
             .push(Text::new(&quest.description).size(16));

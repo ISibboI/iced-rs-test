@@ -1,4 +1,4 @@
-use crate::game_state::actions::ActionInProgress;
+use crate::game_state::player_actions::ActionInProgress;
 use crate::game_state::time::GameTime;
 use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
