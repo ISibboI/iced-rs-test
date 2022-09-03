@@ -10,7 +10,7 @@ duration 1h
 
 QUEST look_around
 activation none
-completion action_count(look_around, 2)
+completion action_count(2, look_around)
 name Figure out where you are
 description You woke up on the side of a road in a village unknown to you. Take a look around to figure out where you are.
 

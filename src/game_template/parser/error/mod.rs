@@ -26,12 +26,22 @@ pub enum ParserErrorKind {
     ExpectedInteger(TokenKindOrString),
     ExpectedFloat(TokenKindOrString),
     UnexpectedActionKey(TokenKind),
+    UnexpectedTriggerCondition(String),
+    ExpectedOpenParenthesis(TokenKind),
+    ExpectedCloseParenthesis(TokenKind),
+    ExpectedComma(TokenKind),
+    UnexpectedGameEvent(String),
+    ExpectedCommaOrCloseParenthesis(TokenKind),
 }
 
 #[derive(Debug, Clone)]
 pub enum TokenKindOrString {
     TokenKind(TokenKind),
     String(String),
+}
+
+pub fn unexpected_eof() -> ParserError {
+    ParserError::without_coordinates(ParserErrorKind::UnexpectedEof)
 }
 
 impl ParserError {

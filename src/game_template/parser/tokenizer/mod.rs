@@ -50,8 +50,8 @@ pub enum SectionTokenKind {
 
 #[derive(Debug, Clone)]
 pub enum ValueTokenKind {
-    OpenParenthese,
-    CloseParenthese,
+    OpenParenthesis,
+    CloseParenthesis,
     Comma,
 
     Integer(u64),
@@ -220,11 +220,11 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         }
                     }
                     '(' => Ok(Some(Token::new(
-                        ValueTokenKind::OpenParenthese.into(),
+                        ValueTokenKind::OpenParenthesis.into(),
                         range,
                     ))),
                     ')' => Ok(Some(Token::new(
-                        ValueTokenKind::CloseParenthese.into(),
+                        ValueTokenKind::CloseParenthesis.into(),
                         range,
                     ))),
                     ',' => Ok(Some(Token::new(ValueTokenKind::Comma.into(), range))),

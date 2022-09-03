@@ -1,13 +1,17 @@
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
-use crate::game_state::triggers::GameAction;
+use crate::game_state::triggers::{GameAction, GameEvent};
 use crate::game_template::parser::character_iterator::CharacterCoordinateRange;
-use crate::game_template::parser::error::{ParserError, ParserErrorKind};
+use crate::game_template::parser::error::{unexpected_eof, ParserError, ParserErrorKind};
 use crate::game_template::parser::tokenizer::{
     RangedElement, SectionTokenKind, Token, TokenIterator, TokenKind, ValueTokenKind,
 };
 use crate::game_template::GameTemplate;
+use async_recursion::async_recursion;
 use async_std::io::Read;
+use event_trigger_action_system::{
+    and, any_n, event_count, geq, never, none, or, sequence, Trigger, TriggerCondition,
+};
 
 mod character_iterator;
 pub mod error;
@@ -15,14 +19,14 @@ mod tokenizer;
 
 pub async fn parse_game_template_file(
     game_template: &mut GameTemplate,
-    input: impl Read + Unpin,
+    input: impl Read + Unpin + Send,
 ) -> Result<(), ParserError> {
     parse(game_template, &mut TokenIterator::new(input)).await
 }
 
 async fn parse(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<(), ParserError> {
     let mut next_token = tokens.next().await?;
     while let Some(token) = next_token {
@@ -46,7 +50,7 @@ async fn parse(
 
 async fn parse_builtin_action(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<Option<Token>, ParserError> {
     let (identifier, range) = expect_identifier(tokens).await?.decompose();
     let action_type = match identifier.as_str() {
@@ -77,7 +81,7 @@ async fn parse_builtin_action(
 
 async fn parse_action(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<Option<Token>, ParserError> {
     let (identifier, range) = expect_identifier(tokens).await?.decompose();
 
@@ -96,7 +100,7 @@ async fn parse_action(
 
 async fn parse_action_body(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
     mut action: PlayerAction,
     id_range: CharacterCoordinateRange,
     is_builtin: bool,
@@ -200,15 +204,14 @@ async fn parse_action_body(
                         }
                     }
                 } else {
-                    return Err(ParserError::without_coordinates(
-                        ParserErrorKind::UnexpectedEof,
-                    ));
+                    return Err(unexpected_eof());
                 }
             }
             TokenKind::KeyActivation => {
-                result = parse_trigger(
+                parse_trigger(
                     game_template,
                     tokens,
+                    format!("{}_activation", action.id_str),
                     vec![GameAction::ActivateAction {
                         id: action.id_str.clone(),
                     }],
@@ -260,28 +263,220 @@ async fn parse_action_body(
 
 async fn parse_quest_action(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<Option<Token>, ParserError> {
     todo!()
 }
 
 async fn parse_quest(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<Option<Token>, ParserError> {
     todo!()
 }
 
 async fn parse_trigger(
     game_template: &mut GameTemplate,
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+    id_str: String,
     game_actions: Vec<GameAction>,
-) -> Result<Option<Token>, ParserError> {
-    todo!()
+) -> Result<(), ParserError> {
+    let condition = parse_trigger_condition(tokens).await?;
+    game_template
+        .triggers
+        .push(Trigger::new(id_str, condition, game_actions));
+    Ok(())
+}
+
+#[async_recursion]
+async fn parse_trigger_condition(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<TriggerCondition<GameEvent>, ParserError> {
+    let (identifier, range) = expect_identifier(tokens).await?.decompose();
+    Ok(match identifier.as_str() {
+        "none" => none(),
+        "never" => never(),
+        "event_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let event = parse_game_event(tokens).await?;
+            expect_close_parenthesis(tokens).await?;
+            event_count(event, count as usize)
+        }
+        "geq" => {
+            expect_open_parenthesis(tokens).await?;
+            let event = parse_game_event(tokens).await?;
+            expect_close_parenthesis(tokens).await?;
+            geq(event)
+        }
+        "and" => and(parse_trigger_condition_sequence(tokens, true).await?),
+        "or" => or(parse_trigger_condition_sequence(tokens, true).await?),
+        "sequence" => sequence(parse_trigger_condition_sequence(tokens, true).await?),
+        "any_n" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let events = parse_trigger_condition_sequence(tokens, false).await?;
+            any_n(events, count as usize)
+        }
+        "action_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let action = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(GameEvent::ActionCompleted { id: action }, count as usize)
+        }
+        "monster_killed_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let monster = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(GameEvent::MonsterKilled { id: monster }, count as usize)
+        }
+        _ => {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::UnexpectedTriggerCondition(identifier),
+                range,
+            ))
+        }
+    })
+}
+
+#[async_recursion]
+async fn parse_trigger_condition_sequence(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+    contains_open_parenthesis: bool,
+) -> Result<Vec<TriggerCondition<GameEvent>>, ParserError> {
+    if contains_open_parenthesis {
+        expect_open_parenthesis(tokens).await?;
+    }
+
+    let mut result = Vec::new();
+    loop {
+        result.push(parse_trigger_condition(tokens).await?);
+
+        let (kind, range) = expect_any(tokens).await?.decompose();
+        match kind {
+            TokenKind::Value(ValueTokenKind::Comma) => {}
+            TokenKind::Value(ValueTokenKind::CloseParenthesis) => return Ok(result),
+            kind => {
+                return Err(ParserError::with_coordinates(
+                    ParserErrorKind::ExpectedCommaOrCloseParenthesis(kind),
+                    range,
+                ))
+            }
+        }
+    }
+}
+
+async fn parse_game_event(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<GameEvent, ParserError> {
+    let token = tokens.next().await?;
+    if let Some(token) = token {
+        let (identifier, range) = expect_identifier(tokens).await?.decompose();
+        Ok(match identifier.as_str() {
+            "currency_changed" => {
+                parse_f_currency(tokens, |currency| GameEvent::CurrencyChanged {
+                    value: currency,
+                })
+                .await?
+            }
+            "level_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerLevelChanged { value }).await?
+            }
+            "strength_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerStrengthChanged { value }).await?
+            }
+            "stamina_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerStaminaChanged { value }).await?
+            }
+            "dexterity_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerDexterityChanged { value }).await?
+            }
+            "intelligence_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerIntelligenceChanged {
+                    value,
+                })
+                .await?
+            }
+            "wisdom_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerWisdomChanged { value }).await?
+            }
+            "charisma_changed" => {
+                parse_f_integer(tokens, |value| GameEvent::PlayerCharismaChanged { value }).await?
+            }
+            "action_started" => {
+                parse_f_identifier(tokens, |identifier| GameEvent::ActionStarted {
+                    id: identifier,
+                })
+                .await?
+            }
+            "action_completed" => {
+                parse_f_identifier(tokens, |identifier| GameEvent::ActionCompleted {
+                    id: identifier,
+                })
+                .await?
+            }
+            "monster_killed" => {
+                parse_f_identifier(tokens, |identifier| GameEvent::MonsterKilled {
+                    id: identifier,
+                })
+                .await?
+            }
+            "monster_failed" => {
+                parse_f_identifier(tokens, |identifier| GameEvent::MonsterFailed {
+                    id: identifier,
+                })
+                .await?
+            }
+            _ => {
+                return Err(ParserError::with_coordinates(
+                    ParserErrorKind::UnexpectedGameEvent(identifier),
+                    range,
+                ))
+            }
+        })
+    } else {
+        Err(unexpected_eof())
+    }
+}
+
+async fn parse_f_currency(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+    constructor: impl FnOnce(Currency) -> GameEvent,
+) -> Result<GameEvent, ParserError> {
+    expect_open_parenthesis(tokens).await?;
+    let integer = expect_integer(tokens).await?.element;
+    expect_close_parenthesis(tokens).await?;
+    Ok(constructor(Currency::from_copper(integer.into())))
+}
+
+async fn parse_f_integer(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+    constructor: impl FnOnce(u64) -> GameEvent,
+) -> Result<GameEvent, ParserError> {
+    expect_open_parenthesis(tokens).await?;
+    let integer = expect_integer(tokens).await?.element;
+    expect_close_parenthesis(tokens).await?;
+    Ok(constructor(integer))
+}
+
+async fn parse_f_identifier(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+    constructor: impl FnOnce(String) -> GameEvent,
+) -> Result<GameEvent, ParserError> {
+    expect_open_parenthesis(tokens).await?;
+    let identifier = expect_identifier(tokens).await?.element;
+    expect_close_parenthesis(tokens).await?;
+    Ok(constructor(identifier))
 }
 
 async fn expect_identifier(
-    tokens: &mut TokenIterator<impl Read + Unpin>,
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<RangedElement<String>, ParserError> {
     let (kind, range) = expect_any(tokens).await?.decompose();
     match kind {
@@ -295,11 +490,65 @@ async fn expect_identifier(
     }
 }
 
-async fn expect_any(tokens: &mut TokenIterator<impl Read + Unpin>) -> Result<Token, ParserError> {
+async fn expect_integer(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<RangedElement<u64>, ParserError> {
+    let (kind, range) = expect_any(tokens).await?.decompose();
+    match kind {
+        TokenKind::Value(ValueTokenKind::Integer(integer)) => {
+            Ok(RangedElement::new(integer, range))
+        }
+        other => Err(ParserError::with_coordinates(
+            ParserErrorKind::ExpectedInteger(other.into()),
+            range,
+        )),
+    }
+}
+
+async fn expect_open_parenthesis(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<CharacterCoordinateRange, ParserError> {
+    let (kind, range) = expect_any(tokens).await?.decompose();
+    match kind {
+        TokenKind::Value(ValueTokenKind::OpenParenthesis) => Ok(range),
+        other => Err(ParserError::with_coordinates(
+            ParserErrorKind::ExpectedOpenParenthesis(other),
+            range,
+        )),
+    }
+}
+
+async fn expect_close_parenthesis(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<CharacterCoordinateRange, ParserError> {
+    let (kind, range) = expect_any(tokens).await?.decompose();
+    match kind {
+        TokenKind::Value(ValueTokenKind::CloseParenthesis) => Ok(range),
+        other => Err(ParserError::with_coordinates(
+            ParserErrorKind::ExpectedCloseParenthesis(other),
+            range,
+        )),
+    }
+}
+
+async fn expect_comma(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<CharacterCoordinateRange, ParserError> {
+    let (kind, range) = expect_any(tokens).await?.decompose();
+    match kind {
+        TokenKind::Value(ValueTokenKind::Comma) => Ok(range),
+        other => Err(ParserError::with_coordinates(
+            ParserErrorKind::ExpectedComma(other),
+            range,
+        )),
+    }
+}
+
+async fn expect_any(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<Token, ParserError> {
     match tokens.next().await? {
         Some(token) => Ok(token),
-        None => Err(ParserError::without_coordinates(
-            ParserErrorKind::UnexpectedEof,
-        )),
+        None => Err(unexpected_eof()),
     }
 }
