@@ -13,22 +13,6 @@ pub const COPPER_PER_GOLD: i128 = COPPER_PER_SILVER * SILVER_PER_GOLD;
 
 #[allow(dead_code)]
 impl Currency {
-    pub const fn zero() -> Self {
-        Self { amount: 0 }
-    }
-
-    pub const fn copper(&self) -> i128 {
-        self.amount
-    }
-
-    pub const fn silver(&self) -> i128 {
-        self.amount / COPPER_PER_SILVER
-    }
-
-    pub const fn gold(&self) -> i128 {
-        self.amount / COPPER_PER_GOLD
-    }
-
     pub const fn from_copper(copper: i128) -> Self {
         Self { amount: copper }
     }
@@ -43,6 +27,28 @@ impl Currency {
         Self {
             amount: gold * COPPER_PER_GOLD,
         }
+    }
+
+    pub fn from_copper_f64(copper: f64) -> Self {
+        Self {
+            amount: copper.round() as i128,
+        }
+    }
+
+    pub const fn zero() -> Self {
+        Self { amount: 0 }
+    }
+
+    pub const fn copper(&self) -> i128 {
+        self.amount
+    }
+
+    pub const fn silver(&self) -> i128 {
+        self.amount / COPPER_PER_SILVER
+    }
+
+    pub const fn gold(&self) -> i128 {
+        self.amount / COPPER_PER_GOLD
     }
 
     pub const fn copper_of_silver(&self) -> i8 {

@@ -41,44 +41,8 @@ pub const MILLISECONDS_PER_MONTH: [i128; 12] = [
 pub const MILLISECONDS_PER_YEAR: i128 = MILLISECONDS_PER_DAY * DAYS_PER_YEAR;
 
 impl GameTime {
-    pub const fn milliseconds(&self) -> i128 {
-        self.time
-    }
-
-    pub const fn seconds(&self) -> i128 {
-        self.time / MILLISECONDS_PER_SECOND
-    }
-
-    pub const fn minutes(&self) -> i128 {
-        self.time / MILLISECONDS_PER_MINUTE
-    }
-
-    pub const fn hours(&self) -> i128 {
-        self.time / MILLISECONDS_PER_HOUR
-    }
-
-    pub const fn days(&self) -> i128 {
-        self.time / MILLISECONDS_PER_DAY
-    }
-
-    pub const fn weeks(&self) -> i128 {
-        self.time / MILLISECONDS_PER_WEEK
-    }
-
-    pub const fn years(&self) -> i128 {
-        self.time / MILLISECONDS_PER_YEAR
-    }
-
-    pub const fn eras(&self) -> i8 {
-        let years = self.years();
-        let mut era = FIRST_YEAR_OF_ERA.len();
-        loop {
-            era -= 1;
-            assert!(era < FIRST_YEAR_OF_ERA.len());
-            if years >= FIRST_YEAR_OF_ERA[era] {
-                return era as i8;
-            }
-        }
+    pub const fn zero() -> Self {
+        Self { time: 0 }
     }
 
     pub const fn from_milliseconds(milliseconds: i128) -> Self {
@@ -121,9 +85,82 @@ impl GameTime {
         }
     }
 
-    pub const fn from_eras(eras: i128) -> Self {
-        Self {
-            time: FIRST_YEAR_OF_ERA[eras as usize] * MILLISECONDS_PER_YEAR,
+    pub const fn from_eras(eras: i128) -> Option<Self> {
+        let eras = eras as usize;
+        if eras < FIRST_YEAR_OF_ERA.len() {
+            Some(Self {
+                time: FIRST_YEAR_OF_ERA[eras] * MILLISECONDS_PER_YEAR,
+            })
+        } else {
+            None
+        }
+    }
+
+    pub fn from_milliseconds_f64(milliseconds: f64) -> Self {
+        Self::from_milliseconds(milliseconds.round() as i128)
+    }
+
+    pub fn from_seconds_f64(seconds: f64) -> Self {
+        Self::from_milliseconds((seconds * MILLISECONDS_PER_SECOND as f64).round() as i128)
+    }
+
+    pub fn from_minutes_f64(minutes: f64) -> Self {
+        Self::from_milliseconds((minutes * MILLISECONDS_PER_MINUTE as f64).round() as i128)
+    }
+
+    pub fn from_hours_f64(hours: f64) -> Self {
+        Self::from_milliseconds((hours * MILLISECONDS_PER_HOUR as f64).round() as i128)
+    }
+
+    pub fn from_days_f64(days: f64) -> Self {
+        Self::from_milliseconds((days * MILLISECONDS_PER_DAY as f64).round() as i128)
+    }
+
+    pub fn from_weeks_f64(weeks: f64) -> Self {
+        Self::from_milliseconds((weeks * MILLISECONDS_PER_WEEK as f64).round() as i128)
+    }
+
+    pub fn from_years_f64(years: f64) -> Self {
+        Self::from_milliseconds((years * MILLISECONDS_PER_YEAR as f64).round() as i128)
+    }
+
+    pub const fn milliseconds(&self) -> i128 {
+        self.time
+    }
+
+    pub const fn seconds(&self) -> i128 {
+        self.time / MILLISECONDS_PER_SECOND
+    }
+
+    pub const fn minutes(&self) -> i128 {
+        self.time / MILLISECONDS_PER_MINUTE
+    }
+
+    pub const fn hours(&self) -> i128 {
+        self.time / MILLISECONDS_PER_HOUR
+    }
+
+    pub const fn days(&self) -> i128 {
+        self.time / MILLISECONDS_PER_DAY
+    }
+
+    pub const fn weeks(&self) -> i128 {
+        self.time / MILLISECONDS_PER_WEEK
+    }
+
+    pub const fn years(&self) -> i128 {
+        self.time / MILLISECONDS_PER_YEAR
+    }
+
+    pub const fn eras(&self) -> i8 {
+        let years = self.years();
+        let mut era = FIRST_YEAR_OF_ERA.len();
+        loop {
+            era -= 1;
+            assert!(era < FIRST_YEAR_OF_ERA.len());
+            if years >= FIRST_YEAR_OF_ERA[era] {
+                return era as i8;
+            }
         }
     }
 

@@ -1,5 +1,6 @@
 use crate::game_state::character::CharacterRace;
-use crate::game_template::parser::{parse_game_template_file, ParserError};
+use crate::game_template::parser::error::ParserError;
+use crate::game_template::parser::parse_game_template_file;
 use crate::game_template::CompiledGameTemplate;
 use crate::ui::elements::{labelled_element, title};
 use crate::ui::running_state::RunningState;
@@ -182,8 +183,11 @@ pub async fn create_game_boxed(
 }
 
 pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemplate, ParserError> {
-    let game_template_file = File::open(game_template_file).await?;
-    let game_template = parse_game_template_file(Default::default(), game_template_file).await?;
+    let game_template_file = File::open(game_template_file)
+        .await
+        .map_err(|error| ParserError::without_coordinates(error.into()))?;
+    let mut game_template = Default::default();
+    parse_game_template_file(&mut game_template, game_template_file).await?;
     Ok(game_template.compile())
 }
 

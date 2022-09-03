@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::iter;
 use std::ops::Deref;
+use std::str::FromStr;
 
 pub static ACTION_WAIT: PlayerActionId = PlayerActionId(0);
 pub static ACTION_SLEEP: PlayerActionId = PlayerActionId(1);
@@ -115,10 +116,12 @@ pub struct PlayerActions {
 
 #[derive(Clone, Debug, Serialize, Deserialize, Sequence, Eq, PartialEq)]
 pub enum PlayerActionType {
-    Rest,
+    Wait,
+    Sleep,
+    Tavern,
     Train,
     Work,
-    Combat,
+    Explore,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -356,5 +359,21 @@ impl<'a> Deref for DerefActionInProgress<'a> {
 impl From<usize> for PlayerActionId {
     fn from(value: usize) -> Self {
         Self(value)
+    }
+}
+
+impl FromStr for PlayerActionType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(match s {
+            "WAIT" => PlayerActionType::Wait,
+            "SLEEP" => PlayerActionType::Sleep,
+            "TAVERN" => PlayerActionType::Tavern,
+            "TRAIN" => PlayerActionType::Train,
+            "WORK" => PlayerActionType::Work,
+            "EXPLORE" => PlayerActionType::Explore,
+            _ => return Err(()),
+        })
     }
 }

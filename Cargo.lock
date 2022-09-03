@@ -1159,6 +1159,7 @@ dependencies = [
  "serde",
  "serde_json",
  "simplelog",
+ "unicode_reader",
  "wasm-bindgen",
  "wasm-logger",
  "web-sys",
@@ -2381,6 +2382,16 @@ name = "unicode-width"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3ed742d4ea2bd1176e236172c8429aaf54486e7ac098db29ffe6529e0ce50973"
+
+[[package]]
+name = "unicode_reader"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d68d43b506d20b459657e0f0fe3bf0fdbac65b61cbcc2bff842fc6614a8dc179"
+dependencies = [
+ "smallvec",
+ "unicode-segmentation",
+]
 
 [[package]]
 name = "url"
