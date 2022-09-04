@@ -15,7 +15,20 @@ pub struct Token {
 #[derive(Debug, Clone)]
 pub enum TokenKind {
     Section(SectionTokenKind),
+    Key(KeyTokenKind),
+    Value(ValueTokenKind),
+}
 
+#[derive(Debug, Clone)]
+pub enum SectionTokenKind {
+    SectionBuiltinAction,
+    SectionAction,
+    SectionQuestAction,
+    SectionQuest,
+}
+
+#[derive(Debug, Clone)]
+pub enum KeyTokenKind {
     KeyName,
     KeyProgressive,
     KeySimplePast,
@@ -36,16 +49,6 @@ pub enum TokenKind {
     KeyDeactivation,
     KeyCompletion,
     KeyFailure,
-
-    Value(ValueTokenKind),
-}
-
-#[derive(Debug, Clone)]
-pub enum SectionTokenKind {
-    SectionBuiltinAction,
-    SectionAction,
-    SectionQuestAction,
-    SectionQuest,
 }
 
 #[derive(Debug, Clone)]
@@ -116,27 +119,73 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         range,
                     ))),
 
-                    "name" => Ok(Some(Token::new(TokenKind::KeyName, range))),
-                    "progressive" => Ok(Some(Token::new(TokenKind::KeyProgressive, range))),
-                    "simple_past" => Ok(Some(Token::new(TokenKind::KeySimplePast, range))),
-                    "description" => Ok(Some(Token::new(TokenKind::KeyDescription, range))),
+                    "name" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyName),
+                        range,
+                    ))),
+                    "progressive" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyProgressive),
+                        range,
+                    ))),
+                    "simple_past" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeySimplePast),
+                        range,
+                    ))),
+                    "description" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyDescription),
+                        range,
+                    ))),
 
-                    "str" | "strength" => Ok(Some(Token::new(TokenKind::KeyStrength, range))),
-                    "sta" | "stamina" => Ok(Some(Token::new(TokenKind::KeyStamina, range))),
-                    "dex" | "dexterity" => Ok(Some(Token::new(TokenKind::KeyDexterity, range))),
-                    "int" | "intelligence" => {
-                        Ok(Some(Token::new(TokenKind::KeyIntelligence, range)))
-                    }
-                    "wis" | "wisdom" => Ok(Some(Token::new(TokenKind::KeyWisdom, range))),
-                    "chr" | "charisma" => Ok(Some(Token::new(TokenKind::KeyCharisma, range))),
-                    "currency" => Ok(Some(Token::new(TokenKind::KeyCurrency, range))),
+                    "str" | "strength" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyStrength),
+                        range,
+                    ))),
+                    "sta" | "stamina" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyStamina),
+                        range,
+                    ))),
+                    "dex" | "dexterity" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyDexterity),
+                        range,
+                    ))),
+                    "int" | "intelligence" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyIntelligence),
+                        range,
+                    ))),
+                    "wis" | "wisdom" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyWisdom),
+                        range,
+                    ))),
+                    "chr" | "charisma" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyCharisma),
+                        range,
+                    ))),
+                    "currency" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyCurrency),
+                        range,
+                    ))),
 
-                    "type" => Ok(Some(Token::new(TokenKind::KeyType, range))),
-                    "duration" => Ok(Some(Token::new(TokenKind::KeyDuration, range))),
+                    "type" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyType),
+                        range,
+                    ))),
+                    "duration" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyDuration),
+                        range,
+                    ))),
 
-                    "activation" => Ok(Some(Token::new(TokenKind::KeyActivation, range))),
-                    "completion" => Ok(Some(Token::new(TokenKind::KeyCompletion, range))),
-                    "failure" => Ok(Some(Token::new(TokenKind::KeyFailure, range))),
+                    "activation" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyActivation),
+                        range,
+                    ))),
+                    "completion" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyCompletion),
+                        range,
+                    ))),
+                    "failure" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyFailure),
+                        range,
+                    ))),
 
                     _ => Err(ParserError::with_coordinates(
                         ParserErrorKind::IllegalKeyword(word),
@@ -347,6 +396,7 @@ impl From<ValueTokenKind> for TokenKind {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct RangedElement<T> {
     pub element: T,
     pub range: CharacterCoordinateRange,

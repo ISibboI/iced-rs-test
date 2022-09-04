@@ -17,14 +17,11 @@ pub enum ParserErrorKind {
     UnexpectedEof,
     ExpectedIdentifier(TokenKind),
     UnknownBuiltinAction(String),
-    ActionMissesName(String),
-    ActionMissesVerbProgressive(String),
-    ActionMissesVerbSimplePast(String),
-    ActionMissesType(String),
     ExpectedNonemptyString,
     ExpectedActionType(String),
     ExpectedInteger(TokenKindOrString),
     ExpectedFloat(TokenKindOrString),
+    ExpectedTime(TokenKindOrString),
     UnexpectedActionKey(TokenKind),
     UnexpectedTriggerCondition(String),
     ExpectedOpenParenthesis(TokenKind),
@@ -32,6 +29,48 @@ pub enum ParserErrorKind {
     ExpectedComma(TokenKind),
     UnexpectedGameEvent(String),
     ExpectedCommaOrCloseParenthesis(TokenKind),
+
+    MissingName(String),
+    MissingProgressive(String),
+    MissingSimplePast(String),
+    MissingDescription(String),
+
+    MissingStrength(String),
+    MissingStamina(String),
+    MissingDexterity(String),
+    MissingIntelligence(String),
+    MissingWisdom(String),
+    MissingCharisma(String),
+    MissingCurrency(String),
+
+    MissingType(String),
+    MissingDuration(String),
+
+    MissingActivation(String),
+    MissingDeactivation(String),
+    MissingCompletion(String),
+    MissingFailue(String),
+
+    UnexpectedName(String),
+    UnexpectedProgressive(String),
+    UnexpectedSimplePast(String),
+    UnexpectedDescription(String),
+
+    UnexpectedStrength(String),
+    UnexpectedStamina(String),
+    UnexpectedDexterity(String),
+    UnexpectedIntelligence(String),
+    UnexpectedWisdom(String),
+    UnexpectedCharisma(String),
+    UnexpectedCurrency(String),
+
+    UnexpectedType(String),
+    UnexpectedDuration(String),
+
+    UnexpectedActivation(String),
+    UnexpectedDeactivation(String),
+    UnexpectedCompletion(String),
+    UnexpectedFailue(String),
 }
 
 #[derive(Debug, Clone)]
