@@ -12,6 +12,7 @@ use async_std::io::Read;
 use event_trigger_action_system::{
     and, any_n, event_count, geq, never, none, or, sequence, Trigger, TriggerCondition,
 };
+use log::{debug, trace};
 
 mod character_iterator;
 pub mod error;
@@ -22,6 +23,7 @@ pub async fn parse_game_template_file(
     game_template: &mut GameTemplate,
     input: impl Read + Unpin + Send,
 ) -> Result<(), ParserError> {
+    debug!("Parsing game template file");
     parse(game_template, &mut TokenIterator::new(input)).await
 }
 
@@ -30,9 +32,25 @@ async fn parse(
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<(), ParserError> {
     let mut next_token = tokens.next().await?;
+    trace!("First token: {next_token:?}");
     while let Some(token) = next_token {
         next_token = match token.kind() {
             TokenKind::Section(section) => match section {
+                SectionTokenKind::SectionInitialisation => {
+                    let (section_template, next_token) =
+                        parse_section(game_template, tokens, section).await?;
+                    if game_template
+                        .initialisation
+                        .replace(section_template.into_initialisation()?)
+                        .is_some()
+                    {
+                        return Err(ParserError::with_coordinates(
+                            ParserErrorKind::DuplicateInitialisation,
+                            token.range(),
+                        ));
+                    };
+                    next_token
+                }
                 SectionTokenKind::SectionBuiltinAction => {
                     let (section_template, next_token) =
                         parse_section(game_template, tokens, section).await?;
@@ -48,10 +66,17 @@ async fn parse(
                     next_token
                 }
                 SectionTokenKind::SectionQuestAction => {
-                    todo!()
+                    let (section_template, next_token) =
+                        parse_section(game_template, tokens, section).await?;
+                    let quest_action = section_template.into_quest_action(game_template)?;
+                    game_template.actions.push(quest_action);
+                    next_token
                 }
                 SectionTokenKind::SectionQuest => {
-                    todo!()
+                    let (section_template, next_token) =
+                        parse_section(game_template, tokens, section).await?;
+                    game_template.quests.push(section_template.into_quest()?);
+                    next_token
                 }
             },
             _ => return Err(token.error(|kind| ParserErrorKind::ExpectedSection(kind))),

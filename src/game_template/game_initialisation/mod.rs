@@ -18,11 +18,3 @@ impl GameInitialisation {
         }
     }
 }
-
-impl Default for GameInitialisation {
-    fn default() -> Self {
-        Self {
-            starting_location: "village".to_string(),
-        }
-    }
-}

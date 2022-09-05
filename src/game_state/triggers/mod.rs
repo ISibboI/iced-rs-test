@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub enum GameEvent {
+    Action(GameAction),
     CurrencyChanged { value: Currency },
     PlayerLevelChanged { value: u64 },
     PlayerStrengthChanged { value: u64 },
@@ -77,6 +78,7 @@ pub enum CompiledGameAction {
 impl GameEvent {
     pub fn compile(self, id_maps: &IdMaps) -> CompiledGameEvent {
         match self {
+            GameEvent::Action(action) => CompiledGameEvent::Action(action.compile(id_maps)),
             GameEvent::CurrencyChanged { value } => CompiledGameEvent::CurrencyChanged { value },
             GameEvent::PlayerLevelChanged { value } => {
                 CompiledGameEvent::PlayerLevelChanged { value }

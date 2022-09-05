@@ -14,6 +14,7 @@ use iced::{
     button, pick_list, text_input, Alignment, Button, Color, Column, Command, Container, Element,
     Length, PickList, Space, Text, TextInput,
 };
+use log::{debug, error};
 use std::borrow::Borrow;
 
 #[derive(Debug, Clone)]
@@ -82,6 +83,7 @@ impl CreateNewGameState {
                             );
                         }
                         Err(error) => {
+                            error!("Error compiling game template: {:?}", error);
                             self.message =
                                 Some(format!("Error compiling game template: {:?}", error));
                         }
@@ -183,6 +185,10 @@ pub async fn create_game_boxed(
 }
 
 pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemplate, ParserError> {
+    debug!(
+        "Reading game template from {}",
+        game_template_file.to_string_lossy()
+    );
     let game_template_file = File::open(game_template_file)
         .await
         .map_err(|error| ParserError::without_coordinates(error.into()))?;

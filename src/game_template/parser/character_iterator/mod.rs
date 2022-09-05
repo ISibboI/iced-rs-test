@@ -1,5 +1,6 @@
 use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use async_std::io::{Read, ReadExt};
+use log::trace;
 use std::cmp::Ordering;
 
 pub struct CharacterIterator<Input> {
@@ -52,15 +53,24 @@ impl<Input> CharacterIterator<Input> {
 impl<Input: Read + Unpin> CharacterIterator<Input> {
     pub async fn next(&mut self) -> Result<Option<char>, ParserErrorKind> {
         loop {
-            debug_assert!(self.offset <= self.limit && self.limit <= self.buffer.len());
+            debug_assert!(
+                self.offset <= self.limit && self.limit <= self.buffer.len(),
+                "offset: {}; limit: {}; len: {}",
+                self.offset,
+                self.limit,
+                self.buffer.len()
+            );
             if self.offset < self.limit {
-                match std::str::from_utf8(
-                    &self.buffer[self.offset..self.limit.min(self.offset + 4)],
-                ) {
+                let slice_len = (self.limit - self.offset).min(4);
+                match std::str::from_utf8(&self.buffer[self.offset..self.offset + slice_len]) {
                     Ok(string) => {
-                        let (index, character) =
-                            unsafe { string.char_indices().next().unwrap_unchecked() };
-                        self.offset += index;
+                        let mut char_indices = string.char_indices();
+                        let (index, character) = unsafe { char_indices.next().unwrap_unchecked() };
+                        self.offset += if let Some((index, _)) = char_indices.next() {
+                            index
+                        } else {
+                            slice_len
+                        };
                         return Ok(Some(character));
                     }
                     Err(error) => {
@@ -87,8 +97,10 @@ impl<Input: Read + Unpin> CharacterIterator<Input> {
                 }
             }
 
-            let bytes_read = self.input.read(self.buffer.as_mut_slice()).await?;
-            if self.limit == remaining_len {
+            debug_assert!(self.buffer.len() > remaining_len);
+            let bytes_read = self.input.read(&mut self.buffer[remaining_len..]).await?;
+            trace!("Read {bytes_read} bytes");
+            if bytes_read == 0 {
                 return Ok(None);
             }
 
@@ -193,6 +205,13 @@ impl CharacterWithCoordinates {
 }
 
 impl CharacterCoordinates {
+    pub fn zero() -> Self {
+        Self {
+            line_number: 0,
+            column_number: 0,
+        }
+    }
+
     fn new(line_number: usize, column_number: usize) -> Self {
         Self {
             line_number,
@@ -210,6 +229,13 @@ impl CharacterCoordinates {
 }
 
 impl CharacterCoordinateRange {
+    pub fn zero() -> Self {
+        Self {
+            from: CharacterCoordinates::zero(),
+            to: CharacterCoordinates::zero(),
+        }
+    }
+
     pub fn merge(&mut self, other: Self) {
         self.from = self.from.min(other.from);
         self.to = self.to.max(other.to);

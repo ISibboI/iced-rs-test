@@ -5,6 +5,7 @@ use crate::game_template::parser::character_iterator::{
 };
 use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use async_std::io::Read;
+use log::trace;
 
 #[derive(Debug, Clone)]
 pub struct Token {
@@ -19,8 +20,10 @@ pub enum TokenKind {
     Value(ValueTokenKind),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SectionTokenKind {
+    SectionInitialisation,
+
     SectionBuiltinAction,
     SectionAction,
     SectionQuestAction,
@@ -32,6 +35,7 @@ pub enum KeyTokenKind {
     KeyName,
     KeyProgressive,
     KeySimplePast,
+    KeyTitle,
     KeyDescription,
 
     KeyStrength,
@@ -49,6 +53,8 @@ pub enum KeyTokenKind {
     KeyDeactivation,
     KeyCompletion,
     KeyFailure,
+
+    KeyStartingLocation,
 }
 
 #[derive(Debug, Clone)]
@@ -100,8 +106,13 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         .await?
                         .unwrap_or(range),
                 );
+                trace!("Word at first of line: {word:?}");
 
                 match word.as_str() {
+                    "INITIALISATION" => Ok(Some(Token::new(
+                        SectionTokenKind::SectionInitialisation.into(),
+                        range,
+                    ))),
                     "BUILTIN_ACTION" => Ok(Some(Token::new(
                         SectionTokenKind::SectionBuiltinAction.into(),
                         range,
@@ -129,6 +140,10 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                     ))),
                     "simple_past" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::KeySimplePast),
+                        range,
+                    ))),
+                    "title" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyTitle),
                         range,
                     ))),
                     "description" => Ok(Some(Token::new(
@@ -178,12 +193,21 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         TokenKind::Key(KeyTokenKind::KeyActivation),
                         range,
                     ))),
+                    "deactivation" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyDeactivation),
+                        range,
+                    ))),
                     "completion" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::KeyCompletion),
                         range,
                     ))),
                     "failure" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::KeyFailure),
+                        range,
+                    ))),
+
+                    "starting_location" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::KeyStartingLocation),
                         range,
                     ))),
 
@@ -205,6 +229,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                             .await?
                             .unwrap_or(range),
                         );
+                        trace!("Numeric value later in line: {word:?}");
 
                         if let Ok(integer) = word.parse() {
                             Ok(Some(Token::new(
@@ -278,6 +303,17 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                     ))),
                     ',' => Ok(Some(Token::new(ValueTokenKind::Comma.into(), range))),
                     _ => {
+                        range.merge(
+                            self.read_until(&mut word, |character| {
+                                character.is_whitespace()
+                                    || character == '('
+                                    || character == ')'
+                                    || character == ','
+                            })
+                            .await?
+                            .unwrap_or(range),
+                        );
+                        trace!("Word later in line: {word:?}");
                         if word
                             .chars()
                             .all(|character| character.is_ascii_alphanumeric() || character == '_')
@@ -307,7 +343,9 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
         } else {
             let mut result = String::new();
             let range = self
-                .read_until(&mut result, |character| character == '\n')
+                .read_until(&mut result, |character| {
+                    character == '\n' || character == '\r'
+                })
                 .await?;
             Ok(RangedElement::new(result, range.unwrap()))
         }
@@ -335,6 +373,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                 break;
             }
         }
+        trace!("Skipped whitespace {range:?}");
         Ok(range)
     }
 

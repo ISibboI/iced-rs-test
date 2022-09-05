@@ -8,6 +8,7 @@ use crate::game_state::world::monsters::{Monster, MonsterId};
 use crate::game_state::world::World;
 use crate::game_template::game_initialisation::{CompiledGameInitialisation, GameInitialisation};
 use event_trigger_action_system::{CompiledTriggers, Trigger, TriggerHandle};
+use log::debug;
 use std::collections::HashMap;
 
 pub mod game_initialisation;
@@ -15,7 +16,7 @@ pub mod parser;
 
 #[derive(Debug, Default)]
 pub struct GameTemplate {
-    initialisation: GameInitialisation,
+    initialisation: Option<GameInitialisation>,
     actions: Vec<PlayerAction>,
     quests: Vec<Quest>,
     locations: Vec<Location>,
@@ -61,9 +62,10 @@ impl IdMaps {
 
 impl GameTemplate {
     pub fn compile(self) -> CompiledGameTemplate {
+        debug!("Compiling game template file");
         let id_maps = IdMaps::from_game_template(&self);
 
-        let initialisation = self.initialisation.compile(&id_maps);
+        let initialisation = self.initialisation.unwrap().compile(&id_maps);
 
         CompiledGameTemplate {
             actions: PlayerActions::new(

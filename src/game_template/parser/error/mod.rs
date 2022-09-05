@@ -29,10 +29,12 @@ pub enum ParserErrorKind {
     ExpectedComma(TokenKind),
     UnexpectedGameEvent(String),
     ExpectedCommaOrCloseParenthesis(TokenKind),
+    DuplicateInitialisation,
 
     MissingName(String),
     MissingProgressive(String),
     MissingSimplePast(String),
+    MissingTitle(String),
     MissingDescription(String),
 
     MissingStrength(String),
@@ -49,11 +51,14 @@ pub enum ParserErrorKind {
     MissingActivation(String),
     MissingDeactivation(String),
     MissingCompletion(String),
-    MissingFailue(String),
+    MissingFailure(String),
+
+    MissingStartingLocation(String),
 
     UnexpectedName(String),
     UnexpectedProgressive(String),
     UnexpectedSimplePast(String),
+    UnexpectedTitle(String),
     UnexpectedDescription(String),
 
     UnexpectedStrength(String),
@@ -70,7 +75,9 @@ pub enum ParserErrorKind {
     UnexpectedActivation(String),
     UnexpectedDeactivation(String),
     UnexpectedCompletion(String),
-    UnexpectedFailue(String),
+    UnexpectedFailure(String),
+
+    UnexpectedStartingLocation(String),
 }
 
 #[derive(Debug, Clone)]

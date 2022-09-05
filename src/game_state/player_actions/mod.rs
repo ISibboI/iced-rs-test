@@ -5,6 +5,7 @@ use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_template::IdMaps;
 use enum_iterator::Sequence;
+use event_trigger_action_system::TriggerHandle;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::iter;
@@ -131,8 +132,11 @@ pub struct PlayerAction {
     pub verb_progressive: String,
     pub verb_simple_past: String,
     pub action_type: PlayerActionType,
+    pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
     pub currency_gain: Currency,
+    pub activation_condition: String,
+    pub deactivation_condition: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -144,8 +148,11 @@ pub struct CompiledPlayerAction {
     pub verb_progressive: String,
     pub verb_simple_past: String,
     pub action_type: PlayerActionType,
+    pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
     pub currency_gain: Currency,
+    pub activation_condition: TriggerHandle,
+    pub deactivation_condition: TriggerHandle,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -277,26 +284,6 @@ impl PlayerActions {
 }
 
 impl PlayerAction {
-    fn new(
-        id_str: impl ToString,
-        name: impl ToString,
-        verb_progressive: impl ToString,
-        verb_simple_past: impl ToString,
-        action_type: PlayerActionType,
-        attribute_progress_factor: CharacterAttributeProgressFactor,
-        currency_gain: Currency,
-    ) -> Self {
-        Self {
-            id_str: id_str.to_string(),
-            name: name.to_string(),
-            verb_progressive: verb_progressive.to_string(),
-            verb_simple_past: verb_simple_past.to_string(),
-            action_type,
-            attribute_progress_factor,
-            currency_gain,
-        }
-    }
-
     pub fn compile(self, id_maps: &IdMaps) -> CompiledPlayerAction {
         CompiledPlayerAction {
             id: *id_maps.actions.get(&self.name).unwrap(),
@@ -306,8 +293,11 @@ impl PlayerAction {
             verb_progressive: self.verb_progressive,
             verb_simple_past: self.verb_simple_past,
             action_type: self.action_type,
+            duration: self.duration,
             attribute_progress_factor: self.attribute_progress_factor,
             currency_gain: self.currency_gain,
+            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
+            deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
         }
     }
 }

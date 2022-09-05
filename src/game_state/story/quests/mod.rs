@@ -37,8 +37,7 @@ pub struct Quest {
     pub description: String,
     pub activation_condition: String,
     pub completion_condition: String,
-    pub unactivated_failure_condition: String,
-    pub activated_failure_condition: String,
+    pub failure_condition: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -49,32 +48,11 @@ pub struct CompiledQuest {
     pub description: String,
     pub activation_condition: TriggerHandle,
     pub completion_condition: TriggerHandle,
-    pub unactivated_failure_condition: TriggerHandle,
-    pub activated_failure_condition: TriggerHandle,
+    pub failure_condition: TriggerHandle,
     pub state: QuestState,
 }
 
 impl Quest {
-    fn new(
-        id: impl ToString,
-        title: impl ToString,
-        description: impl ToString,
-        activation_condition: impl ToString,
-        completion_condition: impl ToString,
-        unactivated_failure_condition: impl ToString,
-        activated_failure_condition: impl ToString,
-    ) -> Self {
-        Self {
-            id_str: id.to_string(),
-            title: title.to_string(),
-            description: description.to_string(),
-            activation_condition: activation_condition.to_string(),
-            completion_condition: completion_condition.to_string(),
-            unactivated_failure_condition: unactivated_failure_condition.to_string(),
-            activated_failure_condition: activated_failure_condition.to_string(),
-        }
-    }
-
     pub fn compile(self, id_maps: &IdMaps) -> CompiledQuest {
         CompiledQuest {
             id: *id_maps.quests.get(&self.id_str).unwrap(),
@@ -83,14 +61,7 @@ impl Quest {
             description: self.description,
             activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
             completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
-            unactivated_failure_condition: *id_maps
-                .triggers
-                .get(&self.unactivated_failure_condition)
-                .unwrap(),
-            activated_failure_condition: *id_maps
-                .triggers
-                .get(&self.activated_failure_condition)
-                .unwrap(),
+            failure_condition: *id_maps.triggers.get(&self.failure_condition).unwrap(),
             state: QuestState::Inactive,
         }
     }
