@@ -22,39 +22,43 @@ pub enum TokenKind {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub enum SectionTokenKind {
-    SectionInitialisation,
+    Initialisation,
 
-    SectionBuiltinAction,
-    SectionAction,
-    SectionQuestAction,
-    SectionQuest,
+    BuiltinAction,
+    Action,
+    QuestAction,
+    Quest,
+    Location,
+    ExplorationEvent,
+    Monster,
 }
 
 #[derive(Debug, Clone)]
 pub enum KeyTokenKind {
-    KeyName,
-    KeyProgressive,
-    KeySimplePast,
-    KeyTitle,
-    KeyDescription,
+    Name,
+    Progressive,
+    SimplePast,
+    Title,
+    Description,
 
-    KeyStrength,
-    KeyStamina,
-    KeyDexterity,
-    KeyIntelligence,
-    KeyWisdom,
-    KeyCharisma,
-    KeyCurrency,
+    Strength,
+    Stamina,
+    Dexterity,
+    Intelligence,
+    Wisdom,
+    Charisma,
+    Currency,
 
-    KeyType,
-    KeyDuration,
+    Type,
+    Duration,
+    Events,
 
-    KeyActivation,
-    KeyDeactivation,
-    KeyCompletion,
-    KeyFailure,
+    Activation,
+    Deactivation,
+    Completion,
+    Failure,
 
-    KeyStartingLocation,
+    StartingLocation,
 }
 
 #[derive(Debug, Clone)]
@@ -110,104 +114,99 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
 
                 match word.as_str() {
                     "INITIALISATION" => Ok(Some(Token::new(
-                        SectionTokenKind::SectionInitialisation.into(),
+                        SectionTokenKind::Initialisation.into(),
                         range,
                     ))),
                     "BUILTIN_ACTION" => Ok(Some(Token::new(
-                        SectionTokenKind::SectionBuiltinAction.into(),
+                        SectionTokenKind::BuiltinAction.into(),
                         range,
                     ))),
-                    "ACTION" => Ok(Some(Token::new(
-                        SectionTokenKind::SectionAction.into(),
-                        range,
-                    ))),
+                    "ACTION" => Ok(Some(Token::new(SectionTokenKind::Action.into(), range))),
                     "QUEST_ACTION" => Ok(Some(Token::new(
-                        SectionTokenKind::SectionQuestAction.into(),
+                        SectionTokenKind::QuestAction.into(),
                         range,
                     ))),
-                    "QUEST" => Ok(Some(Token::new(
-                        SectionTokenKind::SectionQuest.into(),
+                    "QUEST" => Ok(Some(Token::new(SectionTokenKind::Quest.into(), range))),
+                    "LOCATION" => Ok(Some(Token::new(SectionTokenKind::Location.into(), range))),
+                    "EXPLORATION_EVENT" => Ok(Some(Token::new(
+                        SectionTokenKind::ExplorationEvent.into(),
                         range,
                     ))),
+                    "MONSTER" => Ok(Some(Token::new(SectionTokenKind::Monster.into(), range))),
 
-                    "name" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyName),
-                        range,
-                    ))),
+                    "name" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Name), range))),
                     "progressive" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyProgressive),
+                        TokenKind::Key(KeyTokenKind::Progressive),
                         range,
                     ))),
                     "simple_past" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeySimplePast),
+                        TokenKind::Key(KeyTokenKind::SimplePast),
                         range,
                     ))),
-                    "title" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyTitle),
-                        range,
-                    ))),
+                    "title" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Title), range))),
                     "description" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyDescription),
+                        TokenKind::Key(KeyTokenKind::Description),
                         range,
                     ))),
 
                     "str" | "strength" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyStrength),
+                        TokenKind::Key(KeyTokenKind::Strength),
                         range,
                     ))),
                     "sta" | "stamina" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyStamina),
+                        TokenKind::Key(KeyTokenKind::Stamina),
                         range,
                     ))),
                     "dex" | "dexterity" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyDexterity),
+                        TokenKind::Key(KeyTokenKind::Dexterity),
                         range,
                     ))),
                     "int" | "intelligence" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyIntelligence),
+                        TokenKind::Key(KeyTokenKind::Intelligence),
                         range,
                     ))),
                     "wis" | "wisdom" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyWisdom),
+                        TokenKind::Key(KeyTokenKind::Wisdom),
                         range,
                     ))),
                     "chr" | "charisma" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyCharisma),
+                        TokenKind::Key(KeyTokenKind::Charisma),
                         range,
                     ))),
                     "currency" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyCurrency),
+                        TokenKind::Key(KeyTokenKind::Currency),
                         range,
                     ))),
 
-                    "type" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyType),
+                    "type" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Type), range))),
+                    "duration" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::Duration),
                         range,
                     ))),
-                    "duration" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyDuration),
+                    "events" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::Events),
                         range,
                     ))),
 
                     "activation" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyActivation),
+                        TokenKind::Key(KeyTokenKind::Activation),
                         range,
                     ))),
                     "deactivation" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyDeactivation),
+                        TokenKind::Key(KeyTokenKind::Deactivation),
                         range,
                     ))),
                     "completion" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyCompletion),
+                        TokenKind::Key(KeyTokenKind::Completion),
                         range,
                     ))),
                     "failure" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyFailure),
+                        TokenKind::Key(KeyTokenKind::Failure),
                         range,
                     ))),
 
                     "starting_location" => Ok(Some(Token::new(
-                        TokenKind::Key(KeyTokenKind::KeyStartingLocation),
+                        TokenKind::Key(KeyTokenKind::StartingLocation),
                         range,
                     ))),
 
@@ -351,24 +350,25 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
         }
     }
 
+    pub async fn is_first_of_line(&mut self) -> Result<bool, ParserError> {
+        self.skip_whitespace().await?;
+        Ok(self.is_first_of_line)
+    }
+
     async fn skip_whitespace(&mut self) -> Result<Option<CharacterCoordinateRange>, ParserError> {
         let mut range: Option<CharacterCoordinateRange> = None;
-        while let character = self.input.peek().await? {
-            if let Some(character) = character {
-                if character.character().is_whitespace() {
-                    if character.character() == '\n' {
-                        self.is_first_of_line = true;
-                    }
-
-                    if let Some(range) = range.as_mut() {
-                        range.merge(character.range());
-                    } else {
-                        range = Some(character.range());
-                    }
-                    self.input.next().await?;
-                } else {
-                    break;
+        while let Some(character) = self.input.peek().await? {
+            if character.character().is_whitespace() {
+                if character.character() == '\n' {
+                    self.is_first_of_line = true;
                 }
+
+                if let Some(range) = range.as_mut() {
+                    range.merge(character.range());
+                } else {
+                    range = Some(character.range());
+                }
+                self.input.next().await?;
             } else {
                 break;
             }

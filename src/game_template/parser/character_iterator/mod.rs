@@ -65,7 +65,7 @@ impl<Input: Read + Unpin> CharacterIterator<Input> {
                 match std::str::from_utf8(&self.buffer[self.offset..self.offset + slice_len]) {
                     Ok(string) => {
                         let mut char_indices = string.char_indices();
-                        let (index, character) = unsafe { char_indices.next().unwrap_unchecked() };
+                        let (_, character) = unsafe { char_indices.next().unwrap_unchecked() };
                         self.offset += if let Some((index, _)) = char_indices.next() {
                             index
                         } else {
@@ -191,14 +191,17 @@ impl CharacterWithCoordinates {
         self.coordinates.into()
     }
 
+    #[allow(dead_code)]
     pub fn coordinates(&self) -> CharacterCoordinates {
         self.coordinates
     }
 
+    #[allow(dead_code)]
     pub fn line_number(&self) -> usize {
         self.coordinates.line_number
     }
 
+    #[allow(dead_code)]
     pub fn column_number(&self) -> usize {
         self.coordinates.column_number
     }
@@ -244,7 +247,7 @@ impl CharacterCoordinateRange {
 
 impl From<CharacterCoordinates> for CharacterCoordinateRange {
     fn from(coordinates: CharacterCoordinates) -> Self {
-        let mut to = coordinates.clone();
+        let mut to = coordinates;
         to.column_number += 1;
         Self {
             from: coordinates,

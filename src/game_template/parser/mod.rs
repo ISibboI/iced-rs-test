@@ -19,6 +19,12 @@ pub mod error;
 mod section;
 mod tokenizer;
 
+#[derive(Debug)]
+pub struct WeightedIdentifier {
+    pub weight: f64,
+    pub identifier: String,
+}
+
 pub async fn parse_game_template_file(
     game_template: &mut GameTemplate,
     input: impl Read + Unpin + Send,
@@ -35,51 +41,56 @@ async fn parse(
     trace!("First token: {next_token:?}");
     while let Some(token) = next_token {
         next_token = match token.kind() {
-            TokenKind::Section(section) => match section {
-                SectionTokenKind::SectionInitialisation => {
-                    let (section_template, next_token) =
-                        parse_section(game_template, tokens, section).await?;
-                    if game_template
-                        .initialisation
-                        .replace(section_template.into_initialisation()?)
-                        .is_some()
-                    {
-                        return Err(ParserError::with_coordinates(
-                            ParserErrorKind::DuplicateInitialisation,
-                            token.range(),
-                        ));
-                    };
-                    next_token
+            TokenKind::Section(section) => {
+                let (section_template, next_token) =
+                    parse_section(game_template, tokens, section).await?;
+                match section {
+                    SectionTokenKind::Initialisation => {
+                        if game_template
+                            .initialisation
+                            .replace(section_template.into_initialisation()?)
+                            .is_some()
+                        {
+                            return Err(ParserError::with_coordinates(
+                                ParserErrorKind::DuplicateInitialisation,
+                                token.range(),
+                            ));
+                        };
+                    }
+                    SectionTokenKind::BuiltinAction => {
+                        game_template
+                            .actions
+                            .push(section_template.into_builtin_action()?);
+                    }
+                    SectionTokenKind::Action => {
+                        game_template.actions.push(section_template.into_action()?);
+                    }
+                    SectionTokenKind::QuestAction => {
+                        let quest_action = section_template.into_quest_action(game_template)?;
+                        game_template.actions.push(quest_action);
+                    }
+                    SectionTokenKind::Quest => {
+                        game_template.quests.push(section_template.into_quest()?);
+                    }
+                    SectionTokenKind::Location => {
+                        game_template
+                            .locations
+                            .push(section_template.into_location()?);
+                    }
+                    SectionTokenKind::ExplorationEvent => {
+                        game_template
+                            .exploration_events
+                            .push(section_template.into_exploration_event()?);
+                    }
+                    SectionTokenKind::Monster => {
+                        game_template
+                            .monsters
+                            .push(section_template.into_monster()?);
+                    }
                 }
-                SectionTokenKind::SectionBuiltinAction => {
-                    let (section_template, next_token) =
-                        parse_section(game_template, tokens, section).await?;
-                    game_template
-                        .actions
-                        .push(section_template.into_builtin_action()?);
-                    next_token
-                }
-                SectionTokenKind::SectionAction => {
-                    let (section_template, next_token) =
-                        parse_section(game_template, tokens, section).await?;
-                    game_template.actions.push(section_template.into_action()?);
-                    next_token
-                }
-                SectionTokenKind::SectionQuestAction => {
-                    let (section_template, next_token) =
-                        parse_section(game_template, tokens, section).await?;
-                    let quest_action = section_template.into_quest_action(game_template)?;
-                    game_template.actions.push(quest_action);
-                    next_token
-                }
-                SectionTokenKind::SectionQuest => {
-                    let (section_template, next_token) =
-                        parse_section(game_template, tokens, section).await?;
-                    game_template.quests.push(section_template.into_quest()?);
-                    next_token
-                }
-            },
-            _ => return Err(token.error(|kind| ParserErrorKind::ExpectedSection(kind))),
+                next_token
+            }
+            _ => return Err(token.error(ParserErrorKind::ExpectedSection)),
         };
     }
 
@@ -186,74 +197,69 @@ async fn parse_trigger_condition_sequence(
 async fn parse_game_event(
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<GameEvent, ParserError> {
-    let token = tokens.next().await?;
-    if let Some(token) = token {
-        let (identifier, range) = expect_identifier(tokens).await?.decompose();
-        Ok(match identifier.as_str() {
-            "currency_changed" => {
-                parse_f_currency(tokens, |currency| GameEvent::CurrencyChanged {
-                    value: currency,
-                })
-                .await?
-            }
-            "level_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerLevelChanged { value }).await?
-            }
-            "strength_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerStrengthChanged { value }).await?
-            }
-            "stamina_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerStaminaChanged { value }).await?
-            }
-            "dexterity_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerDexterityChanged { value }).await?
-            }
-            "intelligence_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerIntelligenceChanged {
-                    value,
-                })
-                .await?
-            }
-            "wisdom_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerWisdomChanged { value }).await?
-            }
-            "charisma_changed" => {
-                parse_f_integer(tokens, |value| GameEvent::PlayerCharismaChanged { value }).await?
-            }
-            "action_started" => {
-                parse_f_identifier(tokens, |identifier| GameEvent::ActionStarted {
-                    id: identifier,
-                })
-                .await?
-            }
-            "action_completed" => {
-                parse_f_identifier(tokens, |identifier| GameEvent::ActionCompleted {
-                    id: identifier,
-                })
-                .await?
-            }
-            "monster_killed" => {
-                parse_f_identifier(tokens, |identifier| GameEvent::MonsterKilled {
-                    id: identifier,
-                })
-                .await?
-            }
-            "monster_failed" => {
-                parse_f_identifier(tokens, |identifier| GameEvent::MonsterFailed {
-                    id: identifier,
-                })
-                .await?
-            }
-            _ => {
-                return Err(ParserError::with_coordinates(
-                    ParserErrorKind::UnexpectedGameEvent(identifier),
-                    range,
-                ))
-            }
-        })
-    } else {
-        Err(unexpected_eof())
-    }
+    let (identifier, range) = expect_identifier(tokens).await?.decompose();
+    Ok(match identifier.as_str() {
+        "currency_changed" => {
+            parse_f_currency(tokens, |currency| GameEvent::CurrencyChanged {
+                value: currency,
+            })
+            .await?
+        }
+        "level_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerLevelChanged { value }).await?
+        }
+        "strength_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerStrengthChanged { value }).await?
+        }
+        "stamina_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerStaminaChanged { value }).await?
+        }
+        "dexterity_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerDexterityChanged { value }).await?
+        }
+        "intelligence_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerIntelligenceChanged {
+                value,
+            })
+            .await?
+        }
+        "wisdom_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerWisdomChanged { value }).await?
+        }
+        "charisma_changed" => {
+            parse_f_integer(tokens, |value| GameEvent::PlayerCharismaChanged { value }).await?
+        }
+        "action_started" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::ActionStarted {
+                id: identifier,
+            })
+            .await?
+        }
+        "action_completed" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::ActionCompleted {
+                id: identifier,
+            })
+            .await?
+        }
+        "monster_killed" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::MonsterKilled {
+                id: identifier,
+            })
+            .await?
+        }
+        "monster_failed" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::MonsterFailed {
+                id: identifier,
+            })
+            .await?
+        }
+        _ => {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::UnexpectedGameEvent(identifier),
+                range,
+            ))
+        }
+    })
 }
 
 async fn parse_f_currency(
@@ -286,6 +292,37 @@ async fn parse_f_identifier(
     Ok(constructor(identifier))
 }
 
+async fn parse_weighted_events(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<RangedElement<Vec<WeightedIdentifier>>, ParserError> {
+    let mut result = Vec::new();
+    let mut is_first_event = true;
+    let mut range: Option<CharacterCoordinateRange> = None;
+    while !tokens.is_first_of_line().await? {
+        if is_first_event {
+            is_first_event = false;
+        } else {
+            expect_comma(tokens).await?;
+        }
+
+        let mut local_range = expect_open_parenthesis(tokens).await?;
+        let weight = expect_float(tokens).await?.element;
+        expect_comma(tokens).await?;
+        let identifier = expect_identifier(tokens).await?.element;
+        local_range.merge(expect_close_parenthesis(tokens).await?);
+        result.push(WeightedIdentifier::new(weight, identifier));
+        if let Some(range) = &mut range {
+            range.merge(local_range);
+        } else {
+            range = Some(local_range);
+        }
+    }
+    Ok(RangedElement::new(
+        result,
+        range.unwrap_or_else(CharacterCoordinateRange::zero),
+    ))
+}
+
 async fn expect_identifier(
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<RangedElement<String>, ParserError> {
@@ -308,6 +345,22 @@ async fn expect_integer(
     match kind {
         TokenKind::Value(ValueTokenKind::Integer(integer)) => {
             Ok(RangedElement::new(integer, range))
+        }
+        other => Err(ParserError::with_coordinates(
+            ParserErrorKind::ExpectedInteger(other.into()),
+            range,
+        )),
+    }
+}
+
+async fn expect_float(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<RangedElement<f64>, ParserError> {
+    let (kind, range) = expect_any(tokens).await?.decompose();
+    match kind {
+        TokenKind::Value(ValueTokenKind::Float(float)) => Ok(RangedElement::new(float, range)),
+        TokenKind::Value(ValueTokenKind::Integer(integer)) => {
+            Ok(RangedElement::new(integer as f64, range))
         }
         other => Err(ParserError::with_coordinates(
             ParserErrorKind::ExpectedInteger(other.into()),
@@ -361,5 +414,11 @@ async fn expect_any(
     match tokens.next().await? {
         Some(token) => Ok(token),
         None => Err(unexpected_eof()),
+    }
+}
+
+impl WeightedIdentifier {
+    fn new(weight: f64, identifier: String) -> Self {
+        Self { weight, identifier }
     }
 }

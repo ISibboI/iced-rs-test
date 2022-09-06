@@ -20,10 +20,6 @@ pub struct CompiledMonster {
 pub struct MonsterId(pub usize);
 
 impl Monster {
-    pub fn new(id_str: String, name: String) -> Self {
-        Self { id_str, name }
-    }
-
     pub fn compile(self, id_maps: &IdMaps) -> CompiledMonster {
         CompiledMonster {
             id: *id_maps.monsters.get(&self.id_str).unwrap(),

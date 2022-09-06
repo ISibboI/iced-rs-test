@@ -33,3 +33,22 @@ simple_past looked around
 type EXPLORE
 duration 1h
 currency 0
+
+LOCATION village
+name Village
+events (1.0, find_money), (0.1, find_more_money)
+activation none
+deactivation never
+
+EXPLORATION_EVENT find_money
+name Find money
+progressive finding money
+simple_past found money
+
+EXPLORATION_EVENT find_more_money
+name Find money
+progressive finding money
+simple_past found money
+
+MONSTER rat
+name Rat

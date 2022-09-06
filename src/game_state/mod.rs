@@ -238,6 +238,12 @@ impl GameState {
             CompiledGameAction::DeactivateAction { id } => {
                 Box::new(self.actions.deactivate_action(id, self.current_time))
             }
+            CompiledGameAction::ActivateLocation { .. } => {
+                todo!()
+            }
+            CompiledGameAction::DeactivateLocation { .. } => {
+                todo!()
+            }
         }
     }
 

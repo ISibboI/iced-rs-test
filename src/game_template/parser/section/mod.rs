@@ -4,13 +4,18 @@ use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
 use crate::game_state::story::quests::Quest;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::{GameAction, GameEvent};
+use crate::game_state::world::events::ExplorationEvent;
+use crate::game_state::world::locations::Location;
+use crate::game_state::world::monsters::Monster;
 use crate::game_template::game_initialisation::GameInitialisation;
 use crate::game_template::parser::character_iterator::CharacterCoordinateRange;
 use crate::game_template::parser::error::{unexpected_eof, ParserError, ParserErrorKind};
 use crate::game_template::parser::tokenizer::{
     KeyTokenKind, RangedElement, SectionTokenKind, Token, TokenIterator, TokenKind, ValueTokenKind,
 };
-use crate::game_template::parser::{expect_identifier, parse_trigger};
+use crate::game_template::parser::{
+    expect_identifier, parse_trigger, parse_weighted_events, WeightedIdentifier,
+};
 use crate::game_template::GameTemplate;
 use async_std::io::Read;
 use event_trigger_action_system::{event_count, or, Trigger};
@@ -37,6 +42,7 @@ pub struct GameTemplateSection {
 
     type_name: Option<RangedElement<String>>,
     duration: Option<RangedElement<GameTime>>,
+    events: Option<RangedElement<Vec<WeightedIdentifier>>>,
 
     activation: Option<RangedElement<String>>,
     deactivation: Option<RangedElement<String>>,
@@ -52,7 +58,7 @@ pub async fn parse_section(
     section_kind: &SectionTokenKind,
 ) -> Result<(GameTemplateSection, Option<Token>), ParserError> {
     trace!("Parsing section {section_kind:?}");
-    let (id_str, id_range) = if section_kind == &SectionTokenKind::SectionInitialisation {
+    let (id_str, id_range) = if section_kind == &SectionTokenKind::Initialisation {
         ("".to_string(), CharacterCoordinateRange::zero())
     } else {
         expect_identifier(tokens).await?.decompose()
@@ -67,40 +73,40 @@ pub async fn parse_section(
                 section_token = Some(Token::new(TokenKind::Section(section), range));
             }
             TokenKind::Key(key) => match key {
-                KeyTokenKind::KeyName => {
-                    section.name = Some(RangedElement::new(
+                KeyTokenKind::Name => {
+                    section.set_name(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeyProgressive => {
-                    section.progressive = Some(RangedElement::new(
+                KeyTokenKind::Progressive => {
+                    section.set_progressive(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeySimplePast => {
-                    section.simple_past = Some(RangedElement::new(
+                KeyTokenKind::SimplePast => {
+                    section.set_simple_past(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeyTitle => {
-                    section.title = Some(RangedElement::new(
+                KeyTokenKind::Title => {
+                    section.set_title(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeyDescription => {
-                    section.description = Some(RangedElement::new(
+                KeyTokenKind::Description => {
+                    section.set_description(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeyStrength => {
+                KeyTokenKind::Strength => {
                     let strength = tokens.expect_string_value().await?;
                     let parsed = strength.element.parse();
-                    section.strength = Some(RangedElement::new(
+                    section.set_strength(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(strength.element.into()),
@@ -108,12 +114,12 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyStamina => {
+                KeyTokenKind::Stamina => {
                     let stamina = tokens.expect_string_value().await?;
                     let parsed = stamina.element.parse();
-                    section.stamina = Some(RangedElement::new(
+                    section.set_stamina(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(stamina.element.into()),
@@ -121,12 +127,12 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyDexterity => {
+                KeyTokenKind::Dexterity => {
                     let dexterity = tokens.expect_string_value().await?;
                     let parsed = dexterity.element.parse();
-                    section.dexterity = Some(RangedElement::new(
+                    section.set_dexterity(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(dexterity.element.into()),
@@ -134,12 +140,12 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyIntelligence => {
+                KeyTokenKind::Intelligence => {
                     let intelligence = tokens.expect_string_value().await?;
                     let parsed = intelligence.element.parse();
-                    section.intelligence = Some(RangedElement::new(
+                    section.set_intelligence(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(intelligence.element.into()),
@@ -147,12 +153,12 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyWisdom => {
+                KeyTokenKind::Wisdom => {
                     let wisdom = tokens.expect_string_value().await?;
                     let parsed = wisdom.element.parse();
-                    section.wisdom = Some(RangedElement::new(
+                    section.set_wisdom(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(wisdom.element.into()),
@@ -160,12 +166,12 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyCharisma => {
+                KeyTokenKind::Charisma => {
                     let charisma = tokens.expect_string_value().await?;
                     let parsed = charisma.element.parse();
-                    section.charisma = Some(RangedElement::new(
+                    section.set_charisma(RangedElement::new(
                         parsed.map_err(move |_| {
                             ParserError::with_coordinates(
                                 ParserErrorKind::ExpectedFloat(charisma.element.into()),
@@ -173,93 +179,117 @@ pub async fn parse_section(
                             )
                         })?,
                         range,
-                    ));
+                    ))?;
                 }
-                KeyTokenKind::KeyCurrency => {
+                KeyTokenKind::Currency => {
                     if let Some(token) = tokens.next().await? {
                         let (kind, range) = token.decompose();
                         match kind {
                             TokenKind::Value(ValueTokenKind::Integer(integer)) => {
-                                section.currency = Some(RangedElement::new(
+                                section.set_currency(RangedElement::new(
                                     Currency::from_copper(integer.into()),
                                     range,
-                                ));
+                                ))?;
                             }
                             kind => {
                                 return Err(ParserError::with_coordinates(
                                     ParserErrorKind::ExpectedInteger(kind.into()),
                                     range,
-                                ))
+                                ));
                             }
                         }
                     } else {
                         return Err(unexpected_eof());
                     }
                 }
-                KeyTokenKind::KeyType => {
-                    section.type_name = Some(RangedElement::new(
+                KeyTokenKind::Type => {
+                    section.set_type_name(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
-                KeyTokenKind::KeyDuration => {
+                KeyTokenKind::Duration => {
                     if let Some(token) = tokens.next().await? {
                         let (kind, range) = token.decompose();
                         match kind {
                             TokenKind::Value(ValueTokenKind::Time(time)) => {
-                                section.duration = Some(RangedElement::new(time, range));
+                                section.set_duration(RangedElement::new(time, range))?;
                             }
                             kind => {
                                 return Err(ParserError::with_coordinates(
                                     ParserErrorKind::ExpectedTime(kind.into()),
                                     range,
-                                ))
+                                ));
                             }
                         }
                     } else {
                         return Err(unexpected_eof());
                     }
                 }
-                KeyTokenKind::KeyActivation => {
+                KeyTokenKind::Events => {
+                    section.set_events(parse_weighted_events(tokens).await?)?;
+                }
+                KeyTokenKind::Activation => {
                     let id_str = format!("{}_activation", section.id_str);
                     parse_trigger(
                         game_template,
                         tokens,
                         id_str.clone(),
                         vec![match section_kind {
-                            SectionTokenKind::SectionBuiltinAction
-                            | SectionTokenKind::SectionAction
-                            | SectionTokenKind::SectionQuestAction => GameAction::ActivateAction {
+                            SectionTokenKind::BuiltinAction
+                            | SectionTokenKind::Action
+                            | SectionTokenKind::QuestAction => GameAction::ActivateAction {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::SectionQuest => GameAction::ActivateQuest {
+                            SectionTokenKind::Quest => GameAction::ActivateQuest {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::SectionInitialisation => {
+                            SectionTokenKind::Location => GameAction::ActivateLocation {
+                                id: section.id_str.clone(),
+                            },
+                            SectionTokenKind::Initialisation
+                            | SectionTokenKind::ExplorationEvent
+                            | SectionTokenKind::Monster => {
                                 return Err(ParserError::with_coordinates(
                                     ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
                                     section.id_range,
-                                ))
+                                ));
                             }
                         }],
                     )
                     .await?;
-                    section.activation = Some(RangedElement::new(id_str, range));
+                    section.set_activation(RangedElement::new(id_str, range))?;
                 }
-                KeyTokenKind::KeyDeactivation => {
+                KeyTokenKind::Deactivation => {
                     let id_str = format!("{}_deactivation", section.id_str);
                     parse_trigger(
                         game_template,
                         tokens,
                         id_str.clone(),
-                        vec![GameAction::DeactivateAction {
-                            id: section.id_str.clone(),
+                        vec![match section_kind {
+                            SectionTokenKind::BuiltinAction
+                            | SectionTokenKind::Action
+                            | SectionTokenKind::QuestAction => GameAction::DeactivateAction {
+                                id: section.id_str.clone(),
+                            },
+                            SectionTokenKind::Location => GameAction::DeactivateLocation {
+                                id: section.id_str.clone(),
+                            },
+                            SectionTokenKind::Quest
+                            | SectionTokenKind::Initialisation
+                            | SectionTokenKind::ExplorationEvent
+                            | SectionTokenKind::Monster => {
+                                return Err(ParserError::with_coordinates(
+                                    ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
+                                    section.id_range,
+                                ));
+                            }
                         }],
                     )
                     .await?;
-                    section.deactivation = Some(RangedElement::new(id_str, range));
+                    section.set_deactivation(RangedElement::new(id_str, range))?;
                 }
-                KeyTokenKind::KeyCompletion => {
+                KeyTokenKind::Completion => {
                     let id_str = format!("{}_completion", section.id_str);
                     parse_trigger(
                         game_template,
@@ -270,9 +300,9 @@ pub async fn parse_section(
                         }],
                     )
                     .await?;
-                    section.completion = Some(RangedElement::new(id_str, range));
+                    section.set_completion(RangedElement::new(id_str, range))?;
                 }
-                KeyTokenKind::KeyFailure => {
+                KeyTokenKind::Failure => {
                     let id_str = format!("{}_fail", section.id_str);
                     parse_trigger(
                         game_template,
@@ -283,20 +313,20 @@ pub async fn parse_section(
                         }],
                     )
                     .await?;
-                    section.failure = Some(RangedElement::new(id_str, range));
+                    section.set_failure(RangedElement::new(id_str, range))?;
                 }
-                KeyTokenKind::KeyStartingLocation => {
-                    section.starting_location = Some(RangedElement::new(
+                KeyTokenKind::StartingLocation => {
+                    section.set_starting_location(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
-                    ))
+                    ))?;
                 }
             },
             kind => {
                 return Err(ParserError::with_coordinates(
                     ParserErrorKind::UnexpectedActionKey(kind),
                     range,
-                ))
+                ));
             }
         }
 
@@ -316,6 +346,22 @@ macro_rules! ensure_empty {
                 ParserErrorKind::$unexpected(stringify!($id).to_owned()),
                 range,
             ));
+        }
+    };
+}
+
+macro_rules! setter {
+    ($function:ident, $id:ident, $unexpected:ident, $t:ty) => {
+        fn $function(&mut self, $id: RangedElement<$t>) -> Result<(), ParserError> {
+            if self.$id.is_none() {
+                self.$id = Some($id);
+                Ok(())
+            } else {
+                Err(ParserError::with_coordinates(
+                    ParserErrorKind::$unexpected(stringify!($id).to_owned()),
+                    $id.range,
+                ))
+            }
         }
     };
 }
@@ -352,6 +398,7 @@ impl GameTemplateSection {
             currency: None,
             type_name: None,
             duration: None,
+            events: None,
             activation: None,
             deactivation: None,
             completion: None,
@@ -374,7 +421,7 @@ impl GameTemplateSection {
             }
         };
 
-        let id_str = mem::replace(&mut self.id_str, String::new());
+        let id_str = mem::take(&mut self.id_str);
 
         let result = Ok(PlayerAction {
             id_str,
@@ -400,7 +447,7 @@ impl GameTemplateSection {
             _ => {}
         }
 
-        let id_str = mem::replace(&mut self.id_str, String::new());
+        let id_str = mem::take(&mut self.id_str);
         let action_type = self.type_name()?;
         let parsed_action_type = action_type.element.parse();
         let action_type = parsed_action_type.map_err(move |_| {
@@ -437,7 +484,7 @@ impl GameTemplateSection {
             _ => {}
         }
 
-        let id_str = mem::replace(&mut self.id_str, String::new());
+        let id_str = mem::take(&mut self.id_str);
         let action_type = self.type_name()?;
         let parsed_action_type = action_type.element.parse();
         let action_type = parsed_action_type.map_err(move |_| {
@@ -489,7 +536,7 @@ impl GameTemplateSection {
     }
 
     pub fn into_quest(mut self) -> Result<Quest, ParserError> {
-        let id_str = mem::replace(&mut self.id_str, String::new());
+        let id_str = mem::take(&mut self.id_str);
 
         let result = Ok(Quest {
             id_str,
@@ -498,6 +545,44 @@ impl GameTemplateSection {
             activation_condition: self.activation()?.element,
             completion_condition: self.completion()?.element,
             failure_condition: self.failure()?.element,
+        });
+        self.ensure_empty()?;
+        result
+    }
+
+    pub fn into_location(mut self) -> Result<Location, ParserError> {
+        let id_str = mem::take(&mut self.id_str);
+
+        let result = Ok(Location {
+            id_str,
+            name: self.name()?.element,
+            events: self.events()?.element.into_iter().map(Into::into).collect(),
+            activation_condition: self.activation()?.element,
+            deactivation_condition: self.deactivation()?.element,
+        });
+        self.ensure_empty()?;
+        result
+    }
+
+    pub fn into_exploration_event(mut self) -> Result<ExplorationEvent, ParserError> {
+        let id_str = mem::take(&mut self.id_str);
+
+        let result = Ok(ExplorationEvent {
+            id_str,
+            name: self.name()?.element,
+            verb_progressive: self.progressive()?.element,
+            verb_simple_past: self.simple_past()?.element,
+        });
+        self.ensure_empty()?;
+        result
+    }
+
+    pub fn into_monster(mut self) -> Result<Monster, ParserError> {
+        let id_str = mem::take(&mut self.id_str);
+
+        let result = Ok(Monster {
+            id_str,
+            name: self.name()?.element,
         });
         self.ensure_empty()?;
         result
@@ -539,6 +624,7 @@ impl GameTemplateSection {
 
         ensure_empty!(self, type_name, UnexpectedType);
         ensure_empty!(self, duration, UnexpectedDuration);
+        ensure_empty!(self, events, UnexpectedEvents);
 
         ensure_empty!(self, activation, UnexpectedActivation);
         ensure_empty!(self, deactivation, UnexpectedDeactivation);
@@ -549,6 +635,41 @@ impl GameTemplateSection {
 
         Ok(())
     }
+
+    setter!(set_name, name, DuplicateName, String);
+    setter!(set_progressive, progressive, DuplicateProgressive, String);
+    setter!(set_simple_past, simple_past, DuplicateSimplePast, String);
+    setter!(set_title, title, DuplicateTitle, String);
+    setter!(set_description, description, DuplicateDescription, String);
+
+    setter!(set_strength, strength, DuplicateStrength, f64);
+    setter!(set_stamina, stamina, DuplicateStamina, f64);
+    setter!(set_dexterity, dexterity, DuplicateDexterity, f64);
+    setter!(set_intelligence, intelligence, DuplicateIntelligence, f64);
+    setter!(set_wisdom, wisdom, DuplicateWisdom, f64);
+    setter!(set_charisma, charisma, DuplicateCharisma, f64);
+    setter!(set_currency, currency, DuplicateCurrency, Currency);
+
+    setter!(set_type_name, type_name, DuplicateType, String);
+    setter!(set_duration, duration, DuplicateDuration, GameTime);
+    setter!(set_events, events, DuplicateEvents, Vec<WeightedIdentifier>);
+
+    setter!(set_activation, activation, DuplicateActivation, String);
+    setter!(
+        set_deactivation,
+        deactivation,
+        DuplicateDeactivation,
+        String
+    );
+    setter!(set_completion, completion, DuplicateCompletion, String);
+    setter!(set_failure, failure, DuplicateFailure, String);
+
+    setter!(
+        set_starting_location,
+        starting_location,
+        DuplicateStartingLocation,
+        String
+    );
 
     taker!(name, MissingName, String);
     taker!(progressive, MissingProgressive, String);
@@ -566,6 +687,7 @@ impl GameTemplateSection {
 
     taker!(type_name, MissingType, String);
     taker!(duration, MissingDuration, GameTime);
+    taker!(events, MissingEvents, Vec<WeightedIdentifier>);
 
     taker!(activation, MissingActivation, String);
     taker!(deactivation, MissingDeactivation, String);

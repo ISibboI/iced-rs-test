@@ -47,6 +47,7 @@ pub enum ParserErrorKind {
 
     MissingType(String),
     MissingDuration(String),
+    MissingEvents(String),
 
     MissingActivation(String),
     MissingDeactivation(String),
@@ -54,6 +55,31 @@ pub enum ParserErrorKind {
     MissingFailure(String),
 
     MissingStartingLocation(String),
+
+    DuplicateName(String),
+    DuplicateProgressive(String),
+    DuplicateSimplePast(String),
+    DuplicateTitle(String),
+    DuplicateDescription(String),
+
+    DuplicateStrength(String),
+    DuplicateStamina(String),
+    DuplicateDexterity(String),
+    DuplicateIntelligence(String),
+    DuplicateWisdom(String),
+    DuplicateCharisma(String),
+    DuplicateCurrency(String),
+
+    DuplicateType(String),
+    DuplicateDuration(String),
+    DuplicateEvents(String),
+
+    DuplicateActivation(String),
+    DuplicateDeactivation(String),
+    DuplicateCompletion(String),
+    DuplicateFailure(String),
+
+    DuplicateStartingLocation(String),
 
     UnexpectedName(String),
     UnexpectedProgressive(String),
@@ -71,6 +97,7 @@ pub enum ParserErrorKind {
 
     UnexpectedType(String),
     UnexpectedDuration(String),
+    UnexpectedEvents(String),
 
     UnexpectedActivation(String),
     UnexpectedDeactivation(String),

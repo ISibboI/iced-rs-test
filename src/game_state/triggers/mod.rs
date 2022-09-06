@@ -1,6 +1,7 @@
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::story::quests::QuestId;
+use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::MonsterId;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::{TriggerAction, TriggerEvent, TriggerIdentifier};
@@ -30,6 +31,8 @@ pub enum GameAction {
     FailQuest { id: String },
     ActivateAction { id: String },
     DeactivateAction { id: String },
+    ActivateLocation { id: String },
+    DeactivateLocation { id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -73,6 +76,8 @@ pub enum CompiledGameAction {
     FailQuest { id: QuestId },
     ActivateAction { id: PlayerActionId },
     DeactivateAction { id: PlayerActionId },
+    ActivateLocation { id: LocationId },
+    DeactivateLocation { id: LocationId },
 }
 
 impl GameEvent {
@@ -134,6 +139,12 @@ impl GameAction {
             },
             GameAction::DeactivateAction { id } => CompiledGameAction::DeactivateAction {
                 id: *id_maps.actions.get(&id).unwrap(),
+            },
+            GameAction::ActivateLocation { id } => CompiledGameAction::ActivateLocation {
+                id: *id_maps.locations.get(&id).unwrap(),
+            },
+            GameAction::DeactivateLocation { id } => CompiledGameAction::DeactivateLocation {
+                id: *id_maps.locations.get(&id).unwrap(),
             },
         }
     }

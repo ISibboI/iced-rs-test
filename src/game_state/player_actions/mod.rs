@@ -286,7 +286,10 @@ impl PlayerActions {
 impl PlayerAction {
     pub fn compile(self, id_maps: &IdMaps) -> CompiledPlayerAction {
         CompiledPlayerAction {
-            id: *id_maps.actions.get(&self.name).unwrap(),
+            id: *id_maps
+                .actions
+                .get(&self.id_str)
+                .unwrap_or_else(|| panic!("Did not find action {:?} in id_map", self.id_str)),
             id_str: self.id_str,
             state: PlayerActionState::Inactive,
             name: self.name,

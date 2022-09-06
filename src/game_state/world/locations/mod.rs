@@ -3,6 +3,7 @@ use crate::game_state::world::events::{
     CompiledWeightedExplorationEvent, WeightedExplorationEvent,
 };
 use crate::game_template::IdMaps;
+use event_trigger_action_system::TriggerHandle;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -10,6 +11,8 @@ pub struct Location {
     pub id_str: String,
     pub name: String,
     pub events: Vec<WeightedExplorationEvent>,
+    pub activation_condition: String,
+    pub deactivation_condition: String,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -18,6 +21,8 @@ pub struct CompiledLocation {
     pub id_str: String,
     pub name: String,
     pub events: Vec<CompiledWeightedExplorationEvent>,
+    pub activation_condition: TriggerHandle,
+    pub deactivation_condition: TriggerHandle,
 }
 
 #[derive(
@@ -26,14 +31,6 @@ pub struct CompiledLocation {
 pub struct LocationId(pub usize);
 
 impl Location {
-    pub fn new(id_str: String, name: String, events: Vec<WeightedExplorationEvent>) -> Self {
-        Self {
-            id_str,
-            name,
-            events,
-        }
-    }
-
     pub fn compile(self, id_maps: &IdMaps) -> CompiledLocation {
         CompiledLocation {
             id: *id_maps.locations.get(&self.id_str).unwrap(),
@@ -44,6 +41,8 @@ impl Location {
                 .into_iter()
                 .map(|event| event.compile(id_maps))
                 .collect(),
+            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
+            deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
         }
     }
 }

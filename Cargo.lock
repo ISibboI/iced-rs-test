@@ -785,9 +785,9 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "event-trigger-action-system"
-version = "0.7.3"
+version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ff4eda0b0b4fcad2f958df652c4d412d0645dbe4335a583e45ff0d27ef371af5"
+checksum = "f567a3a80126e4294144db8f29828f560bcbcd7c4345fd1e042c0e1b976d95f5"
 dependencies = [
  "btreemultimap-value-ord",
  "serde",
