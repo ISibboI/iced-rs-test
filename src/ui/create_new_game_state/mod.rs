@@ -6,7 +6,6 @@ use crate::ui::elements::{labelled_element, title};
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{Configuration, GameState};
-use async_std::fs::File;
 use async_std::path::PathBuf;
 use enum_iterator::all;
 use iced::alignment::{Horizontal, Vertical};
@@ -15,7 +14,10 @@ use iced::{
     Length, PickList, Space, Text, TextInput,
 };
 use log::{debug, error};
+use manifest_dir_macros::path;
 use std::borrow::Borrow;
+
+static GAME_TEMPLATE_FILE: &[u8] = include_bytes!(path!("game.tpl"));
 
 #[derive(Debug, Clone)]
 pub struct CreateNewGameState {
@@ -189,11 +191,8 @@ pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemp
         "Reading game template from {}",
         game_template_file.to_string_lossy()
     );
-    let game_template_file = File::open(game_template_file)
-        .await
-        .map_err(|error| ParserError::without_coordinates(error.into()))?;
     let mut game_template = Default::default();
-    parse_game_template_file(&mut game_template, game_template_file).await?;
+    parse_game_template_file(&mut game_template, GAME_TEMPLATE_FILE).await?;
     game_template.compile()
 }
 

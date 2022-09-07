@@ -1,7 +1,7 @@
 use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::time::GameTime;
 use crate::game_state::world::events::{
-    CompiledWeightedExplorationEvent, WeightedExplorationEvent,
+    CompiledWeightedExplorationEvent, ExplorationEventId, WeightedExplorationEvent,
 };
 use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
@@ -63,33 +63,9 @@ impl Location {
 }
 
 impl CompiledLocation {
-    #[deprecated]
-    pub fn spawn(&self) -> SpawnedMonster {
+    pub fn explore(&self) -> ExplorationEventId {
+        assert!(self.state.is_active());
         todo!()
-        /*let mut rng = thread_rng();
-        let monster = MONSTERS
-            .get(
-                &self
-                    .monsters
-                    .choose_weighted(&mut rng, |weighted_monster| weighted_monster.weight)
-                    .unwrap()
-                    .monster,
-            )
-            .unwrap()
-            .clone();
-        let modifier = MONSTER_MODIFIERS
-            .get(
-                &self
-                    .monster_modifiers
-                    .choose_weighted(&mut rng, |weighted_monster_modifier| {
-                        weighted_monster_modifier.weight
-                    })
-                    .unwrap()
-                    .monster_modifier,
-            )
-            .unwrap()
-            .clone();
-        monster.spawn(modifier)*/
     }
 }
 

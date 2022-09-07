@@ -1,0 +1,2 @@
+[env]
+OS_STR_BYTES_CHECKED_CONVERSIONS = "true"

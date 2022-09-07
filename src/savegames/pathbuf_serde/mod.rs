@@ -1,4 +1,5 @@
 use async_std::path::PathBuf;
+use os_str_bytes::{OsStrBytes, OsStringBytes};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::ffi::OsString;
 use std::path::Path;
@@ -11,7 +12,7 @@ impl Serialize for PathBufSerde {
     where
         S: Serializer,
     {
-        self.0.as_os_str().serialize(serializer)
+        self.0.as_os_str().to_raw_bytes().serialize(serializer)
     }
 }
 
@@ -20,7 +21,8 @@ impl<'de> Deserialize<'de> for PathBufSerde {
     where
         D: Deserializer<'de>,
     {
-        OsString::deserialize(deserializer).map(|os_string| Self(os_string.into()))
+        Vec::<u8>::deserialize(deserializer)
+            .map(|bytes| Self(OsString::from_raw_vec(bytes).unwrap().into()))
     }
 }
 

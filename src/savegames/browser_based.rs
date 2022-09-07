@@ -9,9 +9,9 @@ pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
         .local_storage()?
         .ok_or(LoadError::LocalStorageNotFound)?;
     let savegame = storage
-        .get_item(&path.as_ref().to_string())?
+        .get_item(&path.as_ref().to_string_lossy())?
         .ok_or(LoadError::SavegameNotFound)?;
-    Ok(pot::from_slice(base64::decode(&savegame)?)?)
+    Ok(pot::from_slice(&base64::decode(&savegame)?)?)
 }
 
 pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
@@ -20,6 +20,9 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
         .local_storage()?
         .ok_or(SaveError::LocalStorageNotFound)?;
     let savegame = base64::encode(pot::to_vec(game_state)?);
-    storage.set_item(&game_state.savegame_file, &savegame)?;
+    storage.set_item(
+        &game_state.savegame_file.as_ref().to_string_lossy(),
+        &savegame,
+    )?;
     Ok(())
 }

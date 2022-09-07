@@ -82,36 +82,11 @@ impl World {
         }
         iter::empty()
     }
-}
 
-/*pub fn init_locations() -> Vec<Location> {
-    vec![
-        Location::new(LOCATION_VILLAGE, [("rat", 1.0)], [("normal", 1.0)]),
-        Location::new(
-            "Forest",
-            [("rat", 0.1), ("hare", 1.0), ("deer", 1.0)],
-            [("normal", 1.0), ("young", 0.1), ("old", 0.1)],
-        ),
-        Location::new(
-            "Deep forest",
-            [
-                ("rat", 0.01),
-                ("hare", 0.1),
-                ("deer", 1.0),
-                ("fox", 1.0),
-                ("boar", 1.0),
-                ("wolf", 0.1),
-            ],
-            [
-                ("normal", 1.0),
-                ("young", 0.1),
-                ("old", 0.1),
-                ("strong", 0.1),
-                ("weak", 0.1),
-            ],
-        ),
-    ]
-}*/
+    pub fn explore(&self) {
+        todo!()
+    }
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct WeightedMonster {

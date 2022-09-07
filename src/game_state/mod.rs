@@ -16,6 +16,8 @@ use chrono::{DateTime, Duration, Utc};
 use event_trigger_action_system::CompiledTriggers;
 use log::{debug, warn};
 use rand::Rng;
+use rand::SeedableRng;
+use rand_xoshiro::Xoshiro512PlusPlus;
 use serde::{Deserialize, Serialize};
 use std::iter;
 use std::ops::Deref;
@@ -36,6 +38,7 @@ pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct GameState {
     pub savegame_file: PathBufSerde,
+    pub rng: Xoshiro512PlusPlus,
     pub character: Character,
     pub selected_combat_style: CombatStyle,
     pub current_time: GameTime,
@@ -58,6 +61,7 @@ impl GameState {
 
         let mut result = Self {
             savegame_file: savegame_file.into(),
+            rng: SeedableRng::from_entropy(),
             character: Character::new(name, race),
             selected_combat_style,
             current_time: Default::default(),
