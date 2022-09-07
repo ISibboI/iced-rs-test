@@ -7,8 +7,6 @@ use std::fmt::Debug;
 use std::iter;
 
 pub mod quests;
-#[cfg(test)]
-mod tests;
 
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
 pub struct Story {

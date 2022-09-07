@@ -18,7 +18,8 @@ pub mod pathbuf_serde;
 #[allow(dead_code)]
 pub enum LoadError {
     IoError(Arc<std::io::Error>),
-    JsonError(Arc<serde_json::Error>),
+    PotError(Arc<pot::Error>),
+    Base64Error(Arc<base64::DecodeError>),
     JsError(String),
     JsWindowNotFound,
     LocalStorageNotFound,
@@ -31,9 +32,15 @@ impl From<std::io::Error> for LoadError {
     }
 }
 
-impl From<serde_json::Error> for LoadError {
-    fn from(error: serde_json::Error) -> Self {
-        Self::JsonError(Arc::new(error))
+impl From<pot::Error> for LoadError {
+    fn from(error: pot::Error) -> Self {
+        Self::PotError(Arc::new(error))
+    }
+}
+
+impl From<base64::DecodeError> for LoadError {
+    fn from(error: base64::DecodeError) -> Self {
+        Self::Base64Error(Arc::new(error))
     }
 }
 
@@ -47,7 +54,8 @@ impl ToString for LoadError {
     fn to_string(&self) -> String {
         match self {
             LoadError::IoError(error) => format!("IO error: {error}"),
-            LoadError::JsonError(error) => format!("Parsing error: {error}"),
+            LoadError::PotError(error) => format!("Parsing error: {error}"),
+            LoadError::Base64Error(error) => format!("Parsing error: {error}"),
             LoadError::JsError(error) => format!("Javascript error: {error:?}"),
             LoadError::JsWindowNotFound => {
                 "The browser does not provide a window object".to_string()
@@ -64,7 +72,7 @@ impl ToString for LoadError {
 #[allow(dead_code)]
 pub enum SaveError {
     IoError(Arc<std::io::Error>),
-    JsonError(Arc<serde_json::Error>),
+    PotError(Arc<pot::Error>),
     JsError(String),
     JsWindowNotFound,
     LocalStorageNotFound,
@@ -76,9 +84,9 @@ impl From<std::io::Error> for SaveError {
     }
 }
 
-impl From<serde_json::Error> for SaveError {
-    fn from(error: serde_json::Error) -> Self {
-        Self::JsonError(Arc::new(error))
+impl From<pot::Error> for SaveError {
+    fn from(error: pot::Error) -> Self {
+        Self::PotError(Arc::new(error))
     }
 }
 
@@ -92,7 +100,7 @@ impl ToString for SaveError {
     fn to_string(&self) -> String {
         match self {
             SaveError::IoError(error) => format!("IO error: {}", error),
-            SaveError::JsonError(error) => format!("Serialization error: {}", error),
+            SaveError::PotError(error) => format!("Serialization error: {}", error),
             SaveError::JsError(error) => format!("Javascript error: {error:?}"),
             SaveError::JsWindowNotFound => {
                 "The browser does not provide a window object".to_string()

@@ -1,4 +1,6 @@
-use crate::game_state::player_actions::{PlayerAction, PlayerActionId, PlayerActions};
+use crate::game_state::player_actions::{
+    PlayerAction, PlayerActionId, PlayerActionType, PlayerActions,
+};
 use crate::game_state::story::quests::{Quest, QuestId};
 use crate::game_state::story::Story;
 use crate::game_state::triggers::{CompiledGameEvent, GameAction, GameEvent};
@@ -7,6 +9,7 @@ use crate::game_state::world::locations::{Location, LocationId};
 use crate::game_state::world::monsters::{Monster, MonsterId};
 use crate::game_state::world::World;
 use crate::game_template::game_initialisation::{CompiledGameInitialisation, GameInitialisation};
+use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use event_trigger_action_system::{CompiledTriggers, Trigger, TriggerHandle};
 use log::debug;
 use std::collections::HashMap;
@@ -45,35 +48,95 @@ pub struct IdMaps {
 }
 
 impl IdMaps {
-    pub fn from_game_template(game_template: &GameTemplate) -> Self {
-        Self {
-            actions: build_id_map(&game_template.actions, |action| action.id_str.clone()),
-            quests: build_id_map(&game_template.quests, |quest| quest.id_str.clone()),
-            locations: build_id_map(&game_template.locations, |location| location.id_str.clone()),
+    pub fn from_game_template(game_template: &GameTemplate) -> Result<Self, ParserError> {
+        Ok(Self {
+            actions: build_id_map(
+                &game_template.actions,
+                |action| action.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateActionIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
+            quests: build_id_map(
+                &game_template.quests,
+                |quest| quest.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateQuestIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
+            locations: build_id_map(
+                &game_template.locations,
+                |location| location.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateLocationIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
             exploration_events: build_id_map(
                 &game_template.exploration_events,
                 |exploration_event| exploration_event.id_str.clone(),
-            ),
-            monsters: build_id_map(&game_template.monsters, |monster| monster.id_str.clone()),
-            triggers: build_id_map(&game_template.triggers, |trigger| trigger.id_str.clone()),
-        }
+                |identifier| {
+                    ParserError::without_coordinates(
+                        ParserErrorKind::DuplicateExplorationEventIdentifier(identifier),
+                    )
+                },
+            )?,
+            monsters: build_id_map(
+                &game_template.monsters,
+                |monster| monster.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateMonsterIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
+            triggers: build_id_map(
+                &game_template.triggers,
+                |trigger| trigger.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateTriggerIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
+        })
     }
 }
 
 impl GameTemplate {
-    pub fn compile(self) -> CompiledGameTemplate {
+    pub fn compile(mut self) -> Result<CompiledGameTemplate, ParserError> {
         debug!("Compiling game template file");
-        let id_maps = IdMaps::from_game_template(&self);
 
-        let initialisation = self.initialisation.unwrap().compile(&id_maps);
+        // put the builtin actions to their required position
+        self.actions.sort_by_key(|action| match action.action_type {
+            PlayerActionType::Wait => 0,
+            PlayerActionType::Sleep => 1,
+            PlayerActionType::Tavern => 2,
+            PlayerActionType::Explore => 3,
+            PlayerActionType::Train | PlayerActionType::Work => i32::MAX,
+        });
 
-        CompiledGameTemplate {
+        let id_maps = IdMaps::from_game_template(&self)?;
+
+        let initialisation = self
+            .initialisation
+            .ok_or_else(|| {
+                ParserError::without_coordinates(ParserErrorKind::MissingSectionInitialisation)
+            })?
+            .compile(&id_maps);
+
+        Ok(CompiledGameTemplate {
             actions: PlayerActions::new(
                 self.actions
                     .into_iter()
                     .map(|action| action.compile(&id_maps))
                     .collect(),
-            ),
+            )?,
             story: Story::new(
                 self.quests
                     .into_iter()
@@ -106,17 +169,20 @@ impl GameTemplate {
                     .collect(),
             ),
             initialisation,
-        }
+        })
     }
 }
 
 fn build_id_map<'elements, Element: 'elements, Handle: From<usize>>(
     elements: impl IntoIterator<Item = &'elements Element>,
-    name_getter: impl Fn(&Element) -> String,
-) -> HashMap<String, Handle> {
-    elements
-        .into_iter()
-        .enumerate()
-        .map(|(index, element)| (name_getter(element), index.into()))
-        .collect()
+    id_getter: impl Fn(&Element) -> String,
+    error: impl FnOnce(String) -> ParserError,
+) -> Result<HashMap<String, Handle>, ParserError> {
+    let mut result = HashMap::new();
+    for (index, element) in elements.into_iter().enumerate() {
+        if result.insert(id_getter(&element), index.into()).is_some() {
+            return Err(error(id_getter(&element)));
+        }
+    }
+    Ok(result)
 }

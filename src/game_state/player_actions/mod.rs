@@ -3,6 +3,7 @@ use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
+use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use crate::game_template::IdMaps;
 use enum_iterator::Sequence;
 use event_trigger_action_system::TriggerHandle;
@@ -15,7 +16,7 @@ use std::str::FromStr;
 pub static ACTION_WAIT: PlayerActionId = PlayerActionId(0);
 pub static ACTION_SLEEP: PlayerActionId = PlayerActionId(1);
 pub static ACTION_TAVERN: PlayerActionId = PlayerActionId(2);
-pub static ACTION_FIGHT_MONSTERS: PlayerActionId = PlayerActionId(3);
+pub static ACTION_EXPLORE: PlayerActionId = PlayerActionId(3);
 
 /*pub fn init_actions() -> Vec<PlayerAction> {
     vec![
@@ -190,13 +191,46 @@ pub struct DerefActionInProgress<'a> {
 pub struct PlayerActionId(usize);
 
 impl PlayerActions {
-    pub fn new(actions: Vec<CompiledPlayerAction>) -> Self {
+    pub fn new(actions: Vec<CompiledPlayerAction>) -> Result<Self, ParserError> {
+        let action_wait = actions
+            .get(ACTION_WAIT.0)
+            .ok_or_else(|| ParserError::without_coordinates(ParserErrorKind::MissingActionWait))?;
+        let action_sleep = actions
+            .get(ACTION_SLEEP.0)
+            .ok_or_else(|| ParserError::without_coordinates(ParserErrorKind::MissingActionSleep))?;
+        let action_tavern = actions.get(ACTION_TAVERN.0).ok_or_else(|| {
+            ParserError::without_coordinates(ParserErrorKind::MissingActionTavern)
+        })?;
+        let action_explore = actions.get(ACTION_EXPLORE.0).ok_or_else(|| {
+            ParserError::without_coordinates(ParserErrorKind::MissingActionExplore)
+        })?;
+        if action_wait.action_type != PlayerActionType::Wait {
+            return Err(ParserError::without_coordinates(
+                ParserErrorKind::MissingActionWait,
+            ));
+        }
+        if action_sleep.action_type != PlayerActionType::Sleep {
+            return Err(ParserError::without_coordinates(
+                ParserErrorKind::MissingActionSleep,
+            ));
+        }
+        if action_tavern.action_type != PlayerActionType::Tavern {
+            return Err(ParserError::without_coordinates(
+                ParserErrorKind::MissingActionTavern,
+            ));
+        }
+        if action_explore.action_type != PlayerActionType::Explore {
+            return Err(ParserError::without_coordinates(
+                ParserErrorKind::MissingActionExplore,
+            ));
+        }
+
         let inactive_actions = actions.iter().map(|action| action.id).collect();
         let actions_by_name = actions
             .iter()
             .map(|action| (action.name.clone(), action.id))
             .collect();
-        Self {
+        Ok(Self {
             actions,
             inactive_actions,
             active_actions: Default::default(),
@@ -204,7 +238,7 @@ impl PlayerActions {
             actions_by_name,
             in_progress: None,
             selected_action: ACTION_WAIT,
-        }
+        })
     }
 
     pub fn action(&self, action_id: PlayerActionId) -> &CompiledPlayerAction {
@@ -228,9 +262,9 @@ impl PlayerActions {
     }
 
     pub fn list_choosable(&self) -> impl '_ + Iterator<Item = PlayerActionId> {
-        self.actions.iter().filter_map(|action| {
-            if action.id != ACTION_SLEEP {
-                Some(action.id)
+        self.active_actions.iter().copied().filter_map(|action_id| {
+            if action_id != ACTION_SLEEP {
+                Some(action_id)
             } else {
                 None
             }

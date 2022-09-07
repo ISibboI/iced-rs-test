@@ -1,6 +1,27 @@
 INITIALISATION
 starting_location village
 
+BUILTIN_ACTION WAIT
+name Wait
+progressive waiting
+simple_past waited
+activation none
+deactivation never
+
+BUILTIN_ACTION SLEEP
+name Sleep
+progressive sleeping
+simple_past slept
+activation none
+deactivation never
+
+BUILTIN_ACTION TAVERN
+name Tavern
+progressive relaxing in the tavern
+simple_past relaxed in the tavern
+activation none
+deactivation never
+
 BUILTIN_ACTION EXPLORE
 name Explore
 progressive exploring

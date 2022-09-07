@@ -230,34 +230,39 @@ pub async fn parse_section(
                     section.set_events(parse_weighted_events(tokens).await?)?;
                 }
                 KeyTokenKind::Activation => {
-                    let id_str = format!("{}_activation", section.id_str);
-                    parse_trigger(
-                        game_template,
-                        tokens,
-                        id_str.clone(),
-                        vec![match section_kind {
-                            SectionTokenKind::BuiltinAction
-                            | SectionTokenKind::Action
-                            | SectionTokenKind::QuestAction => GameAction::ActivateAction {
+                    let (section_name_lowercase, game_action) = match section_kind {
+                        SectionTokenKind::BuiltinAction
+                        | SectionTokenKind::Action
+                        | SectionTokenKind::QuestAction => (
+                            "action",
+                            GameAction::ActivateAction {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::Quest => GameAction::ActivateQuest {
+                        ),
+                        SectionTokenKind::Quest => (
+                            "quest",
+                            GameAction::ActivateQuest {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::Location => GameAction::ActivateLocation {
+                        ),
+                        SectionTokenKind::Location => (
+                            "location",
+                            GameAction::ActivateLocation {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::Initialisation
-                            | SectionTokenKind::ExplorationEvent
-                            | SectionTokenKind::Monster => {
-                                return Err(ParserError::with_coordinates(
-                                    ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
-                                    section.id_range,
-                                ));
-                            }
-                        }],
-                    )
-                    .await?;
+                        ),
+                        SectionTokenKind::Initialisation
+                        | SectionTokenKind::ExplorationEvent
+                        | SectionTokenKind::Monster => {
+                            return Err(ParserError::with_coordinates(
+                                ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
+                                section.id_range,
+                            ));
+                        }
+                    };
+
+                    let id_str = format!("{section_name_lowercase}_{}_activation", section.id_str);
+                    parse_trigger(game_template, tokens, id_str.clone(), vec![game_action]).await?;
                     section.set_activation(RangedElement::new(id_str, range))?;
                 }
                 KeyTokenKind::Deactivation => {
@@ -442,7 +447,10 @@ impl GameTemplateSection {
     pub fn into_action(mut self) -> Result<PlayerAction, ParserError> {
         match self.id_str.as_str() {
             "EXPLORE" | "SLEEP" | "TAVERN" | "WAIT" => {
-                unreachable!("Trying to parse a builtin action as normal action")
+                return Err(ParserError::with_coordinates(
+                    ParserErrorKind::ReservedActionId(self.id_str.clone()),
+                    self.id_range,
+                ));
             }
             _ => {}
         }
@@ -494,8 +502,8 @@ impl GameTemplateSection {
             )
         })?;
 
-        let activation_condition = format!("{}_activation", id_str);
-        let deactivation_condition = format!("{}_deactivation", id_str);
+        let activation_condition = format!("action_{}_activation", id_str);
+        let deactivation_condition = format!("action_{}_deactivation", id_str);
         game_template.triggers.push(Trigger::new(
             activation_condition.clone(),
             event_count(

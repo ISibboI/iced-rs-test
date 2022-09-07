@@ -194,7 +194,7 @@ pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemp
         .map_err(|error| ParserError::without_coordinates(error.into()))?;
     let mut game_template = Default::default();
     parse_game_template_file(&mut game_template, game_template_file).await?;
-    Ok(game_template.compile())
+    game_template.compile()
 }
 
 #[derive(Debug, Clone)]

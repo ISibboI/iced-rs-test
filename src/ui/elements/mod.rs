@@ -1,7 +1,7 @@
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
-use crate::game_state::player_actions::{DerefActionInProgress, ACTION_FIGHT_MONSTERS};
+use crate::game_state::player_actions::{DerefActionInProgress, ACTION_EXPLORE};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
@@ -213,7 +213,7 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} is currently {}{}",
         game_state.character.name,
-        if current_action.action.id == ACTION_FIGHT_MONSTERS {
+        if current_action.action.id == ACTION_EXPLORE {
             let monster_name = current_action
                 .monster
                 .as_ref()
@@ -250,7 +250,7 @@ pub fn completed_action_description<'result, 'action, T: 'result>(
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} {}{}",
         game_state.character.name,
-        if action.action.id == ACTION_FIGHT_MONSTERS {
+        if action.action.id == ACTION_EXPLORE {
             let monster_name = action.monster.as_ref().unwrap().to_lowercase_string();
             let a = a_or_an(&monster_name);
             format!("fought {a} {monster_name}")

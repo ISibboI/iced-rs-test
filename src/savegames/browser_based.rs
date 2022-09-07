@@ -11,7 +11,7 @@ pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
     let savegame = storage
         .get_item(&path.as_ref().to_string())?
         .ok_or(LoadError::SavegameNotFound)?;
-    Ok(serde_json::from_str(&savegame)?)
+    Ok(pot::from_slice(base64::decode(&savegame)?)?)
 }
 
 pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
@@ -19,7 +19,7 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
         .ok_or(SaveError::JsWindowNotFound)?
         .local_storage()?
         .ok_or(SaveError::LocalStorageNotFound)?;
-    let savegame = serde_json::to_string(game_state)?;
+    let savegame = base64::encode(pot::to_vec(game_state)?);
     storage.set_item(&game_state.savegame_file, &savegame)?;
     Ok(())
 }

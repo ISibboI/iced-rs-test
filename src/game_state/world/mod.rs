@@ -1,7 +1,11 @@
+use crate::game_state::time::GameTime;
+use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_state::world::events::CompiledExplorationEvent;
-use crate::game_state::world::locations::{CompiledLocation, LocationId};
+use crate::game_state::world::locations::{CompiledLocation, LocationId, LocationState};
 use crate::game_state::world::monsters::CompiledMonster;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
+use std::iter;
 
 pub mod events;
 pub mod locations;
@@ -13,6 +17,7 @@ pub struct World {
     locations: Vec<CompiledLocation>,
     events: Vec<CompiledExplorationEvent>,
     monsters: Vec<CompiledMonster>,
+    active_locations: HashSet<LocationId>,
 }
 
 impl World {
@@ -27,6 +32,7 @@ impl World {
             locations,
             events,
             monsters,
+            active_locations: Default::default(),
         }
     }
 
@@ -37,6 +43,44 @@ impl World {
 
     pub fn location(&self, location_id: LocationId) -> &CompiledLocation {
         &self.locations[location_id.0]
+    }
+
+    pub fn location_mut(&mut self, location_id: LocationId) -> &mut CompiledLocation {
+        &mut self.locations[location_id.0]
+    }
+
+    pub fn activate_location(
+        &mut self,
+        location_id: LocationId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let location = self.location_mut(location_id);
+        assert!(location.state.is_inactive());
+        location.state = LocationState::Active {
+            activation_time: time,
+        };
+        assert!(self.active_locations.insert(location_id));
+        iter::empty()
+    }
+
+    pub fn deactivate_location(
+        &mut self,
+        location_id: LocationId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let location = self.location_mut(location_id);
+        assert!(location.state.is_active());
+        match location.state {
+            LocationState::Active { activation_time } => {
+                location.state = LocationState::Deactivated {
+                    activation_time,
+                    deactivation_time: time,
+                };
+                assert!(self.active_locations.remove(&location_id));
+            }
+            _ => unreachable!(),
+        }
+        iter::empty()
     }
 }
 

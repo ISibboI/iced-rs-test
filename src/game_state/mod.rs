@@ -3,7 +3,7 @@ use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
 use crate::game_state::player_actions::{
-    ActionInProgress, PlayerActions, ACTION_FIGHT_MONSTERS, ACTION_SLEEP, ACTION_TAVERN,
+    ActionInProgress, PlayerActions, ACTION_EXPLORE, ACTION_SLEEP, ACTION_TAVERN,
 };
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
@@ -172,7 +172,7 @@ impl GameState {
         } else {
             let action = self.actions.action(self.actions.selected_action);
 
-            if action.id == ACTION_FIGHT_MONSTERS {
+            if action.id == ACTION_EXPLORE {
                 let location = self.world.location(self.world.selected_location);
                 let monster = location.spawn();
                 let damage = self.damage_output();
@@ -238,11 +238,11 @@ impl GameState {
             CompiledGameAction::DeactivateAction { id } => {
                 Box::new(self.actions.deactivate_action(id, self.current_time))
             }
-            CompiledGameAction::ActivateLocation { .. } => {
-                todo!()
+            CompiledGameAction::ActivateLocation { id } => {
+                Box::new(self.world.activate_location(id, self.current_time))
             }
-            CompiledGameAction::DeactivateLocation { .. } => {
-                todo!()
+            CompiledGameAction::DeactivateLocation { id } => {
+                Box::new(self.world.deactivate_location(id, self.current_time))
             }
         }
     }

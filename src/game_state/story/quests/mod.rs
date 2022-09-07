@@ -3,9 +3,6 @@ use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
 use serde::{Deserialize, Serialize};
 
-#[cfg(test)]
-mod tests;
-
 /*pub fn init_quests() -> Vec<Quest> {
     vec![
         Quest::new(
