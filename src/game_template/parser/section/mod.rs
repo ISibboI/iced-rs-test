@@ -580,6 +580,8 @@ impl GameTemplateSection {
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
+            activation_condition: self.activation()?.element,
+            deactivation_condition: self.deactivation()?.element,
         });
         self.ensure_empty()?;
         result

@@ -37,6 +37,9 @@ pub enum ParserErrorKind {
     DuplicateMonsterIdentifier(String),
     DuplicateTriggerIdentifier(String),
     ReservedActionId(String),
+    IllegalWeight(f64),
+    AllWeightsZero,
+
     MissingSectionInitialisation,
     MissingActionWait,
     MissingActionSleep,

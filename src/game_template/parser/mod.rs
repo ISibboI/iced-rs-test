@@ -298,6 +298,8 @@ async fn parse_weighted_events(
     let mut result = Vec::new();
     let mut is_first_event = true;
     let mut range: Option<CharacterCoordinateRange> = None;
+    let mut has_nonzero_weight = false;
+
     while !tokens.is_first_of_line().await? {
         if is_first_event {
             is_first_event = false;
@@ -306,7 +308,15 @@ async fn parse_weighted_events(
         }
 
         let mut local_range = expect_open_parenthesis(tokens).await?;
-        let weight = expect_float(tokens).await?.element;
+        let (weight, weight_range) = expect_float(tokens).await?.decompose();
+        if !weight.is_finite() || weight < 0.0 {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::IllegalWeight(weight),
+                weight_range,
+            ));
+        } else if weight > 0.0 {
+            has_nonzero_weight = true;
+        }
         expect_comma(tokens).await?;
         let identifier = expect_identifier(tokens).await?.element;
         local_range.merge(expect_close_parenthesis(tokens).await?);
@@ -317,6 +327,14 @@ async fn parse_weighted_events(
             range = Some(local_range);
         }
     }
+
+    if !has_nonzero_weight {
+        return Err(ParserError::with_coordinates(
+            ParserErrorKind::AllWeightsZero,
+            range.unwrap_or_else(CharacterCoordinateRange::zero),
+        ));
+    }
+
     Ok(RangedElement::new(
         result,
         range.unwrap_or_else(CharacterCoordinateRange::zero),
