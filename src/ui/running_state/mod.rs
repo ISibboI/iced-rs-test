@@ -144,7 +144,7 @@ impl RunningState {
                 self.game_state.actions.select_action(&action);
             }
             RunningMessage::CombatStyleChanged(combat_style) => {
-                self.game_state.selected_combat_style = combat_style;
+                self.game_state.character.selected_combat_style = combat_style;
             }
             RunningMessage::CombatLocationChanged(combat_location) => {
                 self.game_state.world.selected_location = combat_location;

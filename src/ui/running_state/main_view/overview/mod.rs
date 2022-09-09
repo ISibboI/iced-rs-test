@@ -58,14 +58,14 @@ impl OverviewState {
                 PickList::new(
                     &mut self.combat_style_picker_state,
                     all::<CombatStyle>().collect::<Vec<_>>(),
-                    Some(game_state.selected_combat_style.clone()),
+                    Some(game_state.character.selected_combat_style.clone()),
                     |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
                 ),
             ))
             .push(labelled_label(
                 "Damage per minute:",
                 label_column_width,
-                format!("{:.0}", game_state.damage_output()),
+                format!("{:.0}", game_state.character.damage_output()),
             ));
 
         Column::new()

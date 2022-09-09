@@ -1,7 +1,9 @@
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
-use crate::game_state::player_actions::{DerefActionInProgress, ACTION_EXPLORE};
+use crate::game_state::player_actions::{
+    PlayerActionInProgress, PlayerActionInProgressKind, ACTION_EXPLORE,
+};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
@@ -201,9 +203,7 @@ pub fn event_log<'a, T: 'a>(
 
 pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row<'a, T> {
     match &event.kind {
-        GameEventKind::Action(action) => {
-            completed_action_description(&action.resolve(&game_state.actions), game_state)
-        }
+        GameEventKind::Action(action) => completed_action_description(action, game_state),
     }
 }
 
@@ -213,16 +213,13 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} is currently {}{}",
         game_state.character.name,
-        if current_action.action.id == ACTION_EXPLORE {
-            let monster_name = current_action
-                .monster
-                .as_ref()
-                .unwrap()
-                .to_lowercase_string();
-            let a = a_or_an(&monster_name);
-            format!("fighting {a} {monster_name}")
-        } else {
-            current_action.action.verb_progressive.to_string()
+        match current_action.kind {
+            PlayerActionInProgressKind::Combat(monster) => {
+                let monster_name = game_state.world.monster(monster).to_lowercase_string();
+                let a = a_or_an(&monster_name);
+                format!("fighting {a} {monster_name}")
+            }
+            PlayerActionInProgressKind::None => current_action.verb_progressive.clone(),
         },
         match current_action_currency_reward.cmp(&Currency::zero()) {
             Ordering::Less => " costing him ",
@@ -242,20 +239,23 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
     }
 }
 
-pub fn completed_action_description<'result, 'action, T: 'result>(
-    action: &DerefActionInProgress<'action>,
+pub fn completed_action_description<'a, T: 'a>(
+    action: &PlayerActionInProgress,
     game_state: &GameState,
-) -> Row<'result, T> {
+) -> Row<'a, T> {
     let current_action_currency_reward = action.currency_reward;
     let action_descriptor_row = Row::new().push(Text::new(&format!(
         "{} {}{}",
         game_state.character.name,
-        if action.action.id == ACTION_EXPLORE {
-            let monster_name = action.monster.as_ref().unwrap().to_lowercase_string();
-            let a = a_or_an(&monster_name);
-            format!("fought {a} {monster_name}")
-        } else {
-            action.action.verb_simple_past.to_string()
+        match action.kind {
+            PlayerActionInProgressKind::Combat(monster) => {
+                let monster_name = game_state.world.monster(monster).to_lowercase_string();
+                let a = a_or_an(&monster_name);
+                format!("fought {a} {monster_name}")
+            }
+            PlayerActionInProgressKind::None => {
+                action.verb_simple_past.clone()
+            }
         },
         match current_action_currency_reward.cmp(&Currency::zero()) {
             Ordering::Less => " costing him ",

@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub struct Monster {
     pub id_str: String,
     pub name: String,
+    pub hitpoints: f64,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -12,6 +13,7 @@ pub struct CompiledMonster {
     pub id: MonsterId,
     pub id_str: String,
     pub name: String,
+    pub hitpoints: f64,
 }
 
 #[derive(
@@ -25,7 +27,14 @@ impl Monster {
             id: *id_maps.monsters.get(&self.id_str).unwrap(),
             id_str: self.id_str,
             name: self.name,
+            hitpoints: self.hitpoints,
         }
+    }
+}
+
+impl CompiledMonster {
+    pub fn to_lowercase_string(&self) -> String {
+        self.name.to_lowercase()
     }
 }
 

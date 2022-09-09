@@ -1,8 +1,11 @@
+use crate::game_state::character::Character;
+use crate::game_state::player_actions::PlayerActionInProgress;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
-use crate::game_state::world::events::CompiledExplorationEvent;
+use crate::game_state::world::events::{CompiledExplorationEvent, ExplorationEventId};
 use crate::game_state::world::locations::{CompiledLocation, LocationId, LocationState};
-use crate::game_state::world::monsters::CompiledMonster;
+use crate::game_state::world::monsters::{CompiledMonster, MonsterId};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::iter;
@@ -49,6 +52,18 @@ impl World {
         &mut self.locations[location_id.0]
     }
 
+    pub fn selected_location(&self) -> &CompiledLocation {
+        self.location(self.selected_location)
+    }
+
+    pub fn event(&self, event_id: ExplorationEventId) -> &CompiledExplorationEvent {
+        &self.events[event_id.0]
+    }
+
+    pub fn monster(&self, monster_id: MonsterId) -> &CompiledMonster {
+        &self.monsters[monster_id.0]
+    }
+
     pub fn activate_location(
         &mut self,
         location_id: LocationId,
@@ -83,8 +98,23 @@ impl World {
         iter::empty()
     }
 
-    pub fn explore(&self) {
-        todo!()
+    pub fn explore(
+        &self,
+        rng: &mut impl Rng,
+        start_time: GameTime,
+        default_duration: GameTime,
+        character: &Character,
+    ) -> Option<PlayerActionInProgress> {
+        let location = self.selected_location();
+        let event_id = location.explore(rng, &self.events)?;
+        let event = self.event(event_id);
+        Some(event.spawn(
+            rng,
+            start_time,
+            default_duration,
+            character,
+            self.monsters.as_slice(),
+        ))
     }
 }
 

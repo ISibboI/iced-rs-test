@@ -63,6 +63,8 @@ pub enum ParserErrorKind {
     MissingType(String),
     MissingDuration(String),
     MissingEvents(String),
+    MissingMonster(String),
+    MissingHitpoints(String),
 
     MissingActivation(String),
     MissingDeactivation(String),
@@ -88,6 +90,8 @@ pub enum ParserErrorKind {
     DuplicateType(String),
     DuplicateDuration(String),
     DuplicateEvents(String),
+    DuplicateMonster(String),
+    DuplicateHitpoints(String),
 
     DuplicateActivation(String),
     DuplicateDeactivation(String),
@@ -113,6 +117,8 @@ pub enum ParserErrorKind {
     UnexpectedType(String),
     UnexpectedDuration(String),
     UnexpectedEvents(String),
+    UnexpectedMonster(String),
+    UnexpectedHitpoints(String),
 
     UnexpectedActivation(String),
     UnexpectedDeactivation(String),

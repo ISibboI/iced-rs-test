@@ -52,6 +52,8 @@ pub enum KeyTokenKind {
     Type,
     Duration,
     Events,
+    Monster,
+    Hitpoints,
 
     Activation,
     Deactivation,
@@ -185,6 +187,14 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                     ))),
                     "events" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::Events),
+                        range,
+                    ))),
+                    "monster" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::Monster),
+                        range,
+                    ))),
+                    "hitpoints" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::Hitpoints),
                         range,
                     ))),
 

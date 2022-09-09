@@ -127,13 +127,3 @@ pub struct SpawnedMonster {
     pub modifier: MonsterModifier,
     pub currency_reward: Currency,
 }
-
-impl SpawnedMonster {
-    pub fn to_lowercase_string(&self) -> String {
-        if self.modifier.name == "normal" {
-            self.monster.name.clone()
-        } else {
-            format!("{} {}", self.modifier.name, self.monster.name)
-        }
-    }
-}

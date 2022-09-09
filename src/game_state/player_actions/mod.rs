@@ -3,6 +3,8 @@ use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
+use crate::game_state::world::events::ExplorationEventId;
+use crate::game_state::world::monsters::MonsterId;
 use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use crate::game_template::IdMaps;
 use enum_iterator::Sequence;
@@ -112,7 +114,7 @@ pub struct PlayerActions {
     active_actions: HashSet<PlayerActionId>,
     deactivated_actions: HashSet<PlayerActionId>,
     actions_by_name: HashMap<String, PlayerActionId>,
-    in_progress: Option<ActionInProgress>,
+    in_progress: Option<PlayerActionInProgress>,
     pub selected_action: PlayerActionId,
 }
 
@@ -135,7 +137,7 @@ pub struct PlayerAction {
     pub action_type: PlayerActionType,
     pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
-    pub currency_gain: Currency,
+    pub currency_reward: Currency,
     pub activation_condition: String,
     pub deactivation_condition: String,
 }
@@ -151,7 +153,7 @@ pub struct CompiledPlayerAction {
     pub action_type: PlayerActionType,
     pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
-    pub currency_gain: Currency,
+    pub currency_reward: Currency,
     pub activation_condition: TriggerHandle,
     pub deactivation_condition: TriggerHandle,
 }
@@ -169,20 +171,28 @@ pub enum PlayerActionState {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct ActionInProgress {
-    pub action: PlayerActionId,
+pub struct PlayerActionInProgress {
+    pub verb_progressive: String,
+    pub verb_simple_past: String,
+    pub source: PlayerActionInProgressSource,
+    pub kind: PlayerActionInProgressKind,
     pub start: GameTime,
     pub end: GameTime,
     pub attribute_progress: CharacterAttributeProgress,
-    pub monster: Option<SpawnedMonster>,
     pub currency_reward: Currency,
     pub success: bool,
 }
 
-#[derive(Clone, Debug)]
-pub struct DerefActionInProgress<'a> {
-    pub action: &'a CompiledPlayerAction,
-    deref: &'a ActionInProgress,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PlayerActionInProgressSource {
+    Action(PlayerActionId),
+    Exploration(ExplorationEventId),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PlayerActionInProgressKind {
+    Combat(MonsterId),
+    None,
 }
 
 #[derive(
@@ -253,11 +263,11 @@ impl PlayerActions {
         self.in_progress.is_some()
     }
 
-    pub fn in_progress(&self) -> DerefActionInProgress {
-        self.in_progress.as_ref().unwrap().resolve(self)
+    pub fn in_progress(&self) -> &PlayerActionInProgress {
+        self.in_progress.as_ref().unwrap()
     }
 
-    pub fn set_in_progress(&mut self, in_progress: ActionInProgress) {
+    pub fn set_in_progress(&mut self, in_progress: PlayerActionInProgress) {
         self.in_progress = Some(in_progress);
     }
 
@@ -332,9 +342,34 @@ impl PlayerAction {
             action_type: self.action_type,
             duration: self.duration,
             attribute_progress_factor: self.attribute_progress_factor,
-            currency_gain: self.currency_gain,
+            currency_reward: self.currency_reward,
             activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
             deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
+        }
+    }
+}
+
+impl CompiledPlayerAction {
+    pub fn spawn(&self, start_time: GameTime) -> PlayerActionInProgress {
+        PlayerActionInProgress {
+            verb_progressive: self.verb_progressive.clone(),
+            verb_simple_past: self.verb_simple_past.clone(),
+            source: PlayerActionInProgressSource::Action(self.id),
+            kind: PlayerActionInProgressKind::None,
+            start: start_time,
+            end: start_time + self.duration,
+            attribute_progress: self.attribute_progress_factor.into_progress(self.duration),
+            currency_reward: self.currency_reward,
+            success: true,
+        }
+    }
+}
+
+impl PlayerActionInProgressSource {
+    pub fn action_id(&self) -> PlayerActionId {
+        match self {
+            PlayerActionInProgressSource::Action(action_id) => *action_id,
+            PlayerActionInProgressSource::Exploration(_) => ACTION_EXPLORE,
         }
     }
 }
@@ -359,27 +394,9 @@ impl PlayerActionState {
     }
 }
 
-impl ActionInProgress {
-    pub fn resolve<'result>(
-        &'result self,
-        actions: &'result PlayerActions,
-    ) -> DerefActionInProgress<'result> {
-        DerefActionInProgress {
-            action: actions.action(self.action),
-            deref: self,
-        }
-    }
-
+impl PlayerActionInProgress {
     pub fn length(&self) -> GameTime {
         self.end - self.start
-    }
-}
-
-impl<'a> Deref for DerefActionInProgress<'a> {
-    type Target = ActionInProgress;
-
-    fn deref(&self) -> &Self::Target {
-        self.deref
     }
 }
 

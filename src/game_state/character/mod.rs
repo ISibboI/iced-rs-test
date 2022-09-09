@@ -49,6 +49,8 @@ pub struct Character {
     attribute_progress: CharacterAttributeProgress,
 
     pub currency: Currency,
+
+    pub selected_combat_style: CombatStyle,
 }
 
 impl Character {
@@ -64,6 +66,8 @@ impl Character {
             attribute_progress: Default::default(),
 
             currency: Currency::from_copper(0),
+
+            selected_combat_style: race.starting_combat_style(),
         }
     }
 
@@ -104,6 +108,61 @@ impl Character {
 
     pub fn attribute_progress(&self) -> &CharacterAttributeProgress {
         &self.attribute_progress
+    }
+
+    pub fn damage_output(&self) -> f64 {
+        let attributes = self.attributes();
+        match self.selected_combat_style {
+            CombatStyle::CloseContact => {
+                0.45 * attributes.strength as f64
+                    + 0.45 * attributes.stamina as f64
+                    + 0.1 * attributes.dexterity as f64
+            }
+            CombatStyle::Ranged => {
+                0.1 * attributes.strength as f64
+                    + 0.1 * attributes.stamina as f64
+                    + 0.8 * attributes.dexterity as f64
+            }
+            CombatStyle::Magic => {
+                0.4 * attributes.intelligence as f64 + 0.6 * attributes.wisdom as f64
+            }
+        }
+    }
+
+    pub fn evaluate_combat_attribute_progress(
+        &self,
+        duration: GameTime,
+    ) -> CharacterAttributeProgress {
+        let damage = self.damage_output();
+        let damage = if damage > 1.0 { damage.sqrt() } else { damage };
+        let damage = damage * duration.milliseconds() as f64;
+
+        match self.selected_combat_style {
+            CombatStyle::CloseContact => CharacterAttributeProgress::new(
+                (0.45 * damage).round() as u64,
+                (0.45 * damage).round() as u64,
+                (0.1 * damage).round() as u64,
+                0,
+                0,
+                0,
+            ),
+            CombatStyle::Ranged => CharacterAttributeProgress::new(
+                (0.1 * damage).round() as u64,
+                (0.1 * damage).round() as u64,
+                (0.8 * damage).round() as u64,
+                0,
+                0,
+                0,
+            ),
+            CombatStyle::Magic => CharacterAttributeProgress::new(
+                0,
+                0,
+                0,
+                (0.4 * damage).round() as u64,
+                (0.6 * damage).round() as u64,
+                0,
+            ),
+        }
     }
 }
 
@@ -333,6 +392,13 @@ impl CharacterAttributeProgressFactor {
         wisdom: f64,
         charisma: f64,
     ) -> Self {
+        assert!(strength >= 0.0);
+        assert!(stamina >= 0.0);
+        assert!(dexterity >= 0.0);
+        assert!(intelligence >= 0.0);
+        assert!(wisdom >= 0.0);
+        assert!(charisma >= 0.0);
+
         Self {
             strength,
             stamina,

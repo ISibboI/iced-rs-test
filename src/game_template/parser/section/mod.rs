@@ -1,4 +1,4 @@
-use crate::game_state::character::CharacterAttributeProgressFactor;
+use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
 use crate::game_state::story::quests::Quest;
@@ -43,6 +43,8 @@ pub struct GameTemplateSection {
     type_name: Option<RangedElement<String>>,
     duration: Option<RangedElement<GameTime>>,
     events: Option<RangedElement<Vec<WeightedIdentifier>>>,
+    monster: Option<RangedElement<String>>,
+    hitpoints: Option<RangedElement<f64>>,
 
     activation: Option<RangedElement<String>>,
     deactivation: Option<RangedElement<String>>,
@@ -229,6 +231,8 @@ pub async fn parse_section(
                 KeyTokenKind::Events => {
                     section.set_events(parse_weighted_events(tokens).await?)?;
                 }
+                KeyTokenKind::Monster => {}
+                KeyTokenKind::Hitpoints => {}
                 KeyTokenKind::Activation => {
                     let (section_name_lowercase, game_action) = match section_kind {
                         SectionTokenKind::BuiltinAction
@@ -404,6 +408,8 @@ impl GameTemplateSection {
             type_name: None,
             duration: None,
             events: None,
+            monster: None,
+            hitpoints: None,
             activation: None,
             deactivation: None,
             completion: None,
@@ -436,7 +442,7 @@ impl GameTemplateSection {
             action_type,
             duration: Default::default(),
             attribute_progress_factor: Default::default(),
-            currency_gain: Default::default(),
+            currency_reward: Default::default(),
             activation_condition: self.activation()?.element,
             deactivation_condition: self.deactivation()?.element,
         });
@@ -473,7 +479,7 @@ impl GameTemplateSection {
             action_type,
             duration: self.duration()?.element,
             attribute_progress_factor: self.take_character_attribute_progress_factor(),
-            currency_gain: self.currency()?.element,
+            currency_reward: self.currency()?.element,
             activation_condition: self.activation()?.element,
             deactivation_condition: self.deactivation()?.element,
         });
@@ -535,7 +541,7 @@ impl GameTemplateSection {
             action_type,
             duration: self.duration()?.element,
             attribute_progress_factor: self.take_character_attribute_progress_factor(),
-            currency_gain: self.currency()?.element,
+            currency_reward: self.currency()?.element,
             activation_condition,
             deactivation_condition,
         });
@@ -580,6 +586,13 @@ impl GameTemplateSection {
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
+            monster: self.monster.take().map(|monster| monster.element),
+            attribute_progress: self.take_character_attribute_progress(),
+            currency_reward: self
+                .currency
+                .take()
+                .map(|currency| currency.element)
+                .unwrap_or(Currency::zero()),
             activation_condition: self.activation()?.element,
             deactivation_condition: self.deactivation()?.element,
         });
@@ -593,6 +606,7 @@ impl GameTemplateSection {
         let result = Ok(Monster {
             id_str,
             name: self.name()?.element,
+            hitpoints: self.hitpoints()?.element,
         });
         self.ensure_empty()?;
         result
@@ -617,6 +631,27 @@ impl GameTemplateSection {
         )
     }
 
+    fn take_character_attribute_progress(&mut self) -> CharacterAttributeProgress {
+        CharacterAttributeProgress::new(
+            self.strength()
+                .map(|e| e.element.round() as u64)
+                .unwrap_or(0),
+            self.stamina()
+                .map(|e| e.element.round() as u64)
+                .unwrap_or(0),
+            self.dexterity()
+                .map(|e| e.element.round() as u64)
+                .unwrap_or(0),
+            self.intelligence()
+                .map(|e| e.element.round() as u64)
+                .unwrap_or(0),
+            self.wisdom().map(|e| e.element.round() as u64).unwrap_or(0),
+            self.charisma()
+                .map(|e| e.element.round() as u64)
+                .unwrap_or(0),
+        )
+    }
+
     fn ensure_empty(mut self) -> Result<(), ParserError> {
         ensure_empty!(self, name, UnexpectedName);
         ensure_empty!(self, progressive, UnexpectedProgressive);
@@ -635,6 +670,8 @@ impl GameTemplateSection {
         ensure_empty!(self, type_name, UnexpectedType);
         ensure_empty!(self, duration, UnexpectedDuration);
         ensure_empty!(self, events, UnexpectedEvents);
+        ensure_empty!(self, monster, UnexpectedMonster);
+        ensure_empty!(self, hitpoints, UnexpectedHitpoints);
 
         ensure_empty!(self, activation, UnexpectedActivation);
         ensure_empty!(self, deactivation, UnexpectedDeactivation);
@@ -663,6 +700,8 @@ impl GameTemplateSection {
     setter!(set_type_name, type_name, DuplicateType, String);
     setter!(set_duration, duration, DuplicateDuration, GameTime);
     setter!(set_events, events, DuplicateEvents, Vec<WeightedIdentifier>);
+    setter!(set_monster, monster, DuplicateMonster, String);
+    setter!(set_hitpoints, hitpoints, DuplicateHitpoints, f64);
 
     setter!(set_activation, activation, DuplicateActivation, String);
     setter!(
@@ -698,6 +737,8 @@ impl GameTemplateSection {
     taker!(type_name, MissingType, String);
     taker!(duration, MissingDuration, GameTime);
     taker!(events, MissingEvents, Vec<WeightedIdentifier>);
+    taker!(monster, MissingMonster, String);
+    taker!(hitpoints, MissingHitpoints, f64);
 
     taker!(activation, MissingActivation, String);
     taker!(deactivation, MissingDeactivation, String);
