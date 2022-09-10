@@ -20,9 +20,10 @@ use crate::game_template::GameTemplate;
 use async_std::io::Read;
 use event_trigger_action_system::{event_count, or, Trigger};
 use log::trace;
+use section_parser_derive::SectionParser;
 use std::mem;
 
-#[derive(Debug)]
+#[derive(Debug, SectionParser)]
 pub struct GameTemplateSection {
     id_str: String,
     id_range: CharacterCoordinateRange,
@@ -52,6 +53,19 @@ pub struct GameTemplateSection {
     failure: Option<RangedElement<String>>,
 
     starting_location: Option<RangedElement<String>>,
+}
+
+pub struct GameTemplateSectionError {
+    pub id_str: String,
+    pub field: String,
+    pub range: CharacterCoordinateRange,
+    pub kind: GameTemplateSectionErrorKind,
+}
+
+pub enum GameTemplateSectionErrorKind {
+    MissingField,
+    UnexpectedField,
+    DuplicateField,
 }
 
 pub async fn parse_section(
@@ -259,7 +273,10 @@ pub async fn parse_section(
                         | SectionTokenKind::ExplorationEvent
                         | SectionTokenKind::Monster => {
                             return Err(ParserError::with_coordinates(
-                                ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
+                                ParserErrorKind::UnexpectedField {
+                                    id_str: section.id_str.clone(),
+                                    field: "activation".to_string(),
+                                },
                                 section.id_range,
                             ));
                         }
@@ -289,7 +306,10 @@ pub async fn parse_section(
                             | SectionTokenKind::ExplorationEvent
                             | SectionTokenKind::Monster => {
                                 return Err(ParserError::with_coordinates(
-                                    ParserErrorKind::UnexpectedActivation(section.id_str.clone()),
+                                    ParserErrorKind::UnexpectedField {
+                                        id_str: section.id_str.clone(),
+                                        field: "deactivation".to_string(),
+                                    },
                                     section.id_range,
                                 ));
                             }
@@ -345,47 +365,6 @@ pub async fn parse_section(
     }
 
     Ok((section, section_token))
-}
-
-macro_rules! ensure_empty {
-    ($self:ident, $id:ident, $unexpected:ident) => {
-        if let Some($id) = $self.$id.take() {
-            let (_, range) = $id.decompose();
-            return Err(ParserError::with_coordinates(
-                ParserErrorKind::$unexpected(stringify!($id).to_owned()),
-                range,
-            ));
-        }
-    };
-}
-
-macro_rules! setter {
-    ($function:ident, $id:ident, $unexpected:ident, $t:ty) => {
-        fn $function(&mut self, $id: RangedElement<$t>) -> Result<(), ParserError> {
-            if self.$id.is_none() {
-                self.$id = Some($id);
-                Ok(())
-            } else {
-                Err(ParserError::with_coordinates(
-                    ParserErrorKind::$unexpected(stringify!($id).to_owned()),
-                    $id.range,
-                ))
-            }
-        }
-    };
-}
-
-macro_rules! taker {
-    ($id:ident, $missing:ident, $t:ty) => {
-        fn $id(&mut self) -> Result<RangedElement<$t>, ParserError> {
-            self.$id.take().ok_or_else(|| {
-                ParserError::with_coordinates(
-                    ParserErrorKind::$missing(self.id_str.clone()),
-                    self.id_range,
-                )
-            })
-        }
-    };
 }
 
 impl GameTemplateSection {
@@ -652,98 +631,38 @@ impl GameTemplateSection {
         )
     }
 
-    fn ensure_empty(mut self) -> Result<(), ParserError> {
-        ensure_empty!(self, name, UnexpectedName);
-        ensure_empty!(self, progressive, UnexpectedProgressive);
-        ensure_empty!(self, simple_past, UnexpectedSimplePast);
-        ensure_empty!(self, title, UnexpectedTitle);
-        ensure_empty!(self, description, UnexpectedDescription);
-
-        ensure_empty!(self, strength, UnexpectedStrength);
-        ensure_empty!(self, stamina, UnexpectedStamina);
-        ensure_empty!(self, dexterity, UnexpectedDexterity);
-        ensure_empty!(self, intelligence, UnexpectedIntelligence);
-        ensure_empty!(self, wisdom, UnexpectedWisdom);
-        ensure_empty!(self, charisma, UnexpectedCharisma);
-        ensure_empty!(self, currency, UnexpectedCurrency);
-
-        ensure_empty!(self, type_name, UnexpectedType);
-        ensure_empty!(self, duration, UnexpectedDuration);
-        ensure_empty!(self, events, UnexpectedEvents);
-        ensure_empty!(self, monster, UnexpectedMonster);
-        ensure_empty!(self, hitpoints, UnexpectedHitpoints);
-
-        ensure_empty!(self, activation, UnexpectedActivation);
-        ensure_empty!(self, deactivation, UnexpectedDeactivation);
-        ensure_empty!(self, completion, UnexpectedCompletion);
-        ensure_empty!(self, failure, UnexpectedFailure);
-
-        ensure_empty!(self, starting_location, UnexpectedStartingLocation);
-
-        Ok(())
+    fn missing_field_error(&self, field: &str) -> GameTemplateSectionError {
+        GameTemplateSectionError {
+            id_str: self.id_str.clone(),
+            field: field.to_string(),
+            range: self.id_range,
+            kind: GameTemplateSectionErrorKind::MissingField,
+        }
     }
 
-    setter!(set_name, name, DuplicateName, String);
-    setter!(set_progressive, progressive, DuplicateProgressive, String);
-    setter!(set_simple_past, simple_past, DuplicateSimplePast, String);
-    setter!(set_title, title, DuplicateTitle, String);
-    setter!(set_description, description, DuplicateDescription, String);
+    fn duplicate_field_error<T>(
+        &self,
+        field: &str,
+        value: RangedElement<T>,
+    ) -> GameTemplateSectionError {
+        GameTemplateSectionError {
+            id_str: self.id_str.clone(),
+            field: field.to_string(),
+            range: value.range,
+            kind: GameTemplateSectionErrorKind::DuplicateField,
+        }
+    }
 
-    setter!(set_strength, strength, DuplicateStrength, f64);
-    setter!(set_stamina, stamina, DuplicateStamina, f64);
-    setter!(set_dexterity, dexterity, DuplicateDexterity, f64);
-    setter!(set_intelligence, intelligence, DuplicateIntelligence, f64);
-    setter!(set_wisdom, wisdom, DuplicateWisdom, f64);
-    setter!(set_charisma, charisma, DuplicateCharisma, f64);
-    setter!(set_currency, currency, DuplicateCurrency, Currency);
-
-    setter!(set_type_name, type_name, DuplicateType, String);
-    setter!(set_duration, duration, DuplicateDuration, GameTime);
-    setter!(set_events, events, DuplicateEvents, Vec<WeightedIdentifier>);
-    setter!(set_monster, monster, DuplicateMonster, String);
-    setter!(set_hitpoints, hitpoints, DuplicateHitpoints, f64);
-
-    setter!(set_activation, activation, DuplicateActivation, String);
-    setter!(
-        set_deactivation,
-        deactivation,
-        DuplicateDeactivation,
-        String
-    );
-    setter!(set_completion, completion, DuplicateCompletion, String);
-    setter!(set_failure, failure, DuplicateFailure, String);
-
-    setter!(
-        set_starting_location,
-        starting_location,
-        DuplicateStartingLocation,
-        String
-    );
-
-    taker!(name, MissingName, String);
-    taker!(progressive, MissingProgressive, String);
-    taker!(simple_past, MissingSimplePast, String);
-    taker!(title, MissingTitle, String);
-    taker!(description, MissingDescription, String);
-
-    taker!(strength, MissingStrength, f64);
-    taker!(stamina, MissingStamina, f64);
-    taker!(dexterity, MissingDexterity, f64);
-    taker!(intelligence, MissingIntelligence, f64);
-    taker!(wisdom, MissingWisdom, f64);
-    taker!(charisma, MissingCharisma, f64);
-    taker!(currency, MissingCurrency, Currency);
-
-    taker!(type_name, MissingType, String);
-    taker!(duration, MissingDuration, GameTime);
-    taker!(events, MissingEvents, Vec<WeightedIdentifier>);
-    taker!(monster, MissingMonster, String);
-    taker!(hitpoints, MissingHitpoints, f64);
-
-    taker!(activation, MissingActivation, String);
-    taker!(deactivation, MissingDeactivation, String);
-    taker!(completion, MissingCompletion, String);
-    taker!(failure, MissingFailure, String);
-
-    taker!(starting_location, MissingStartingLocation, String);
+    fn unexpected_field_error<T>(
+        &self,
+        field: &str,
+        value: RangedElement<T>,
+    ) -> GameTemplateSectionError {
+        GameTemplateSectionError {
+            id_str: self.id_str.clone(),
+            field: field.to_string(),
+            range: value.range,
+            kind: GameTemplateSectionErrorKind::UnexpectedField,
+        }
+    }
 }

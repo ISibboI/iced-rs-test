@@ -1202,6 +1202,7 @@ dependencies = [
  "rand_distr",
  "rand_xoshiro",
  "regex",
+ "section_parser_derive",
  "serde",
  "simplelog",
  "wasm-bindgen",
@@ -2134,6 +2135,17 @@ name = "scopeguard"
 version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
+
+[[package]]
+name = "section_parser_derive"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9656877ef2ae236755c54e607d6f94ee0064204fd41d537d46afc7f24e32d518"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
 
 [[package]]
 name = "serde"
