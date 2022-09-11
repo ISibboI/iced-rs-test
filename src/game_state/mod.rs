@@ -1,9 +1,8 @@
-use crate::game_state::character::{Character, CharacterAttributeProgress, CharacterRace};
-use crate::game_state::combat::CombatStyle;
+use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
 use crate::game_state::player_actions::{
-    PlayerActionInProgress, PlayerActions, ACTION_EXPLORE, ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
+    PlayerActions, ACTION_EXPLORE, ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
 };
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
@@ -54,14 +53,13 @@ impl GameState {
         game_template: CompiledGameTemplate,
         savegame_file: PathBuf,
         name: String,
+        pronoun: String,
         race: CharacterRace,
     ) -> Self {
-        let selected_combat_style = race.starting_combat_style();
-
         let mut result = Self {
             savegame_file: savegame_file.into(),
             rng: SeedableRng::from_entropy(),
-            character: Character::new(name, race),
+            character: Character::new(name, pronoun, race),
             current_time: Default::default(),
             last_update: Utc::now(),
             log: EventLog::default(),
@@ -204,6 +202,19 @@ impl GameState {
             }
             CompiledGameAction::DeactivateLocation { id } => {
                 Box::new(self.world.deactivate_location(id, self.current_time))
+            }
+            CompiledGameAction::ActivateExplorationEvent { id } => {
+                Box::new(self.world.activate_exploration_event(id, self.current_time))
+            }
+            CompiledGameAction::DeactivateExplorationEvent { id } => Box::new(
+                self.world
+                    .deactivate_exploration_event(id, self.current_time),
+            ),
+            CompiledGameAction::ActivateMonster { id } => {
+                Box::new(self.world.activate_monster(id, self.current_time))
+            }
+            CompiledGameAction::DeactivateMonster { id } => {
+                Box::new(self.world.deactivate_monster(id, self.current_time))
             }
         }
     }

@@ -1,13 +1,14 @@
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::story::quests::QuestId;
+use crate::game_state::world::events::ExplorationEventId;
 use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::MonsterId;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::{TriggerAction, TriggerEvent, TriggerIdentifier};
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GameEvent {
     Action(GameAction),
     CurrencyChanged { value: Currency },
@@ -24,7 +25,7 @@ pub enum GameEvent {
     MonsterFailed { id: String },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GameAction {
     ActivateQuest { id: String },
     CompleteQuest { id: String },
@@ -33,6 +34,10 @@ pub enum GameAction {
     DeactivateAction { id: String },
     ActivateLocation { id: String },
     DeactivateLocation { id: String },
+    ActivateExplorationEvent { id: String },
+    DeactivateExplorationEvent { id: String },
+    ActivateMonster { id: String },
+    DeactivateMonster { id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -78,6 +83,10 @@ pub enum CompiledGameAction {
     DeactivateAction { id: PlayerActionId },
     ActivateLocation { id: LocationId },
     DeactivateLocation { id: LocationId },
+    ActivateExplorationEvent { id: ExplorationEventId },
+    DeactivateExplorationEvent { id: ExplorationEventId },
+    ActivateMonster { id: MonsterId },
+    DeactivateMonster { id: MonsterId },
 }
 
 impl GameEvent {
@@ -145,6 +154,22 @@ impl GameAction {
             },
             GameAction::DeactivateLocation { id } => CompiledGameAction::DeactivateLocation {
                 id: *id_maps.locations.get(&id).unwrap(),
+            },
+            GameAction::ActivateExplorationEvent { id } => {
+                CompiledGameAction::ActivateExplorationEvent {
+                    id: *id_maps.exploration_events.get(&id).unwrap(),
+                }
+            }
+            GameAction::DeactivateExplorationEvent { id } => {
+                CompiledGameAction::DeactivateExplorationEvent {
+                    id: *id_maps.exploration_events.get(&id).unwrap(),
+                }
+            }
+            GameAction::ActivateMonster { id } => CompiledGameAction::ActivateMonster {
+                id: *id_maps.monsters.get(&id).unwrap(),
+            },
+            GameAction::DeactivateMonster { id } => CompiledGameAction::DeactivateMonster {
+                id: *id_maps.monsters.get(&id).unwrap(),
             },
         }
     }

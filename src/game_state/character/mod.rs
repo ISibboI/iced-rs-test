@@ -40,6 +40,8 @@ pub struct CharacterAttributeProgressFactor {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Character {
     pub name: String,
+    pub pronoun: String,
+    pub pronoun_capitalised: String,
     pub race: CharacterRace,
 
     pub level: u64,
@@ -54,9 +56,18 @@ pub struct Character {
 }
 
 impl Character {
-    pub fn new(name: String, race: CharacterRace) -> Self {
+    pub fn new(name: String, pronoun: String, race: CharacterRace) -> Self {
+        let pronoun = pronoun.to_lowercase();
+        let pronoun_capitalised = pronoun
+            .chars()
+            .take(1)
+            .flat_map(|c| c.to_uppercase())
+            .chain(pronoun.chars().skip(1))
+            .collect();
         Self {
             name,
+            pronoun,
+            pronoun_capitalised,
             race,
 
             level: 1,

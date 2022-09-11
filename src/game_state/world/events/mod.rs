@@ -4,7 +4,7 @@ use crate::game_state::player_actions::{
     PlayerActionInProgress, PlayerActionInProgressKind, PlayerActionInProgressSource,
 };
 use crate::game_state::time::GameTime;
-use crate::game_state::world::monsters::{CompiledMonster, Monster, MonsterId};
+use crate::game_state::world::monsters::{CompiledMonster, MonsterId};
 use crate::game_state::MAX_COMBAT_DURATION;
 use crate::game_template::parser::WeightedIdentifier;
 use crate::game_template::IdMaps;
@@ -92,7 +92,7 @@ impl ExplorationEvent {
 impl CompiledExplorationEvent {
     pub fn spawn(
         &self,
-        rng: &mut impl Rng,
+        _rng: &mut impl Rng,
         start_time: GameTime,
         default_duration: GameTime,
         character: &Character,

@@ -5,6 +5,7 @@ BUILTIN_ACTION WAIT
 name Wait
 progressive waiting
 simple_past waited
+duration 1h
 activation none
 deactivation never
 
@@ -19,6 +20,7 @@ BUILTIN_ACTION TAVERN
 name Tavern
 progressive relaxing in the tavern
 simple_past relaxed in the tavern
+duration 1h
 activation none
 deactivation never
 
@@ -26,6 +28,7 @@ BUILTIN_ACTION EXPLORE
 name Explore
 progressive exploring
 simple_past explored
+duration 1h
 activation none
 deactivation never
 
@@ -57,7 +60,7 @@ currency 0
 
 LOCATION village
 name Village
-events (1.0, find_money), (0.1, find_more_money)
+events (1.0, find_money), (0.8, find_more_money)
 activation none
 deactivation never
 
@@ -65,11 +68,34 @@ EXPLORATION_EVENT find_money
 name Find money
 progressive finding money
 simple_past found money
+currency 3
+monster rat
+activation none
+deactivation never
 
 EXPLORATION_EVENT find_more_money
 name Find money
 progressive finding money
 simple_past found money
+currency 10
+monster hare
+activation none
+deactivation never
 
 MONSTER rat
 name Rat
+hitpoints 60.0
+activation none
+deactivation never
+
+MONSTER hare
+name Hare
+hitpoints 150.0
+activation level_geq(2)
+deactivation never
+
+MONSTER dog
+name Dog
+hitpoints 300.0
+activation level_geq(4)
+deactivation never

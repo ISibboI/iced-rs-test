@@ -69,7 +69,7 @@ impl CompiledLocation {
     pub fn explore(
         &self,
         rng: &mut impl Rng,
-        exploration_events: &Vec<CompiledExplorationEvent>,
+        exploration_events: &[CompiledExplorationEvent],
     ) -> Option<ExplorationEventId> {
         assert!(self.state.is_active());
         let active_events: Vec<_> = self

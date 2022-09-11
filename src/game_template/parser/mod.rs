@@ -78,9 +78,9 @@ async fn parse(
                             .push(section_template.into_location()?);
                     }
                     SectionTokenKind::ExplorationEvent => {
-                        game_template
-                            .exploration_events
-                            .push(section_template.into_exploration_event()?);
+                        let exploration_event =
+                            section_template.into_exploration_event(game_template)?;
+                        game_template.exploration_events.push(exploration_event);
                     }
                     SectionTokenKind::Monster => {
                         game_template
@@ -97,17 +97,17 @@ async fn parse(
     Ok(())
 }
 
-async fn parse_trigger(
-    game_template: &mut GameTemplate,
+async fn parse_trigger<'trigger>(
+    game_template: &'trigger mut GameTemplate,
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
     id_str: String,
     game_actions: Vec<GameAction>,
-) -> Result<(), ParserError> {
+) -> Result<&'trigger mut Trigger<GameEvent, GameAction>, ParserError> {
     let condition = parse_trigger_condition(tokens).await?;
     game_template
         .triggers
         .push(Trigger::new(id_str, condition, game_actions));
-    Ok(())
+    Ok(game_template.triggers.last_mut().unwrap())
 }
 
 #[async_recursion]
@@ -157,6 +157,12 @@ async fn parse_trigger_condition(
             let monster = expect_identifier(tokens).await?.element;
             expect_close_parenthesis(tokens).await?;
             event_count(GameEvent::MonsterKilled { id: monster }, count as usize)
+        }
+        "level_geq" => {
+            expect_open_parenthesis(tokens).await?;
+            let level = expect_integer(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            geq(GameEvent::PlayerLevelChanged { value: level })
         }
         _ => {
             return Err(ParserError::with_coordinates(

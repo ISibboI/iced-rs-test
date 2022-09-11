@@ -1,9 +1,7 @@
 use crate::game_state::character::CharacterAttributes;
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::{GameEvent, GameEventKind};
-use crate::game_state::player_actions::{
-    PlayerActionInProgress, PlayerActionInProgressKind, ACTION_EXPLORE,
-};
+use crate::game_state::player_actions::{PlayerActionInProgress, PlayerActionInProgressKind};
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
@@ -210,32 +208,67 @@ pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row
 pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T> {
     let current_action = game_state.actions.in_progress();
     let current_action_currency_reward = current_action.currency_reward;
-    let action_descriptor_row = Row::new().push(Text::new(&format!(
-        "{} is currently {}{}",
-        game_state.character.name,
-        match current_action.kind {
-            PlayerActionInProgressKind::Combat(monster) => {
-                let monster_name = game_state.world.monster(monster).to_lowercase_string();
-                let a = a_or_an(&monster_name);
-                format!("fighting {a} {monster_name}")
+
+    match current_action.kind {
+        PlayerActionInProgressKind::Combat(monster) => {
+            let monster_name = game_state.world.monster(monster).to_lowercase_string();
+            let a_or_an = a_or_an(&monster_name);
+            let action_descriptor_row =
+                Row::new()
+                    .align_items(Alignment::Start)
+                    .push(Text::new(&format!(
+                        "{} {}. {} is fighting {a_or_an} {} to get it.",
+                        game_state.character.name,
+                        current_action.verb_simple_past,
+                        game_state.character.pronoun_capitalised,
+                        monster_name
+                    )));
+            if !current_action.success {
+                action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+            } else if current_action_currency_reward != Currency::zero() {
+                action_descriptor_row
+                    .push(Text::new(
+                        if current_action_currency_reward > Currency::zero() {
+                            " (+"
+                        } else {
+                            " (-"
+                        },
+                    ))
+                    .push(currency(current_action_currency_reward.abs(), false))
+                    .push(Text::new(")"))
+            } else {
+                action_descriptor_row
             }
-            PlayerActionInProgressKind::None => current_action.verb_progressive.clone(),
-        },
-        match current_action_currency_reward.cmp(&Currency::zero()) {
-            Ordering::Less => " costing him ",
-            Ordering::Equal => "",
-            Ordering::Greater => " earning ",
-        },
-    )));
-    let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
-        action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
-    } else {
-        action_descriptor_row
-    };
-    if !current_action.success {
-        action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
-    } else {
-        action_descriptor_row
+        }
+        PlayerActionInProgressKind::None => {
+            let action_descriptor_row =
+                Row::new()
+                    .align_items(Alignment::Start)
+                    .push(Text::new(&format!(
+                        "{} is {}{}",
+                        game_state.character.name,
+                        current_action.verb_progressive.clone(),
+                        if current_action.success {
+                            match current_action_currency_reward.cmp(&Currency::zero()) {
+                                Ordering::Less => " costing him ",
+                                Ordering::Equal => "",
+                                Ordering::Greater => " earning ",
+                            }
+                        } else {
+                            ""
+                        },
+                    )));
+            let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
+                action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
+            } else {
+                action_descriptor_row
+            };
+            if !current_action.success {
+                action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+            } else {
+                action_descriptor_row
+            }
+        }
     }
 }
 
@@ -243,35 +276,65 @@ pub fn completed_action_description<'a, T: 'a>(
     action: &PlayerActionInProgress,
     game_state: &GameState,
 ) -> Row<'a, T> {
-    let current_action_currency_reward = action.currency_reward;
-    let action_descriptor_row = Row::new().push(Text::new(&format!(
-        "{} {}{}",
-        game_state.character.name,
-        match action.kind {
-            PlayerActionInProgressKind::Combat(monster) => {
-                let monster_name = game_state.world.monster(monster).to_lowercase_string();
-                let a = a_or_an(&monster_name);
-                format!("fought {a} {monster_name}")
+    let action_currency_reward = action.currency_reward;
+    match action.kind {
+        PlayerActionInProgressKind::Combat(monster) => {
+            let monster_name = game_state.world.monster(monster).to_lowercase_string();
+            let a_or_an = a_or_an(&monster_name);
+            let action_descriptor_row =
+                Row::new()
+                    .align_items(Alignment::Start)
+                    .push(Text::new(&format!(
+                        "{} {}. {} fought {} {a_or_an} to get it.",
+                        game_state.character.name,
+                        action.verb_simple_past,
+                        game_state.character.pronoun_capitalised,
+                        monster_name
+                    )));
+            if !action.success {
+                action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+            } else if action_currency_reward != Currency::zero() {
+                action_descriptor_row
+                    .push(Text::new(if action_currency_reward > Currency::zero() {
+                        " (+"
+                    } else {
+                        " (-"
+                    }))
+                    .push(currency(action_currency_reward.abs(), false))
+                    .push(Text::new(")"))
+            } else {
+                action_descriptor_row
             }
-            PlayerActionInProgressKind::None => {
-                action.verb_simple_past.clone()
+        }
+        PlayerActionInProgressKind::None => {
+            let action_descriptor_row =
+                Row::new()
+                    .align_items(Alignment::Start)
+                    .push(Text::new(&format!(
+                        "{} {}{}",
+                        game_state.character.name,
+                        action.verb_simple_past.clone(),
+                        if action.success {
+                            match action_currency_reward.cmp(&Currency::zero()) {
+                                Ordering::Less => " costing him ",
+                                Ordering::Equal => "",
+                                Ordering::Greater => " earning ",
+                            }
+                        } else {
+                            ""
+                        },
+                    )));
+            let action_descriptor_row = if action_currency_reward != Currency::zero() {
+                action_descriptor_row.push(currency(action_currency_reward.abs(), false))
+            } else {
+                action_descriptor_row
+            };
+            if !action.success {
+                action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
+            } else {
+                action_descriptor_row
             }
-        },
-        match current_action_currency_reward.cmp(&Currency::zero()) {
-            Ordering::Less => " costing him ",
-            Ordering::Equal => "",
-            Ordering::Greater => " earning ",
-        },
-    )));
-    let action_descriptor_row = if current_action_currency_reward != Currency::zero() {
-        action_descriptor_row.push(currency(current_action_currency_reward.abs(), false))
-    } else {
-        action_descriptor_row
-    };
-    if !action.success {
-        action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
-    } else {
-        action_descriptor_row
+        }
     }
 }
 

@@ -1,5 +1,4 @@
 use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
-use crate::game_state::combat::SpawnedMonster;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
@@ -12,7 +11,6 @@ use event_trigger_action_system::TriggerHandle;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::iter;
-use std::ops::Deref;
 use std::str::FromStr;
 
 pub static ACTION_WAIT: PlayerActionId = PlayerActionId(0);
@@ -272,13 +270,10 @@ impl PlayerActions {
     }
 
     pub fn list_choosable(&self) -> impl '_ + Iterator<Item = PlayerActionId> {
-        self.active_actions.iter().copied().filter_map(|action_id| {
-            if action_id != ACTION_SLEEP {
-                Some(action_id)
-            } else {
-                None
-            }
-        })
+        self.active_actions
+            .iter()
+            .copied()
+            .filter(|action_id| action_id != &ACTION_SLEEP)
     }
 
     #[deprecated]

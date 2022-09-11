@@ -2,7 +2,7 @@ use crate::game_template::parser::character_iterator::CharacterCoordinateRange;
 use crate::game_template::parser::section::{
     GameTemplateSectionError, GameTemplateSectionErrorKind,
 };
-use crate::game_template::parser::tokenizer::TokenKind;
+use crate::game_template::parser::tokenizer::{TokenKind, ValueTokenKind};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -25,7 +25,7 @@ pub enum ParserErrorKind {
     ExpectedInteger(TokenKindOrString),
     ExpectedFloat(TokenKindOrString),
     ExpectedTime(TokenKindOrString),
-    UnexpectedActionKey(TokenKind),
+    UnexpectedValue(ValueTokenKind),
     UnexpectedTriggerCondition(String),
     ExpectedOpenParenthesis(TokenKind),
     ExpectedCloseParenthesis(TokenKind),

@@ -2,9 +2,11 @@ use crate::game_state::character::Character;
 use crate::game_state::player_actions::PlayerActionInProgress;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
-use crate::game_state::world::events::{CompiledExplorationEvent, ExplorationEventId};
+use crate::game_state::world::events::{
+    CompiledExplorationEvent, ExplorationEventId, ExplorationEventState,
+};
 use crate::game_state::world::locations::{CompiledLocation, LocationId, LocationState};
-use crate::game_state::world::monsters::{CompiledMonster, MonsterId};
+use crate::game_state::world::monsters::{CompiledMonster, MonsterId, MonsterState};
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
@@ -48,7 +50,7 @@ impl World {
         &self.locations[location_id.0]
     }
 
-    pub fn location_mut(&mut self, location_id: LocationId) -> &mut CompiledLocation {
+    fn location_mut(&mut self, location_id: LocationId) -> &mut CompiledLocation {
         &mut self.locations[location_id.0]
     }
 
@@ -60,8 +62,16 @@ impl World {
         &self.events[event_id.0]
     }
 
+    fn event_mut(&mut self, event_id: ExplorationEventId) -> &mut CompiledExplorationEvent {
+        &mut self.events[event_id.0]
+    }
+
     pub fn monster(&self, monster_id: MonsterId) -> &CompiledMonster {
         &self.monsters[monster_id.0]
+    }
+
+    fn monster_mut(&mut self, monster_id: MonsterId) -> &mut CompiledMonster {
+        &mut self.monsters[monster_id.0]
     }
 
     pub fn activate_location(
@@ -92,6 +102,70 @@ impl World {
                     deactivation_time: time,
                 };
                 assert!(self.active_locations.remove(&location_id));
+            }
+            _ => unreachable!(),
+        }
+        iter::empty()
+    }
+
+    pub fn activate_exploration_event(
+        &mut self,
+        event_id: ExplorationEventId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let event = self.event_mut(event_id);
+        assert!(event.state.is_inactive());
+        event.state = ExplorationEventState::Active {
+            activation_time: time,
+        };
+        iter::empty()
+    }
+
+    pub fn deactivate_exploration_event(
+        &mut self,
+        event_id: ExplorationEventId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let event = self.event_mut(event_id);
+        assert!(event.state.is_active());
+        match event.state {
+            ExplorationEventState::Active { activation_time } => {
+                event.state = ExplorationEventState::Deactivated {
+                    activation_time,
+                    deactivation_time: time,
+                };
+            }
+            _ => unreachable!(),
+        }
+        iter::empty()
+    }
+
+    pub fn activate_monster(
+        &mut self,
+        monster_id: MonsterId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let monster = self.monster_mut(monster_id);
+        assert!(monster.state.is_inactive());
+        monster.state = MonsterState::Active {
+            activation_time: time,
+        };
+        iter::empty()
+    }
+
+    pub fn deactivate_monster(
+        &mut self,
+        monster_id: MonsterId,
+        time: GameTime,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let monster = self.monster_mut(monster_id);
+        assert!(monster.state.is_active());
+        match monster.state {
+            MonsterState::Active { activation_time } => {
+                monster.state = MonsterState::Deactivated {
+                    activation_time,
+                    deactivation_time: time,
+                };
             }
             _ => unreachable!(),
         }

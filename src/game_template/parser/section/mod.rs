@@ -18,10 +18,9 @@ use crate::game_template::parser::{
 };
 use crate::game_template::GameTemplate;
 use async_std::io::Read;
-use event_trigger_action_system::{event_count, or, Trigger};
+use event_trigger_action_system::{event_count, or, Trigger, TriggerCondition};
 use log::trace;
 use section_parser_derive::SectionParser;
-use std::mem;
 
 #[derive(Debug, SectionParser)]
 pub struct GameTemplateSection {
@@ -62,6 +61,7 @@ pub struct GameTemplateSectionError {
     pub kind: GameTemplateSectionErrorKind,
 }
 
+#[allow(clippy::enum_variant_names)]
 pub enum GameTemplateSectionErrorKind {
     MissingField,
     UnexpectedField,
@@ -245,8 +245,25 @@ pub async fn parse_section(
                 KeyTokenKind::Events => {
                     section.set_events(parse_weighted_events(tokens).await?)?;
                 }
-                KeyTokenKind::Monster => {}
-                KeyTokenKind::Hitpoints => {}
+                KeyTokenKind::Monsters => {
+                    section.set_monster(RangedElement::new(
+                        tokens.expect_string_value().await?.element,
+                        range,
+                    ))?;
+                }
+                KeyTokenKind::Hitpoints => {
+                    let hitpoints = tokens.expect_string_value().await?;
+                    let parsed = hitpoints.element.parse();
+                    section.set_hitpoints(RangedElement::new(
+                        parsed.map_err(move |_| {
+                            ParserError::with_coordinates(
+                                ParserErrorKind::ExpectedFloat(hitpoints.element.into()),
+                                hitpoints.range,
+                            )
+                        })?,
+                        range,
+                    ))?;
+                }
                 KeyTokenKind::Activation => {
                     let (section_name_lowercase, game_action) = match section_kind {
                         SectionTokenKind::BuiltinAction
@@ -269,9 +286,19 @@ pub async fn parse_section(
                                 id: section.id_str.clone(),
                             },
                         ),
-                        SectionTokenKind::Initialisation
-                        | SectionTokenKind::ExplorationEvent
-                        | SectionTokenKind::Monster => {
+                        SectionTokenKind::ExplorationEvent => (
+                            "exploration_event",
+                            GameAction::ActivateExplorationEvent {
+                                id: section.id_str.clone(),
+                            },
+                        ),
+                        SectionTokenKind::Monster => (
+                            "monster",
+                            GameAction::ActivateMonster {
+                                id: section.id_str.clone(),
+                            },
+                        ),
+                        SectionTokenKind::Initialisation => {
                             return Err(ParserError::with_coordinates(
                                 ParserErrorKind::UnexpectedField {
                                     id_str: section.id_str.clone(),
@@ -287,35 +314,47 @@ pub async fn parse_section(
                     section.set_activation(RangedElement::new(id_str, range))?;
                 }
                 KeyTokenKind::Deactivation => {
-                    let id_str = format!("{}_deactivation", section.id_str);
-                    parse_trigger(
-                        game_template,
-                        tokens,
-                        id_str.clone(),
-                        vec![match section_kind {
-                            SectionTokenKind::BuiltinAction
-                            | SectionTokenKind::Action
-                            | SectionTokenKind::QuestAction => GameAction::DeactivateAction {
+                    let (section_name_lowercase, game_action) = match section_kind {
+                        SectionTokenKind::BuiltinAction
+                        | SectionTokenKind::Action
+                        | SectionTokenKind::QuestAction => (
+                            "action",
+                            GameAction::DeactivateAction {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::Location => GameAction::DeactivateLocation {
+                        ),
+                        SectionTokenKind::Location => (
+                            "location",
+                            GameAction::DeactivateLocation {
                                 id: section.id_str.clone(),
                             },
-                            SectionTokenKind::Quest
-                            | SectionTokenKind::Initialisation
-                            | SectionTokenKind::ExplorationEvent
-                            | SectionTokenKind::Monster => {
-                                return Err(ParserError::with_coordinates(
-                                    ParserErrorKind::UnexpectedField {
-                                        id_str: section.id_str.clone(),
-                                        field: "deactivation".to_string(),
-                                    },
-                                    section.id_range,
-                                ));
-                            }
-                        }],
-                    )
-                    .await?;
+                        ),
+                        SectionTokenKind::ExplorationEvent => (
+                            "exploration_event",
+                            GameAction::DeactivateExplorationEvent {
+                                id: section.id_str.clone(),
+                            },
+                        ),
+                        SectionTokenKind::Monster => (
+                            "monster",
+                            GameAction::DeactivateMonster {
+                                id: section.id_str.clone(),
+                            },
+                        ),
+                        SectionTokenKind::Quest | SectionTokenKind::Initialisation => {
+                            return Err(ParserError::with_coordinates(
+                                ParserErrorKind::UnexpectedField {
+                                    id_str: section.id_str.clone(),
+                                    field: "deactivation".to_string(),
+                                },
+                                section.id_range,
+                            ));
+                        }
+                    };
+
+                    let id_str =
+                        format!("{section_name_lowercase}_{}_deactivation", section.id_str);
+                    parse_trigger(game_template, tokens, id_str.clone(), vec![game_action]).await?;
                     section.set_deactivation(RangedElement::new(id_str, range))?;
                 }
                 KeyTokenKind::Completion => {
@@ -351,9 +390,9 @@ pub async fn parse_section(
                     ))?;
                 }
             },
-            kind => {
+            TokenKind::Value(value) => {
                 return Err(ParserError::with_coordinates(
-                    ParserErrorKind::UnexpectedActionKey(kind),
+                    ParserErrorKind::UnexpectedValue(value),
                     range,
                 ));
             }
@@ -411,15 +450,18 @@ impl GameTemplateSection {
             }
         };
 
-        let id_str = mem::take(&mut self.id_str);
+        let duration = match action_type {
+            PlayerActionType::Sleep => GameTime::default(),
+            _ => self.duration()?.element,
+        };
 
         let result = Ok(PlayerAction {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
             action_type,
-            duration: Default::default(),
+            duration,
             attribute_progress_factor: Default::default(),
             currency_reward: Default::default(),
             activation_condition: self.activation()?.element,
@@ -440,7 +482,6 @@ impl GameTemplateSection {
             _ => {}
         }
 
-        let id_str = mem::take(&mut self.id_str);
         let action_type = self.type_name()?;
         let parsed_action_type = action_type.element.parse();
         let action_type = parsed_action_type.map_err(move |_| {
@@ -451,7 +492,7 @@ impl GameTemplateSection {
         })?;
 
         let result = Ok(PlayerAction {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
@@ -477,7 +518,6 @@ impl GameTemplateSection {
             _ => {}
         }
 
-        let id_str = mem::take(&mut self.id_str);
         let action_type = self.type_name()?;
         let parsed_action_type = action_type.element.parse();
         let action_type = parsed_action_type.map_err(move |_| {
@@ -487,33 +527,43 @@ impl GameTemplateSection {
             )
         })?;
 
-        let activation_condition = format!("action_{}_activation", id_str);
-        let deactivation_condition = format!("action_{}_deactivation", id_str);
+        let activation_condition = format!("action_{}_activation", self.id_str);
+        let deactivation_condition = format!("action_{}_deactivation", self.id_str);
         game_template.triggers.push(Trigger::new(
             activation_condition.clone(),
             event_count(
-                GameEvent::Action(GameAction::ActivateQuest { id: id_str.clone() }),
+                GameEvent::Action(GameAction::ActivateQuest {
+                    id: self.id_str.clone(),
+                }),
                 1,
             ),
-            vec![GameAction::ActivateAction { id: id_str.clone() }],
+            vec![GameAction::ActivateAction {
+                id: self.id_str.clone(),
+            }],
         ));
         game_template.triggers.push(Trigger::new(
             deactivation_condition.clone(),
             or(vec![
                 event_count(
-                    GameEvent::Action(GameAction::CompleteQuest { id: id_str.clone() }),
+                    GameEvent::Action(GameAction::CompleteQuest {
+                        id: self.id_str.clone(),
+                    }),
                     1,
                 ),
                 event_count(
-                    GameEvent::Action(GameAction::FailQuest { id: id_str.clone() }),
+                    GameEvent::Action(GameAction::FailQuest {
+                        id: self.id_str.clone(),
+                    }),
                     1,
                 ),
             ]),
-            vec![GameAction::DeactivateAction { id: id_str.clone() }],
+            vec![GameAction::DeactivateAction {
+                id: self.id_str.clone(),
+            }],
         ));
 
         let result = Ok(PlayerAction {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
@@ -529,10 +579,8 @@ impl GameTemplateSection {
     }
 
     pub fn into_quest(mut self) -> Result<Quest, ParserError> {
-        let id_str = mem::take(&mut self.id_str);
-
         let result = Ok(Quest {
-            id_str,
+            id_str: self.id_str.clone(),
             title: self.title()?.element,
             description: self.description()?.element,
             activation_condition: self.activation()?.element,
@@ -544,10 +592,8 @@ impl GameTemplateSection {
     }
 
     pub fn into_location(mut self) -> Result<Location, ParserError> {
-        let id_str = mem::take(&mut self.id_str);
-
         let result = Ok(Location {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             events: self.events()?.element.into_iter().map(Into::into).collect(),
             activation_condition: self.activation()?.element,
@@ -557,11 +603,42 @@ impl GameTemplateSection {
         result
     }
 
-    pub fn into_exploration_event(mut self) -> Result<ExplorationEvent, ParserError> {
-        let id_str = mem::take(&mut self.id_str);
+    pub fn into_exploration_event(
+        mut self,
+        game_template: &mut GameTemplate,
+    ) -> Result<ExplorationEvent, ParserError> {
+        let activation_condition = self.activation()?.element;
+        let deactivation_condition = self.deactivation()?.element;
+        if let Some(monster) = &self.monster {
+            let monster = &monster.element;
+            let activation_trigger = game_template
+                .triggers
+                .iter_mut()
+                .rev()
+                .find(|trigger| trigger.id_str == activation_condition)
+                .unwrap();
+            activation_trigger.condition &= TriggerCondition::EventCount {
+                required: 1,
+                event: GameEvent::Action(GameAction::ActivateMonster {
+                    id: monster.clone(),
+                }),
+            };
+            let deactivation_trigger = game_template
+                .triggers
+                .iter_mut()
+                .rev()
+                .find(|trigger| trigger.id_str == deactivation_condition)
+                .unwrap();
+            deactivation_trigger.condition |= TriggerCondition::EventCount {
+                required: 1,
+                event: GameEvent::Action(GameAction::DeactivateMonster {
+                    id: monster.clone(),
+                }),
+            };
+        }
 
         let result = Ok(ExplorationEvent {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             verb_progressive: self.progressive()?.element,
             verb_simple_past: self.simple_past()?.element,
@@ -572,20 +649,20 @@ impl GameTemplateSection {
                 .take()
                 .map(|currency| currency.element)
                 .unwrap_or(Currency::zero()),
-            activation_condition: self.activation()?.element,
-            deactivation_condition: self.deactivation()?.element,
+            activation_condition,
+            deactivation_condition,
         });
         self.ensure_empty()?;
         result
     }
 
     pub fn into_monster(mut self) -> Result<Monster, ParserError> {
-        let id_str = mem::take(&mut self.id_str);
-
         let result = Ok(Monster {
-            id_str,
+            id_str: self.id_str.clone(),
             name: self.name()?.element,
             hitpoints: self.hitpoints()?.element,
+            activation_condition: self.activation()?.element,
+            deactivation_condition: self.deactivation()?.element,
         });
         self.ensure_empty()?;
         result

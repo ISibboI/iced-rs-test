@@ -180,8 +180,8 @@ fn build_id_map<'elements, Element: 'elements, Handle: From<usize>>(
 ) -> Result<HashMap<String, Handle>, ParserError> {
     let mut result = HashMap::new();
     for (index, element) in elements.into_iter().enumerate() {
-        if result.insert(id_getter(&element), index.into()).is_some() {
-            return Err(error(id_getter(&element)));
+        if result.insert(id_getter(element), index.into()).is_some() {
+            return Err(error(id_getter(element)));
         }
     }
     Ok(result)

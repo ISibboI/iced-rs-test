@@ -25,6 +25,8 @@ pub struct CreateNewGameState {
     savegame_file_field: text_input::State,
     name: String,
     name_field: text_input::State,
+    pronoun: String,
+    pronoun_field: text_input::State,
     race: CharacterRace,
     race_field: pick_list::State<CharacterRace>,
     create_game_button: button::State,
@@ -36,8 +38,10 @@ impl CreateNewGameState {
         Self {
             savegame_file,
             savegame_file_field: Default::default(),
-            name: Default::default(),
+            name: "Hugo".to_string(),
             name_field: Default::default(),
+            pronoun: "he".to_string(),
+            pronoun_field: Default::default(),
             race: Default::default(),
             race_field: Default::default(),
             create_game_button: Default::default(),
@@ -54,6 +58,9 @@ impl CreateNewGameState {
             CreateNewGameMessage::Init => {}
             CreateNewGameMessage::NameChanged(name) => {
                 self.name = name;
+            }
+            CreateNewGameMessage::PronounChanged(pronoun) => {
+                self.pronoun = pronoun;
             }
             CreateNewGameMessage::SavegameFileChanged(savegame_file) => {
                 self.savegame_file = savegame_file;
@@ -75,6 +82,7 @@ impl CreateNewGameState {
                                     game_template,
                                     self.savegame_file.clone(),
                                     self.name.clone(),
+                                    self.pronoun.clone(),
                                     self.race,
                                 )),
                                 |game_state| {
@@ -118,6 +126,13 @@ impl CreateNewGameState {
         .padding(5)
         .width(Length::Fill);
 
+        let pronoun_field_input =
+            TextInput::new(&mut self.pronoun_field, "", &self.pronoun, |input| {
+                CreateNewGameMessage::PronounChanged(input).into()
+            })
+            .padding(5)
+            .width(Length::Fill);
+
         let race_field_input = PickList::new(
             &mut self.race_field,
             all::<CharacterRace>().collect::<Vec<_>>(),
@@ -148,6 +163,11 @@ impl CreateNewGameState {
                             "Name:",
                             label_column_width,
                             name_field_input,
+                        ))
+                        .push(labelled_element(
+                            "Pronoun:",
+                            label_column_width,
+                            pronoun_field_input,
                         ))
                         .push(labelled_element(
                             "Race:",
@@ -200,6 +220,7 @@ pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemp
 pub enum CreateNewGameMessage {
     Init,
     NameChanged(String),
+    PronounChanged(String),
     SavegameFileChanged(PathBuf),
     RaceChanged(CharacterRace),
     CompileGame,
