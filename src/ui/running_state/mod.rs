@@ -1,4 +1,4 @@
-use crate::game_state::combat::CombatStyle;
+use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::world::locations::LocationId;
 use crate::savegames::{save_game_owned, SaveError};

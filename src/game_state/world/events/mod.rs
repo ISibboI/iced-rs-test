@@ -9,7 +9,9 @@ use crate::game_state::MAX_COMBAT_DURATION;
 use crate::game_template::parser::WeightedIdentifier;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
+use rand::distributions::Distribution;
 use rand::Rng;
+use rand_distr::{Gamma, Normal};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -92,7 +94,7 @@ impl ExplorationEvent {
 impl CompiledExplorationEvent {
     pub fn spawn(
         &self,
-        _rng: &mut impl Rng,
+        rng: &mut impl Rng,
         start_time: GameTime,
         default_duration: GameTime,
         character: &Character,
@@ -100,13 +102,27 @@ impl CompiledExplorationEvent {
     ) -> PlayerActionInProgress {
         if let Some(monster_id) = self.monster {
             let monster = &monsters[monster_id.0];
+
             let damage = character.damage_output();
+            let hitpoint_jitter = Normal::new(1.0, 0.1).unwrap().sample(rng);
             let duration = GameTime::from_milliseconds(
-                (monster.hitpoints / damage * 60_000.0).round() as i128,
+                (monster.hitpoints * hitpoint_jitter / damage * 60_000.0).round() as i128,
             )
             .min(MAX_COMBAT_DURATION);
-            let attribute_progress = character.evaluate_combat_attribute_progress(duration);
             let success = duration < MAX_COMBAT_DURATION;
+
+            let currency_jitter = Gamma::new(2.0, 0.25).unwrap().sample(rng) + 0.5;
+            let currency_reward = if success {
+                Currency::from_copper_f64(self.currency_reward.copper() as f64 * currency_jitter)
+            } else {
+                Currency::zero()
+            };
+
+            let attribute_progress = if success {
+                character.evaluate_combat_attribute_progress(duration)
+            } else {
+                CharacterAttributeProgress::zero()
+            };
 
             PlayerActionInProgress {
                 verb_progressive: self.verb_progressive.clone(),
@@ -116,7 +132,7 @@ impl CompiledExplorationEvent {
                 start: start_time,
                 end: start_time + duration,
                 attribute_progress,
-                currency_reward: self.currency_reward,
+                currency_reward,
                 success,
             }
         } else {

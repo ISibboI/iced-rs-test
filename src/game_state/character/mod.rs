@@ -1,4 +1,3 @@
-use crate::game_state::combat::CombatStyle;
 use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
@@ -6,6 +5,24 @@ use enum_iterator::Sequence;
 use rand_distr::num_traits::Zero;
 use serde::{Deserialize, Serialize};
 use std::{iter, ops};
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct Character {
+    pub name: String,
+    pub pronoun: String,
+    pub pronoun_capitalised: String,
+    pub race: CharacterRace,
+
+    pub level: u64,
+    pub level_progress: u64,
+
+    attributes: CharacterAttributes,
+    attribute_progress: CharacterAttributeProgress,
+
+    pub currency: Currency,
+
+    pub selected_combat_style: CombatStyle,
+}
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq)]
 pub struct CharacterAttributes {
@@ -37,22 +54,11 @@ pub struct CharacterAttributeProgressFactor {
     pub charisma: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct Character {
-    pub name: String,
-    pub pronoun: String,
-    pub pronoun_capitalised: String,
-    pub race: CharacterRace,
-
-    pub level: u64,
-    pub level_progress: u64,
-
-    attributes: CharacterAttributes,
-    attribute_progress: CharacterAttributeProgress,
-
-    pub currency: Currency,
-
-    pub selected_combat_style: CombatStyle,
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, Eq, PartialEq, Sequence)]
+pub enum CombatStyle {
+    CloseContact,
+    Ranged,
+    Magic,
 }
 
 impl Character {
@@ -531,3 +537,13 @@ impl PartialEq for CharacterAttributeProgressFactor {
 }
 
 impl Eq for CharacterAttributeProgressFactor {}
+
+impl ToString for CombatStyle {
+    fn to_string(&self) -> String {
+        match self {
+            CombatStyle::CloseContact => "Close contact".to_string(),
+            CombatStyle::Ranged => "Ranged".to_string(),
+            CombatStyle::Magic => "Magic".to_string(),
+        }
+    }
+}

@@ -1,4 +1,4 @@
-use crate::game_state::combat::CombatStyle;
+use crate::game_state::character::CombatStyle;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;

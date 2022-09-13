@@ -22,7 +22,6 @@ use std::iter;
 use std::ops::Deref;
 
 pub mod character;
-pub mod combat;
 pub mod currency;
 pub mod event_log;
 pub mod player_actions;
