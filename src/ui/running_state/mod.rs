@@ -1,5 +1,5 @@
 use crate::game_state::character::CombatStyle;
-use crate::game_state::player_actions::PlayerActionId;
+use crate::game_state::player_actions::{PlayerActionId, ACTION_EXPLORE};
 use crate::game_state::world::locations::LocationId;
 use crate::savegames::{save_game_owned, SaveError};
 use crate::ui::elements::{attribute, clock_time, currency, date, title};
@@ -38,9 +38,8 @@ pub enum RunningMessage {
     SaveAndQuit,
 
     ActionChanged(PlayerActionId),
-    ActionChangedString(String),
+    ActionChangedExplore(LocationId),
     CombatStyleChanged(CombatStyle),
-    CombatLocationChanged(LocationId),
     MainView(MainViewMessage),
 }
 
@@ -140,14 +139,12 @@ impl RunningState {
             RunningMessage::ActionChanged(action) => {
                 self.game_state.actions.selected_action = action;
             }
-            RunningMessage::ActionChangedString(action) => {
-                self.game_state.actions.select_action(&action);
+            RunningMessage::ActionChangedExplore(location) => {
+                self.game_state.actions.selected_action = ACTION_EXPLORE;
+                self.game_state.world.selected_location = location;
             }
             RunningMessage::CombatStyleChanged(combat_style) => {
                 self.game_state.character.selected_combat_style = combat_style;
-            }
-            RunningMessage::CombatLocationChanged(combat_location) => {
-                self.game_state.world.selected_location = combat_location;
             }
             RunningMessage::MainView(main_view_message) => {
                 return self

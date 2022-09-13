@@ -58,6 +58,12 @@ impl World {
         self.location(self.selected_location)
     }
 
+    pub fn active_locations(&self) -> impl '_ + Iterator<Item = &'_ CompiledLocation> {
+        self.active_locations
+            .iter()
+            .map(|location_id| self.location(*location_id))
+    }
+
     pub fn event(&self, event_id: ExplorationEventId) -> &CompiledExplorationEvent {
         &self.events[event_id.0]
     }

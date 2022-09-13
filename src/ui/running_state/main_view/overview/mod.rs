@@ -1,14 +1,16 @@
 use crate::game_state::character::CombatStyle;
+use crate::game_state::player_actions::PlayerActionId;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;
+use crate::utils::ui::PickListContainer;
 use crate::GameState;
 use enum_iterator::all;
 use iced::{pick_list, scrollable, Column, Element, Length, PickList, Row};
 
 #[derive(Debug, Clone)]
 pub struct OverviewState {
-    action_picker_state: pick_list::State<String>,
+    action_picker_state: pick_list::State<PickListContainer<PlayerActionId>>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
     quest_column_scrollable_state: scrollable::State,
     event_log_scrollable_state: scrollable::State,
@@ -40,16 +42,22 @@ impl OverviewState {
                     game_state
                         .actions
                         .list_choosable()
-                        .map(|action| game_state.actions.action(action).name.clone())
+                        .map(|action| {
+                            PickListContainer::new(
+                                game_state.actions.action(action).name.clone(),
+                                action,
+                            )
+                        })
                         .collect::<Vec<_>>(),
-                    Some(
+                    Some(PickListContainer::new(
                         game_state
                             .actions
                             .action(game_state.actions.selected_action)
                             .name
                             .clone(),
-                    ),
-                    |action| RunningMessage::ActionChangedString(action).into(),
+                        game_state.actions.selected_action,
+                    )),
+                    |action| RunningMessage::ActionChanged(action.data).into(),
                 ),
             ))
             .push(labelled_element(
@@ -58,7 +66,7 @@ impl OverviewState {
                 PickList::new(
                     &mut self.combat_style_picker_state,
                     all::<CombatStyle>().collect::<Vec<_>>(),
-                    Some(game_state.character.selected_combat_style.clone()),
+                    Some(game_state.character.selected_combat_style),
                     |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
                 ),
             ))
