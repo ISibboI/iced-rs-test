@@ -59,7 +59,7 @@ impl GameState {
             savegame_file: savegame_file.into(),
             rng: SeedableRng::from_entropy(),
             character: Character::new(name, pronoun, race),
-            current_time: Default::default(),
+            current_time: game_template.initialisation.starting_time,
             last_update: Utc::now(),
             log: EventLog::default(),
             actions: game_template.actions,

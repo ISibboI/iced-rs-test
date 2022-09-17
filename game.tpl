@@ -1,5 +1,6 @@
 INITIALISATION
 starting_location village
+starting_time 5000y+120d
 
 BUILTIN_ACTION WAIT
 name Wait

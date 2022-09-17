@@ -52,6 +52,7 @@ pub struct GameTemplateSection {
     failure: Option<RangedElement<String>>,
 
     starting_location: Option<RangedElement<String>>,
+    starting_time: Option<RangedElement<GameTime>>,
 }
 
 pub struct GameTemplateSectionError {
@@ -389,6 +390,24 @@ pub async fn parse_section(
                         range,
                     ))?;
                 }
+                KeyTokenKind::StartingTime => {
+                    if let Some(token) = tokens.next().await? {
+                        let (kind, range) = token.decompose();
+                        match kind {
+                            TokenKind::Value(ValueTokenKind::Time(time)) => {
+                                section.set_starting_time(RangedElement::new(time, range))?;
+                            }
+                            kind => {
+                                return Err(ParserError::with_coordinates(
+                                    ParserErrorKind::ExpectedTime(kind.into()),
+                                    range,
+                                ));
+                            }
+                        }
+                    } else {
+                        return Err(unexpected_eof());
+                    }
+                }
             },
             TokenKind::Value(value) => {
                 return Err(ParserError::with_coordinates(
@@ -433,6 +452,7 @@ impl GameTemplateSection {
             completion: None,
             failure: None,
             starting_location: None,
+            starting_time: None,
         }
     }
 
@@ -671,6 +691,7 @@ impl GameTemplateSection {
     pub fn into_initialisation(mut self) -> Result<GameInitialisation, ParserError> {
         let result = Ok(GameInitialisation {
             starting_location: self.starting_location()?.element,
+            starting_time: self.starting_time()?.element,
         });
         self.ensure_empty()?;
         result

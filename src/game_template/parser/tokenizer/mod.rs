@@ -61,6 +61,7 @@ pub enum KeyTokenKind {
     Failure,
 
     StartingLocation,
+    StartingTime,
 }
 
 #[derive(Debug, Clone)]
@@ -217,6 +218,10 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
 
                     "starting_location" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::StartingLocation),
+                        range,
+                    ))),
+                    "starting_time" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::StartingTime),
                         range,
                     ))),
 
