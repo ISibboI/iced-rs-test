@@ -39,6 +39,7 @@ pub enum RunningMessage {
 
     ActionChanged(PlayerActionId),
     ActionChangedExplore(LocationId),
+    ExplorationLocationChanged(LocationId),
     CombatStyleChanged(CombatStyle),
     MainView(MainViewMessage),
 }
@@ -141,6 +142,9 @@ impl RunningState {
             }
             RunningMessage::ActionChangedExplore(location) => {
                 self.game_state.actions.selected_action = ACTION_EXPLORE;
+                self.game_state.world.selected_location = location;
+            }
+            RunningMessage::ExplorationLocationChanged(location) => {
                 self.game_state.world.selected_location = location;
             }
             RunningMessage::CombatStyleChanged(combat_style) => {

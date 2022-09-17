@@ -1,5 +1,6 @@
 use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::PlayerActionId;
+use crate::game_state::world::locations::LocationId;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
 use crate::ui::running_state::RunningMessage;
 use crate::ui::Message;
@@ -11,6 +12,7 @@ use iced::{pick_list, scrollable, Column, Element, Length, PickList, Row};
 #[derive(Debug, Clone)]
 pub struct OverviewState {
     action_picker_state: pick_list::State<PickListContainer<PlayerActionId>>,
+    exploration_location_picker_state: pick_list::State<PickListContainer<LocationId>>,
     combat_style_picker_state: pick_list::State<CombatStyle>,
     quest_column_scrollable_state: scrollable::State,
     event_log_scrollable_state: scrollable::State,
@@ -20,6 +22,7 @@ impl OverviewState {
     pub fn new() -> Self {
         Self {
             action_picker_state: Default::default(),
+            exploration_location_picker_state: Default::default(),
             combat_style_picker_state: Default::default(),
             quest_column_scrollable_state: Default::default(),
             event_log_scrollable_state: Default::default(),
@@ -58,6 +61,23 @@ impl OverviewState {
                         game_state.actions.selected_action,
                     )),
                     |action| RunningMessage::ActionChanged(action.data).into(),
+                ),
+            ))
+            .push(labelled_element(
+                "Exploration location:",
+                label_column_width,
+                PickList::new(
+                    &mut self.exploration_location_picker_state,
+                    game_state
+                        .world
+                        .active_locations()
+                        .map(|location| PickListContainer::new(location.name.clone(), location.id))
+                        .collect::<Vec<_>>(),
+                    Some(PickListContainer::new(
+                        game_state.world.selected_location().name.clone(),
+                        game_state.world.selected_location().id,
+                    )),
+                    |location| RunningMessage::ExplorationLocationChanged(location.data).into(),
                 ),
             ))
             .push(labelled_element(
