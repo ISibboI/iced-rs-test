@@ -46,12 +46,12 @@ pub enum RunningMessage {
 impl RunningState {
     pub fn new(game_state: GameState) -> Self {
         Self {
-            game_state,
             frame_times: Default::default(),
             fps: Default::default(),
             last_save: Utc::now(),
-            main_view_state: MainViewState::new(),
+            main_view_state: MainViewState::new(&game_state),
             last_view_duration: Duration::zero(),
+            game_state,
         }
     }
 
@@ -250,7 +250,7 @@ impl RunningState {
                             .push(
                                 Text::new(&format!(
                                     "{:?}; FPS: {}",
-                                    self.game_state.savegame_file,
+                                    self.game_state.savegame_file.as_ref().to_string_lossy(),
                                     self.fps
                                         .map(|fps| format!("{:.0}", fps))
                                         .unwrap_or_else(|| "-".to_string())

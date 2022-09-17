@@ -352,8 +352,8 @@ pub fn date(time: GameTime) -> Text {
         time.day_of_week_str(),
         time.day_of_month_str_ord(),
         time.month_of_year_str_common(),
-        time.years(),
-        ordinal_suffix(time.years()),
+        time.years() + 1,
+        ordinal_suffix(time.years() + 1),
         time.era_str(),
     ))
 }
@@ -364,6 +364,18 @@ pub fn date_without_era(time: GameTime) -> Text {
         time.day_of_week_str(),
         time.day_of_month_str_ord(),
         time.month_of_year_str_common(),
-        time.years(),
+        time.years() + 1,
+    ))
+}
+
+pub fn year_of_era(year: i128) -> Text {
+    let date = GameTime::from_years(year);
+    let year = date.year_of_era() + 1;
+
+    Text::new(&format!(
+        "{}{} year of the {} era",
+        year,
+        ordinal_suffix(year),
+        date.era_str()
     ))
 }
