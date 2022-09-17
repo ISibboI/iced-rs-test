@@ -425,6 +425,8 @@ pub async fn parse_section(
     Ok((section, section_token))
 }
 
+// TODO only allow deactivation of actions etc after they are activated, i.e. make a sequence condition for deactivation with first element being activation
+// TODO also think this through for failure of quests
 impl GameTemplateSection {
     fn new(id_str: String, id_range: CharacterCoordinateRange) -> Self {
         Self {

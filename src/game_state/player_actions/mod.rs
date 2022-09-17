@@ -315,6 +315,9 @@ impl PlayerActions {
                 };
                 assert!(self.active_actions.remove(&action_id));
                 assert!(self.deactivated_actions.insert(action_id));
+                if self.selected_action == action_id {
+                    self.selected_action = ACTION_WAIT;
+                }
             }
             _ => unreachable!(),
         }

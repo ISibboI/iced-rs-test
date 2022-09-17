@@ -108,11 +108,11 @@ impl GameState {
             }
             self.log.log(self.actions.in_progress().deref().clone());
 
-            game_events.extend(self.next_player_action(self.actions.in_progress().end));
-            debug!("New action: {:?}", self.actions.in_progress());
-
             self.triggers.execute_events(game_events.iter());
             self.execute_all_triggered_actions();
+
+            game_events.extend(self.next_player_action(self.actions.in_progress().end));
+            debug!("New action: {:?}", self.actions.in_progress());
         }
 
         self.last_update += Duration::milliseconds(passed_real_milliseconds);
@@ -163,6 +163,12 @@ impl GameState {
                 action.spawn(start_time)
             }
         };
+
+        assert!(self
+            .actions
+            .action(action.source.action_id())
+            .state
+            .is_active());
         self.actions.set_in_progress(action);
         iter::once(CompiledGameEvent::ActionStarted {
             id: self.actions.in_progress().source.action_id(),
