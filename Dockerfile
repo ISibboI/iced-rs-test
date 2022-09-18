@@ -12,6 +12,7 @@ RUN touch src/main.rs
 RUN cargo fetch
 RUN rm -rf src
 
+COPY .cargo/ .cargo/
 COPY src/ src/
 COPY index.html .
 RUN trunk build --release
