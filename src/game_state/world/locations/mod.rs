@@ -102,6 +102,25 @@ impl LocationState {
     pub fn is_deactivated(&self) -> bool {
         matches!(self, LocationState::Deactivated { .. })
     }
+
+    pub fn activation_time(&self) -> Option<GameTime> {
+        match self {
+            LocationState::Inactive => None,
+            LocationState::Active { activation_time }
+            | LocationState::Deactivated {
+                activation_time, ..
+            } => Some(*activation_time),
+        }
+    }
+
+    pub fn deactivation_time(&self) -> Option<GameTime> {
+        match self {
+            LocationState::Inactive | LocationState::Active { .. } => None,
+            LocationState::Deactivated {
+                deactivation_time, ..
+            } => Some(*deactivation_time),
+        }
+    }
 }
 
 impl From<usize> for LocationId {

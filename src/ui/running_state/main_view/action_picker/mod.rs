@@ -51,7 +51,9 @@ impl ActionPickerState {
             None
         };
 
-        for location in game_state.world.active_locations() {
+        let mut active_locations: Vec<_> = game_state.world.active_locations().collect();
+        active_locations.sort_by_key(|location| location.state.activation_time().unwrap());
+        for location in active_locations {
             location_picker_column = location_picker_column.push(
                 Radio::new(
                     location.id,

@@ -32,6 +32,9 @@ impl OverviewState {
     pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
         let label_column_width = 160;
 
+        let mut active_locations: Vec<_> = game_state.world.active_locations().collect();
+        active_locations.sort_by_key(|location| location.state.activation_time().unwrap());
+
         let action_column = Column::new()
             .width(Length::Shrink)
             .height(Length::Fill)
@@ -68,9 +71,8 @@ impl OverviewState {
                 label_column_width,
                 PickList::new(
                     &mut self.exploration_location_picker_state,
-                    game_state
-                        .world
-                        .active_locations()
+                    active_locations
+                        .iter()
                         .map(|location| PickListContainer::new(location.name.clone(), location.id))
                         .collect::<Vec<_>>(),
                     Some(PickListContainer::new(
