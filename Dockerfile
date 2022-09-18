@@ -9,18 +9,14 @@ COPY Cargo.toml .
 COPY Cargo.lock .
 COPY .cargo/ .cargo/
 RUN mkdir -p src
-RUN echo "fn main() {}" > src/main.rs
-RUN cargo build --release
+RUN sh -c 'echo "fn main() {}" > src/main.rs'
+RUN cargo build --release --target x86_64-unknown-linux-gnu
 RUN cargo build --release --target wasm32-unknown-unknown
 RUN rm -rf src
 
 COPY src/ src/
 COPY data/ data/
-RUN cargo run --offline --release -- --log-level Debug compile
-RUN ls /
-RUN ls /iced-rs-test
-RUN pwd
-RUN ls
+RUN cargo run --offline --release --target x86_64-unknown-linux-gnu -- --log-level Debug compile
 COPY index.html .
 RUN trunk build --release
 
