@@ -31,6 +31,7 @@ pub mod triggers;
 pub mod world;
 
 pub const GAME_TIME_PER_MILLISECOND: GameTime = GameTime::from_milliseconds(900);
+pub const MIN_COMBAT_DURATION: GameTime = GameTime::from_minutes(10);
 pub const MAX_COMBAT_DURATION: GameTime = GameTime::from_hours(4);
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

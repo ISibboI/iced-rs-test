@@ -6,7 +6,7 @@ use crate::game_state::player_actions::{
 use crate::game_state::time::GameTime;
 use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::{CompiledMonster, MonsterId};
-use crate::game_state::MAX_COMBAT_DURATION;
+use crate::game_state::{MAX_COMBAT_DURATION, MIN_COMBAT_DURATION};
 use crate::game_template::parser::WeightedIdentifier;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
@@ -110,7 +110,7 @@ impl CompiledExplorationEvent {
             let duration = GameTime::from_milliseconds(
                 (monster.hitpoints * hitpoint_jitter / damage * 60_000.0).round() as i128,
             )
-            .min(MAX_COMBAT_DURATION);
+            .clamp(MIN_COMBAT_DURATION, MAX_COMBAT_DURATION);
             let success = duration < MAX_COMBAT_DURATION;
 
             let currency_jitter = Gamma::new(2.0, 0.25).unwrap().sample(rng) + 0.5;

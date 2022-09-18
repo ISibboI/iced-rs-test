@@ -36,11 +36,17 @@ events (0.5, rat), (0.8, hare), (0.2, dog)
 activation explore_count(10, village)
 deactivation never
 
+LOCATION forest
+name Forest
+events (0.1, dog), (0.3, wolf), (1.0, deer)
+activation monster_killed_count(10, dog)
+deactivation never
+
 EXPLORATION_EVENT rat
 name Find money
 progressive finding money
 simple_past found money
-currency 3
+currency 1
 monster rat
 activation none
 deactivation never
@@ -58,7 +64,25 @@ EXPLORATION_EVENT dog
 name Find money
 progressive finding money
 simple_past found money
-currency 22
+currency 13
+monster dog
+activation none
+deactivation never
+
+EXPLORATION_EVENT deer
+name Find money
+progressive finding money
+simple_past found money
+currency 20
+monster deer
+activation none
+deactivation never
+
+EXPLORATION_EVENT wolf
+name Find money
+progressive finding money
+simple_past found money
+currency 20
 monster dog
 activation none
 deactivation never
@@ -79,6 +103,12 @@ MONSTER dog
 name Dog
 hitpoints 300.0
 activation level_geq(4)
+deactivation never
+
+MONSTER deer
+name Deer
+hitpoints 800.0
+activation level_geq(6)
 deactivation never
 
 MONSTER wolf
