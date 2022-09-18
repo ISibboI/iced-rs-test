@@ -8,8 +8,9 @@ WORKDIR /iced-rs-test
 COPY Cargo.toml .
 COPY Cargo.lock .
 RUN mkdir -p src
-RUN touch src/main.rs
-RUN cargo fetch
+RUN echo "fn main() {}" > src/main.rs
+RUN cargo build --release
+RUN cargo build --release --target wasm32-unknown-unknown
 RUN rm -rf src
 
 COPY .cargo/ .cargo/
