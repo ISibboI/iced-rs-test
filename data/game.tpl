@@ -83,7 +83,7 @@ name Find money
 progressive finding money
 simple_past found money
 currency 20
-monster dog
+monster wolf
 activation none
 deactivation never
 
