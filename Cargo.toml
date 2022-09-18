@@ -35,3 +35,4 @@ async-recursion = "1.0.0"
 manifest-dir-macros = "0.1.16"
 os_str_bytes = { version = "6.3.0", features = ["checked_conversions"] }
 reqwest = "0.11.11"
+flate2 = "1.0.24"

@@ -7,8 +7,11 @@ use async_std::io::{BufReader, WriteExt};
 use async_std::path::{Path, PathBuf};
 use async_std::stream::StreamExt;
 use clap::Args;
+use flate2::write::GzEncoder;
+use flate2::Compression;
 use log::{debug, info, warn};
 use std::ffi::OsStr;
+use std::io::Write;
 
 #[derive(Debug)]
 pub enum CompilerError {
@@ -33,6 +36,9 @@ pub async fn compile(configuration: &CompileConfiguration) -> Result<(), Compile
     let game_template = game_template.compile()?;
     info!("Serialising...");
     let game_template_vec = pot::to_vec(&game_template)?;
+    let mut encoder = GzEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(&game_template_vec)?;
+    let game_template_vec = encoder.finish()?;
 
     if configuration.compiled_game_data.exists().await {
         info!(

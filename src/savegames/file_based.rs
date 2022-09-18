@@ -4,6 +4,7 @@ use crate::{GameState, RunConfiguration};
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter, ReadExt, WriteExt};
 use async_std::path::Path;
+use flate2::bufread::GzDecoder;
 use log::info;
 
 pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
@@ -31,9 +32,10 @@ pub async fn load_game_template(
 ) -> Result<CompiledGameTemplate, LoadError> {
     info!("Loading {:?}", &configuration.compiled_game_data_file);
     let savegame_file = File::open(&configuration.compiled_game_data_file).await?;
-    let mut savegame = Vec::new();
+    let mut compressed_savegame = Vec::new();
     BufReader::new(savegame_file)
-        .read_to_end(&mut savegame)
+        .read_to_end(&mut compressed_savegame)
         .await?;
-    Ok(pot::from_slice(&savegame)?)
+    let decoder = GzDecoder::new(compressed_savegame.as_slice());
+    Ok(pot::from_reader(decoder)?)
 }

@@ -2,6 +2,7 @@ use crate::game_template::CompiledGameTemplate;
 use crate::savegames::{LoadError, SaveError};
 use crate::{GameState, RunConfiguration};
 use async_std::path::Path;
+use flate2::bufread::GzDecoder;
 use log::info;
 use web_sys::window;
 
@@ -37,5 +38,6 @@ pub async fn load_game_template(
         .await?
         .bytes()
         .await?;
-    Ok(pot::from_slice(&body)?)
+    let decoder = GzDecoder::new(&body[..]);
+    Ok(pot::from_reader(decoder)?)
 }
