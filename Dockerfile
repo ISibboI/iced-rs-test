@@ -17,6 +17,10 @@ RUN rm -rf src
 COPY src/ src/
 COPY data/ data/
 RUN cargo run --offline --release -- --log-level Debug compile
+RUN ls /
+RUN ls /iced-rs-test
+RUN pwd
+RUN ls
 COPY index.html .
 RUN trunk build --release
 
