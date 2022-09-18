@@ -276,15 +276,6 @@ impl PlayerActions {
             .filter(|action_id| action_id != &ACTION_SLEEP)
     }
 
-    #[deprecated]
-    pub fn actions_by_name(&self) -> &HashMap<String, PlayerActionId> {
-        &self.actions_by_name
-    }
-
-    pub fn select_action(&mut self, action: &str) {
-        self.selected_action = *self.actions_by_name.get(action).unwrap();
-    }
-
     pub fn activate_action(
         &mut self,
         action_id: PlayerActionId,
@@ -378,6 +369,7 @@ impl ToString for CompiledPlayerAction {
     }
 }
 
+#[allow(dead_code)]
 impl PlayerActionState {
     pub fn is_inactive(&self) -> bool {
         matches!(self, PlayerActionState::Inactive)

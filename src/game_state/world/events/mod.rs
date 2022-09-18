@@ -160,6 +160,7 @@ impl WeightedExplorationEvent {
     }
 }
 
+#[allow(dead_code)]
 impl ExplorationEventState {
     pub fn is_inactive(&self) -> bool {
         matches!(self, ExplorationEventState::Inactive)

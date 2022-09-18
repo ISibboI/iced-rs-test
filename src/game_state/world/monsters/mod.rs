@@ -60,6 +60,7 @@ impl CompiledMonster {
     }
 }
 
+#[allow(dead_code)]
 impl MonsterState {
     pub fn is_inactive(&self) -> bool {
         matches!(self, MonsterState::Inactive)

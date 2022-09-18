@@ -1,6 +1,6 @@
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
-use crate::{Configuration, GameState};
+use crate::{GameState, RunConfiguration};
 use chrono::{DateTime, Duration, Utc};
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
@@ -29,7 +29,7 @@ impl BulkUpdateState {
 
     pub fn update(
         &mut self,
-        _configuration: &Configuration,
+        _configuration: &RunConfiguration,
         message: BulkUpdateMessage,
     ) -> Command<Message> {
         match message {

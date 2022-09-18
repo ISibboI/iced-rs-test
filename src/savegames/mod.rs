@@ -4,13 +4,13 @@ use wasm_bindgen::JsValue;
 #[cfg(not(target_arch = "wasm32"))]
 mod file_based;
 #[cfg(not(target_arch = "wasm32"))]
-pub use file_based::{load_game, save_game};
+pub use file_based::{load_game, load_game_template, save_game};
 
 #[cfg(target_arch = "wasm32")]
 mod browser_based;
 use crate::GameState;
 #[cfg(target_arch = "wasm32")]
-pub use browser_based::{load_game, save_game};
+pub use browser_based::{load_game, load_game_template, save_game};
 
 pub mod pathbuf_serde;
 
@@ -20,6 +20,7 @@ pub enum LoadError {
     IoError(Arc<std::io::Error>),
     PotError(Arc<pot::Error>),
     Base64Error(Arc<base64::DecodeError>),
+    ReqwestError(Arc<reqwest::Error>),
     JsError(String),
     JsWindowNotFound,
     LocalStorageNotFound,
@@ -44,6 +45,12 @@ impl From<base64::DecodeError> for LoadError {
     }
 }
 
+impl From<reqwest::Error> for LoadError {
+    fn from(error: reqwest::Error) -> Self {
+        Self::ReqwestError(Arc::new(error))
+    }
+}
+
 impl From<JsValue> for LoadError {
     fn from(error: JsValue) -> Self {
         Self::JsError(format!("{error:?}"))
@@ -56,6 +63,7 @@ impl ToString for LoadError {
             LoadError::IoError(error) => format!("IO error: {error}"),
             LoadError::PotError(error) => format!("Parsing error: {error}"),
             LoadError::Base64Error(error) => format!("Parsing error: {error}"),
+            LoadError::ReqwestError(error) => format!("HTTP request error: {error}"),
             LoadError::JsError(error) => format!("Javascript error: {error:?}"),
             LoadError::JsWindowNotFound => {
                 "The browser does not provide a window object".to_string()

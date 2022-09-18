@@ -1,14 +1,18 @@
+#![cfg_attr(target_arch = "wasm32", allow(dead_code))]
+
+extern crate core;
+
 use crate::game_state::GameState;
 use crate::ui::ApplicationState;
 use async_std::path::PathBuf;
-use clap::Parser;
+use clap::{Args, Parser, Subcommand};
 use iced::{Application, Settings};
-use log::{error, info, LevelFilter};
+use log::{info, LevelFilter};
 #[cfg(not(target_arch = "wasm32"))]
 use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, TerminalMode};
 
 mod game_state;
-pub mod game_template;
+mod game_template;
 mod savegames;
 mod ui;
 mod utils;
@@ -16,15 +20,34 @@ mod utils;
 pub const TITLE: &str = "Hero Quest";
 
 #[derive(Parser, Debug)]
-pub struct Configuration {
-    #[clap(long, default_value = "savegame.json")]
-    savegame_file: PathBuf,
-
-    #[clap(long, default_value = "game.tpl")]
-    game_template_file: PathBuf,
+#[clap(author, version, about, long_about = None)]
+#[clap(propagate_version = true)]
+pub struct Cli {
+    #[clap(subcommand)]
+    command: Command,
 
     #[clap(long, default_value = "Info")]
     log_level: LevelFilter,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum Command {
+    Run(RunConfiguration),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    Compile(crate::game_template::compiler::CompileConfiguration),
+}
+
+#[derive(Debug, Args, Clone)]
+pub struct RunConfiguration {
+    #[clap(long, default_value = "savegame.json")]
+    savegame_file: PathBuf,
+
+    #[clap(long, default_value = "data.bin")]
+    compiled_game_data_file: PathBuf,
+
+    #[clap(long, default_value = "data.bin")]
+    compiled_game_data_url: String,
 
     #[clap(long, default_value = "60.0")]
     target_fps: f32,
@@ -56,12 +79,23 @@ fn initialize_logging(log_level: LevelFilter) {
 }
 
 fn main() {
-    let configuration = Configuration::parse();
-    initialize_logging(configuration.log_level);
+    let cli = Cli::parse();
+    initialize_logging(cli.log_level);
 
-    let mut settings = Settings::with_flags(configuration);
-    settings.exit_on_close_request = false;
-    settings.window.resizable = false;
-    settings.window.size = (1500, 800);
-    ApplicationState::run(settings).unwrap_or_else(|err| error!("Error: {err}"));
+    match cli.command {
+        Command::Run(configuration) => {
+            let mut settings = Settings::with_flags(configuration);
+            settings.exit_on_close_request = false;
+            settings.window.resizable = false;
+            settings.window.size = (1500, 800);
+            ApplicationState::run(settings).unwrap_or_else(|err| panic!("Error: {err}"));
+        }
+        #[cfg(not(target_arch = "wasm32"))]
+        Command::Compile(configuration) => {
+            async_std::task::Builder::new()
+                .name("Game data compiler".to_string())
+                .blocking(crate::game_template::compiler::compile(&configuration))
+                .unwrap_or_else(|err| panic!("Error: {err:?}"));
+        }
+    }
 }

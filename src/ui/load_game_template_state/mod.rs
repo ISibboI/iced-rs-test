@@ -1,49 +1,55 @@
-use crate::savegames::{load_game, LoadError};
-use crate::ui::bulk_update_state::BulkUpdateState;
+use crate::game_template::CompiledGameTemplate;
+use crate::savegames::{load_game_template, LoadError};
+use crate::ui::create_new_game_state::CreateNewGameState;
 use crate::ui::main_menu_state::MainMenuState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
-use crate::{GameState, RunConfiguration};
-use async_std::path::PathBuf;
+use crate::RunConfiguration;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
-use log::{info, warn};
+use log::{error, info};
 
 #[derive(Debug, Clone)]
-pub struct LoadGameState {
-    path: PathBuf,
+pub struct LoadGameTemplateState {}
+
+#[derive(Clone, Debug)]
+pub enum LoadGameTemplateMessage {
+    Init,
+    Loaded(Box<Result<CompiledGameTemplate, LoadError>>),
 }
 
-impl LoadGameState {
-    pub fn new(path: PathBuf) -> Self {
-        Self { path }
+impl LoadGameTemplateState {
+    pub fn new() -> Self {
+        Self {}
     }
 
     pub fn update(
         &mut self,
         configuration: &RunConfiguration,
-        message: LoadGameMessage,
+        message: LoadGameTemplateMessage,
     ) -> Command<Message> {
         match message {
-            LoadGameMessage::Init => {
-                info!("Loading {:?}", self.path);
-                Command::perform(load_game(self.path.clone()), |loaded| {
-                    LoadGameMessage::Loaded(Box::new(loaded)).into()
+            LoadGameTemplateMessage::Init => {
+                Command::perform(load_game_template(configuration.clone()), |loaded| {
+                    LoadGameTemplateMessage::Loaded(Box::new(loaded)).into()
                 })
             }
-            LoadGameMessage::Loaded(loaded) => match *loaded {
-                Ok(game_state) => {
-                    info!("Loaded game");
+            LoadGameTemplateMessage::Loaded(loaded) => match *loaded {
+                Ok(game_template) => {
+                    info!("Loaded game template");
                     Command::perform(
-                        do_nothing(Box::new(BulkUpdateState::new(game_state))),
-                        |bulk_update_state| {
-                            Message::ChangeState(Box::new(ApplicationUiState::BulkUpdate(
-                                bulk_update_state,
+                        do_nothing(Box::new(CreateNewGameState::new(
+                            game_template,
+                            configuration.savegame_file.clone(),
+                        ))),
+                        |running_state| {
+                            Message::ChangeState(Box::new(ApplicationUiState::CreateNewGame(
+                                running_state,
                             )))
                         },
                     )
                 }
                 Err(error) => {
-                    warn!("Error loading game: {error:?}");
+                    error!("Error loading game template: {error:?}");
                     Command::perform(
                         do_nothing(Box::new(MainMenuState::new(
                             configuration.savegame_file.clone(),
@@ -61,7 +67,7 @@ impl LoadGameState {
     }
 
     pub fn view(&mut self) -> Element<Message> {
-        Text::new("Loading...")
+        Text::new("Loading game template...")
             .size(100)
             .horizontal_alignment(Horizontal::Center)
             .vertical_alignment(Vertical::Center)
@@ -69,10 +75,4 @@ impl LoadGameState {
             .height(Length::Fill)
             .into()
     }
-}
-
-#[derive(Clone, Debug)]
-pub enum LoadGameMessage {
-    Init,
-    Loaded(Box<Result<GameState, LoadError>>),
 }

@@ -1,6 +1,7 @@
 use crate::game_state::time::GameTime;
 use crate::game_state::world::locations::LocationId;
 use crate::game_template::IdMaps;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
 pub struct GameInitialisation {
@@ -8,7 +9,7 @@ pub struct GameInitialisation {
     pub starting_time: GameTime,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledGameInitialisation {
     pub starting_location: LocationId,
     pub starting_time: GameTime,

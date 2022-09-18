@@ -222,10 +222,12 @@ impl CharacterCoordinates {
         }
     }
 
+    #[allow(dead_code)]
     pub fn line_number(&self) -> usize {
         self.line_number
     }
 
+    #[allow(dead_code)]
     pub fn column_number(&self) -> usize {
         self.column_number
     }

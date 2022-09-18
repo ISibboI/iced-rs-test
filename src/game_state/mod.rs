@@ -47,18 +47,27 @@ pub struct GameState {
     pub triggers: CompiledTriggers<CompiledGameEvent>,
 }
 
+#[derive(Clone, Debug)]
+pub struct GameStateInitialisation {
+    pub savegame_file: PathBuf,
+    pub name: String,
+    pub pronoun: String,
+    pub race: CharacterRace,
+}
+
 impl GameState {
     pub fn new(
         game_template: CompiledGameTemplate,
-        savegame_file: PathBuf,
-        name: String,
-        pronoun: String,
-        race: CharacterRace,
+        initialisation: GameStateInitialisation,
     ) -> Self {
         let mut result = Self {
-            savegame_file: savegame_file.into(),
+            savegame_file: initialisation.savegame_file.into(),
             rng: SeedableRng::from_entropy(),
-            character: Character::new(name, pronoun, race),
+            character: Character::new(
+                initialisation.name,
+                initialisation.pronoun,
+                initialisation.race,
+            ),
             current_time: game_template.initialisation.starting_time,
             last_update: Utc::now(),
             log: EventLog::default(),

@@ -5,7 +5,7 @@ use crate::savegames::{save_game_owned, SaveError};
 use crate::ui::elements::{attribute, clock_time, currency, date, title};
 use crate::ui::running_state::main_view::{MainViewMessage, MainViewState};
 use crate::ui::Message;
-use crate::{Configuration, GameState};
+use crate::{GameState, RunConfiguration};
 use chrono::{DateTime, Duration, Utc};
 use iced::alignment::Horizontal;
 use iced::{Alignment, Column, Command, Element, Length, Row, Space, Text};
@@ -58,7 +58,7 @@ impl RunningState {
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        configuration: &RunConfiguration,
         message: RunningMessage,
     ) -> Command<Message> {
         match message {

@@ -5,7 +5,7 @@ use crate::ui::running_state::main_view::overview::OverviewState;
 use crate::ui::running_state::RunningMessage;
 use crate::ui::style::{ButtonStyleSheet, FramedContainer, SelectedButtonStyleSheet};
 use crate::ui::Message;
-use crate::{Configuration, GameState};
+use crate::{GameState, RunConfiguration};
 use iced::{button, Button, Column, Command, Container, Element, Length, ProgressBar, Row, Text};
 
 mod action_picker;
@@ -46,7 +46,7 @@ impl MainViewState {
 
     pub fn update(
         &mut self,
-        _configuration: &Configuration,
+        _configuration: &RunConfiguration,
         message: MainViewMessage,
     ) -> Command<Message> {
         match message {

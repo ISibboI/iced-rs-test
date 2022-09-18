@@ -15,8 +15,9 @@ RUN rm -rf src
 COPY .cargo/ .cargo/
 COPY src/ src/
 COPY index.html .
-COPY game.tpl .
 RUN trunk build --release
+COPY data/ data/
+RUN cargo run --release -- --log-level Debug compile
 
 HEALTHCHECK --start-period=5m CMD curl -f localhost:8080 || exit 1
 CMD ["trunk", "serve", "--release", "--no-autoreload", "--address", "0.0.0.0"]

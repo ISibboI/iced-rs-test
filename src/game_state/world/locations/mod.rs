@@ -89,6 +89,7 @@ impl CompiledLocation {
     }
 }
 
+#[allow(dead_code)]
 impl LocationState {
     pub fn is_inactive(&self) -> bool {
         matches!(self, LocationState::Inactive)

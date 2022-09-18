@@ -1,9 +1,10 @@
 use crate::ui::bulk_update_state::{BulkUpdateMessage, BulkUpdateState};
 use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState};
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
+use crate::ui::load_game_template_state::{LoadGameTemplateMessage, LoadGameTemplateState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
 use crate::ui::running_state::{RunningMessage, RunningState};
-use crate::{Configuration, TITLE};
+use crate::{RunConfiguration, TITLE};
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
@@ -11,13 +12,14 @@ mod bulk_update_state;
 mod create_new_game_state;
 mod elements;
 mod load_game_state;
+mod load_game_template_state;
 mod main_menu_state;
 mod running_state;
 mod style;
 
 #[derive(Debug)]
 pub struct ApplicationState {
-    configuration: Configuration,
+    configuration: RunConfiguration,
     ui_state: ApplicationUiState,
     should_exit: bool,
 }
@@ -26,6 +28,7 @@ pub struct ApplicationState {
 pub enum ApplicationUiState {
     MainMenu(Box<MainMenuState>),
     Loading(Box<LoadGameState>),
+    LoadingTemplate(Box<LoadGameTemplateState>),
     BulkUpdate(Box<BulkUpdateState>),
     CreateNewGame(Box<CreateNewGameState>),
     Running(Box<RunningState>),
@@ -37,6 +40,7 @@ pub enum Message {
     ChangeState(Box<ApplicationUiState>),
     MainMenu(MainMenuMessage),
     LoadGame(LoadGameMessage),
+    LoadGameTemplate(LoadGameTemplateMessage),
     BulkUpdate(BulkUpdateMessage),
     CreateNewGame(CreateNewGameMessage),
     Running(RunningMessage),
@@ -46,7 +50,7 @@ pub enum Message {
 impl Application for ApplicationState {
     type Executor = iced::executor::Default;
     type Message = Message;
-    type Flags = Configuration;
+    type Flags = RunConfiguration;
 
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
         (
@@ -104,6 +108,10 @@ impl Application for ApplicationState {
                 ApplicationUiState::Loading(load_game_state),
             ) => load_game_state.update(&self.configuration, load_game_message),
             (
+                Message::LoadGameTemplate(load_game_template_message),
+                ApplicationUiState::LoadingTemplate(load_game_template_state),
+            ) => load_game_template_state.update(&self.configuration, load_game_template_message),
+            (
                 Message::BulkUpdate(bulk_update_message),
                 ApplicationUiState::BulkUpdate(bulk_update_state),
             ) => bulk_update_state.update(&self.configuration, bulk_update_message),
@@ -137,6 +145,9 @@ impl Application for ApplicationState {
         match &mut self.ui_state {
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
             ApplicationUiState::Loading(load_game_state) => load_game_state.view(),
+            ApplicationUiState::LoadingTemplate(load_game_template_state) => {
+                load_game_template_state.view()
+            }
             ApplicationUiState::BulkUpdate(bulk_update_state) => bulk_update_state.view(),
             ApplicationUiState::CreateNewGame(create_new_game_state) => {
                 create_new_game_state.view()
@@ -159,6 +170,12 @@ impl From<MainMenuMessage> for Message {
 impl From<LoadGameMessage> for Message {
     fn from(load_game_message: LoadGameMessage) -> Self {
         Self::LoadGame(load_game_message)
+    }
+}
+
+impl From<LoadGameTemplateMessage> for Message {
+    fn from(load_game_message: LoadGameTemplateMessage) -> Self {
+        Self::LoadGameTemplate(load_game_message)
     }
 }
 
@@ -189,6 +206,7 @@ impl ApplicationUiState {
         match self {
             ApplicationUiState::MainMenu(_) => MainMenuMessage::Init.into(),
             ApplicationUiState::Loading(_) => LoadGameMessage::Init.into(),
+            ApplicationUiState::LoadingTemplate(_) => LoadGameTemplateMessage::Init.into(),
             ApplicationUiState::BulkUpdate(_) => BulkUpdateMessage::Init.into(),
             ApplicationUiState::CreateNewGame(_) => CreateNewGameMessage::Init.into(),
             ApplicationUiState::Running(_) => RunningMessage::Init.into(),

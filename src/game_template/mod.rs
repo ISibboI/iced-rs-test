@@ -12,8 +12,11 @@ use crate::game_template::game_initialisation::{CompiledGameInitialisation, Game
 use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use event_trigger_action_system::{CompiledTriggers, Trigger, TriggerHandle};
 use log::debug;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+#[cfg(not(target_arch = "wasm32"))]
+pub mod compiler;
 pub mod game_initialisation;
 pub mod parser;
 
@@ -28,7 +31,7 @@ pub struct GameTemplate {
     triggers: Vec<Trigger<GameEvent, GameAction>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledGameTemplate {
     pub initialisation: CompiledGameInitialisation,
     pub actions: PlayerActions,

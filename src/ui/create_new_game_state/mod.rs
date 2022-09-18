@@ -1,11 +1,10 @@
 use crate::game_state::character::CharacterRace;
-use crate::game_template::parser::error::ParserError;
-use crate::game_template::parser::parse_game_template_file;
+use crate::game_state::GameStateInitialisation;
 use crate::game_template::CompiledGameTemplate;
 use crate::ui::elements::{labelled_element, title};
 use crate::ui::running_state::RunningState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
-use crate::{Configuration, GameState};
+use crate::{GameState, RunConfiguration};
 use async_std::path::PathBuf;
 use enum_iterator::all;
 use iced::alignment::{Horizontal, Vertical};
@@ -13,95 +12,85 @@ use iced::{
     button, pick_list, text_input, Alignment, Button, Color, Column, Command, Container, Element,
     Length, PickList, Space, Text, TextInput,
 };
-use log::{debug, error};
-use manifest_dir_macros::path;
 use std::borrow::Borrow;
-
-static GAME_TEMPLATE_FILE: &[u8] = include_bytes!(path!("game.tpl"));
 
 #[derive(Debug, Clone)]
 pub struct CreateNewGameState {
-    savegame_file: PathBuf,
     savegame_file_field: text_input::State,
-    name: String,
     name_field: text_input::State,
-    pronoun: String,
     pronoun_field: text_input::State,
-    race: CharacterRace,
     race_field: pick_list::State<CharacterRace>,
     create_game_button: button::State,
     message: Option<String>,
+    game_initialisation: GameStateInitialisation,
+    game_template: Option<CompiledGameTemplate>,
+}
+
+#[derive(Debug, Clone)]
+pub enum CreateNewGameMessage {
+    Init,
+    NameChanged(String),
+    PronounChanged(String),
+    SavegameFileChanged(PathBuf),
+    RaceChanged(CharacterRace),
+    CreateGame,
 }
 
 impl CreateNewGameState {
-    pub fn new(savegame_file: PathBuf) -> Self {
-        Self {
+    pub fn new(game_template: CompiledGameTemplate, savegame_file: PathBuf) -> Self {
+        let game_initialisation = GameStateInitialisation {
             savegame_file,
-            savegame_file_field: Default::default(),
             name: "Hugo".to_string(),
-            name_field: Default::default(),
             pronoun: "he".to_string(),
-            pronoun_field: Default::default(),
             race: Default::default(),
+        };
+        Self {
+            savegame_file_field: Default::default(),
+            name_field: Default::default(),
+            pronoun_field: Default::default(),
             race_field: Default::default(),
             create_game_button: Default::default(),
             message: Default::default(),
+            game_initialisation,
+            game_template: Some(game_template),
         }
     }
 
     pub fn update(
         &mut self,
-        configuration: &Configuration,
+        _configuration: &RunConfiguration,
         message: CreateNewGameMessage,
     ) -> Command<Message> {
         match message {
             CreateNewGameMessage::Init => {}
             CreateNewGameMessage::NameChanged(name) => {
-                self.name = name;
+                self.game_initialisation.name = name;
             }
             CreateNewGameMessage::PronounChanged(pronoun) => {
-                self.pronoun = pronoun;
+                self.game_initialisation.pronoun = pronoun;
             }
             CreateNewGameMessage::SavegameFileChanged(savegame_file) => {
-                self.savegame_file = savegame_file;
+                self.game_initialisation.savegame_file = savegame_file;
             }
-            CreateNewGameMessage::CompileGame => {
-                return Command::perform(
-                    create_game_boxed(configuration.game_template_file.clone()),
-                    |game_template| CreateNewGameMessage::CreateGame(game_template).into(),
-                );
-            }
-            CreateNewGameMessage::CreateGame(game_template) => {
-                if self.name.is_empty() {
+            CreateNewGameMessage::CreateGame => {
+                if self.game_initialisation.name.is_empty() {
                     self.message = Some("Error: name is empty".to_string());
                 } else {
-                    match *game_template {
-                        Ok(game_template) => {
-                            return Command::perform(
-                                do_nothing(GameState::new(
-                                    game_template,
-                                    self.savegame_file.clone(),
-                                    self.name.clone(),
-                                    self.pronoun.clone(),
-                                    self.race,
-                                )),
-                                |game_state| {
-                                    Message::ChangeState(Box::new(ApplicationUiState::Running(
-                                        Box::new(RunningState::new(game_state)),
-                                    )))
-                                },
-                            );
-                        }
-                        Err(error) => {
-                            error!("Error compiling game template: {:?}", error);
-                            self.message =
-                                Some(format!("Error compiling game template: {:?}", error));
-                        }
-                    }
+                    return Command::perform(
+                        do_nothing(Box::new(RunningState::new(GameState::new(
+                            self.game_template.take().unwrap(),
+                            self.game_initialisation.clone(),
+                        )))),
+                        |running_state| {
+                            Message::ChangeState(Box::new(ApplicationUiState::Running(
+                                running_state,
+                            )))
+                        },
+                    );
                 }
             }
             CreateNewGameMessage::RaceChanged(race) => {
-                self.race = race;
+                self.game_initialisation.race = race;
             }
         }
 
@@ -114,29 +103,37 @@ impl CreateNewGameState {
         let savegame_file_field_input = TextInput::new(
             &mut self.savegame_file_field,
             "",
-            self.savegame_file.to_string_lossy().borrow(),
+            self.game_initialisation
+                .savegame_file
+                .to_string_lossy()
+                .borrow(),
             |input| CreateNewGameMessage::SavegameFileChanged(PathBuf::from(input)).into(),
         )
         .padding(5)
         .width(Length::Fill);
 
-        let name_field_input = TextInput::new(&mut self.name_field, "", &self.name, |input| {
-            CreateNewGameMessage::NameChanged(input).into()
-        })
+        let name_field_input = TextInput::new(
+            &mut self.name_field,
+            "",
+            &self.game_initialisation.name,
+            |input| CreateNewGameMessage::NameChanged(input).into(),
+        )
         .padding(5)
         .width(Length::Fill);
 
-        let pronoun_field_input =
-            TextInput::new(&mut self.pronoun_field, "", &self.pronoun, |input| {
-                CreateNewGameMessage::PronounChanged(input).into()
-            })
-            .padding(5)
-            .width(Length::Fill);
+        let pronoun_field_input = TextInput::new(
+            &mut self.pronoun_field,
+            "",
+            &self.game_initialisation.pronoun,
+            |input| CreateNewGameMessage::PronounChanged(input).into(),
+        )
+        .padding(5)
+        .width(Length::Fill);
 
         let race_field_input = PickList::new(
             &mut self.race_field,
             all::<CharacterRace>().collect::<Vec<_>>(),
-            Some(self.race),
+            Some(self.game_initialisation.race),
             |race| CreateNewGameMessage::RaceChanged(race).into(),
         )
         .padding(5);
@@ -185,7 +182,7 @@ impl CreateNewGameState {
                         .horizontal_alignment(Horizontal::Center)
                         .vertical_alignment(Vertical::Center),
                 )
-                .on_press(CreateNewGameMessage::CompileGame.into()),
+                .on_press(CreateNewGameMessage::CreateGame.into()),
             );
 
         let column = if let Some(message) = &self.message {
@@ -198,31 +195,4 @@ impl CreateNewGameState {
 
         column.into()
     }
-}
-
-pub async fn create_game_boxed(
-    game_template_file: PathBuf,
-) -> Box<Result<CompiledGameTemplate, ParserError>> {
-    Box::new(create_game(game_template_file).await)
-}
-
-pub async fn create_game(game_template_file: PathBuf) -> Result<CompiledGameTemplate, ParserError> {
-    debug!(
-        "Reading game template from {}",
-        game_template_file.to_string_lossy()
-    );
-    let mut game_template = Default::default();
-    parse_game_template_file(&mut game_template, GAME_TEMPLATE_FILE).await?;
-    game_template.compile()
-}
-
-#[derive(Debug, Clone)]
-pub enum CreateNewGameMessage {
-    Init,
-    NameChanged(String),
-    PronounChanged(String),
-    SavegameFileChanged(PathBuf),
-    RaceChanged(CharacterRace),
-    CompileGame,
-    CreateGame(Box<Result<CompiledGameTemplate, ParserError>>),
 }

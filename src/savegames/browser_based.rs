@@ -1,6 +1,8 @@
+use crate::game_template::CompiledGameTemplate;
 use crate::savegames::{LoadError, SaveError};
-use crate::GameState;
+use crate::{GameState, RunConfiguration};
 use async_std::path::Path;
+use log::info;
 use web_sys::window;
 
 pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
@@ -25,4 +27,15 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
         &savegame,
     )?;
     Ok(())
+}
+
+pub async fn load_game_template(
+    configuration: RunConfiguration,
+) -> Result<CompiledGameTemplate, LoadError> {
+    info!("Loading {:?}", &configuration.compiled_game_data_url);
+    let body = reqwest::get(configuration.compiled_game_data_url)
+        .await?
+        .bytes()
+        .await?;
+    Ok(pot::from_slice(&body)?)
 }

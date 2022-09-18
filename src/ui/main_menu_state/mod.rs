@@ -1,8 +1,8 @@
-use crate::ui::create_new_game_state::CreateNewGameState;
 use crate::ui::elements::title;
 use crate::ui::load_game_state::LoadGameState;
+use crate::ui::load_game_template_state::LoadGameTemplateState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
-use crate::Configuration;
+use crate::RunConfiguration;
 use async_std::path::PathBuf;
 use iced::alignment::Horizontal;
 use iced::{
@@ -33,7 +33,7 @@ impl MainMenuState {
 
     pub fn update(
         &mut self,
-        _configuration: &Configuration,
+        _configuration: &RunConfiguration,
         message: MainMenuMessage,
     ) -> Command<Message> {
         match message {
@@ -45,9 +45,9 @@ impl MainMenuState {
                 });
             }
             MainMenuMessage::NewGame => {
-                return Command::perform(do_nothing(self.savegame_file.clone()), |savegame_file| {
-                    Message::ChangeState(Box::new(ApplicationUiState::CreateNewGame(Box::new(
-                        CreateNewGameState::new(savegame_file),
+                return Command::perform(do_nothing(()), |_| {
+                    Message::ChangeState(Box::new(ApplicationUiState::LoadingTemplate(Box::new(
+                        LoadGameTemplateState::new(),
                     ))))
                 })
             }

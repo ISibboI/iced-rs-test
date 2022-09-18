@@ -83,8 +83,8 @@ pub enum QuestState {
     },
 }
 
+#[allow(dead_code)]
 impl QuestState {
-    #[allow(dead_code)]
     pub fn is_inactive(&self) -> bool {
         matches!(self, QuestState::Inactive)
     }

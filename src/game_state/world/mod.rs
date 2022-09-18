@@ -41,11 +41,6 @@ impl World {
         }
     }
 
-    #[deprecated]
-    pub fn locations(&self) -> impl '_ + Iterator<Item = &'_ CompiledLocation> {
-        self.locations.iter()
-    }
-
     pub fn location(&self, location_id: LocationId) -> &CompiledLocation {
         &self.locations[location_id.0]
     }
