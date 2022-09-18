@@ -43,10 +43,10 @@ pub struct RunConfiguration {
     #[clap(long, default_value = "savegame.json")]
     savegame_file: PathBuf,
 
-    #[clap(long, default_value = "data.bin")]
+    #[clap(long, default_value = "data.bin.gz")]
     compiled_game_data_file: PathBuf,
 
-    #[clap(long, default_value = "data.bin")]
+    #[clap(long, default_value = "data.bin.gz")]
     compiled_game_data_url: String,
 
     #[clap(long, default_value = "60.0")]
@@ -116,7 +116,7 @@ impl RunConfiguration {
         Self {
             savegame_file: "savegame.json".into(),
             compiled_game_data_file: "".into(),
-            compiled_game_data_url: "data.bin".into(),
+            compiled_game_data_url: "data.bin.gz".into(),
             target_fps: 60.0,
             profile: false,
         }

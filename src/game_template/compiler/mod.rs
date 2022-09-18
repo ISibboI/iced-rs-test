@@ -25,7 +25,7 @@ pub struct CompileConfiguration {
     #[clap(long, default_value = "data")]
     source_game_data: PathBuf,
 
-    #[clap(long, default_value = "data.bin")]
+    #[clap(long, default_value = "data.bin.gz")]
     compiled_game_data: PathBuf,
 }
 
