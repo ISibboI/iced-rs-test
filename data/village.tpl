@@ -8,7 +8,7 @@ QUEST find_all_village
 title Find all quests in the village
 description Explore the village to find all the available quests. Some might be rare finds, so you have to explore quite a bit.
 activation none
-completion and(quest_completed(rat_plague))
+completion and(quest_activated(rat_plague))
 failure never
 
 EXPLORATION_EVENT find_rat_plague
