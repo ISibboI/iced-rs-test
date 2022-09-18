@@ -4,6 +4,7 @@ use crate::{GameState, RunConfiguration};
 use async_std::path::Path;
 use flate2::bufread::GzDecoder;
 use log::info;
+use reqwest::Url;
 use web_sys::window;
 
 pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
@@ -33,11 +34,16 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
 pub async fn load_game_template(
     configuration: RunConfiguration,
 ) -> Result<CompiledGameTemplate, LoadError> {
+    let base_url = Url::parse(
+        &window()
+            .ok_or(LoadError::JsWindowNotFound)?
+            .location()
+            .href()
+            .map_err(|error| LoadError::JsError(format!("{error:?}")))?,
+    )?;
     info!("Loading {:?}", &configuration.compiled_game_data_url);
-    let body = reqwest::get(configuration.compiled_game_data_url)
-        .await?
-        .bytes()
-        .await?;
+    let url = base_url.join(&configuration.compiled_game_data_url)?;
+    let body = reqwest::get(url).await?.bytes().await?;
     let decoder = GzDecoder::new(&body[..]);
     Ok(pot::from_reader(decoder)?)
 }

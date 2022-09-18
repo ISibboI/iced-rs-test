@@ -21,10 +21,12 @@ pub enum LoadError {
     PotError(Arc<pot::Error>),
     Base64Error(Arc<base64::DecodeError>),
     ReqwestError(Arc<reqwest::Error>),
+    UrlParseError(Arc<url::ParseError>),
     JsError(String),
     JsWindowNotFound,
     LocalStorageNotFound,
     SavegameNotFound,
+    LocationNotFound,
 }
 
 impl From<std::io::Error> for LoadError {
@@ -51,6 +53,12 @@ impl From<reqwest::Error> for LoadError {
     }
 }
 
+impl From<url::ParseError> for LoadError {
+    fn from(error: url::ParseError) -> Self {
+        Self::UrlParseError(Arc::new(error))
+    }
+}
+
 impl From<JsValue> for LoadError {
     fn from(error: JsValue) -> Self {
         Self::JsError(format!("{error:?}"))
@@ -64,6 +72,7 @@ impl ToString for LoadError {
             LoadError::PotError(error) => format!("Parsing error: {error}"),
             LoadError::Base64Error(error) => format!("Parsing error: {error}"),
             LoadError::ReqwestError(error) => format!("HTTP request error: {error}"),
+            LoadError::UrlParseError(error) => format!("URL parse error: {error}"),
             LoadError::JsError(error) => format!("Javascript error: {error:?}"),
             LoadError::JsWindowNotFound => {
                 "The browser does not provide a window object".to_string()
@@ -72,6 +81,9 @@ impl ToString for LoadError {
                 "The browser does not provide local storage".to_string()
             }
             LoadError::SavegameNotFound => "Could not find savegame".to_string(),
+            LoadError::LocationNotFound => {
+                "The browser does not support the window.location interface".to_string()
+            }
         }
     }
 }

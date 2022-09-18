@@ -79,7 +79,17 @@ fn initialize_logging(log_level: LevelFilter) {
 }
 
 fn main() {
+    #[cfg(not(target_arch = "wasm32"))]
     let cli = Cli::parse();
+    #[cfg(target_arch = "wasm32")]
+    let cli = Cli {
+        #[cfg(debug_assertions)]
+        log_level: LevelFilter::Debug,
+        #[cfg(not(debug_assertions))]
+        log_level: LevelFilter::Info,
+
+        command: Command::Run(RunConfiguration::wasm_default()),
+    };
     initialize_logging(cli.log_level);
 
     match cli.command {
@@ -96,6 +106,19 @@ fn main() {
                 .name("Game data compiler".to_string())
                 .blocking(crate::game_template::compiler::compile(&configuration))
                 .unwrap_or_else(|err| panic!("Error: {err:?}"));
+        }
+    }
+}
+
+impl RunConfiguration {
+    #[cfg_attr(not(target_arch = "wasm32"), allow(dead_code))]
+    fn wasm_default() -> Self {
+        Self {
+            savegame_file: "savegame.json".into(),
+            compiled_game_data_file: "".into(),
+            compiled_game_data_url: "data.bin".into(),
+            target_fps: 60.0,
+            profile: false,
         }
     }
 }
