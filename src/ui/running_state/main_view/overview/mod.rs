@@ -34,6 +34,8 @@ impl OverviewState {
 
         let mut active_locations: Vec<_> = game_state.world.active_locations().collect();
         active_locations.sort_by_key(|location| location.state.activation_time().unwrap());
+        let mut choosable_actions: Vec<_> = game_state.actions.list_choosable().collect();
+        choosable_actions.sort_by_key(|action| &action.name);
 
         let action_column = Column::new()
             .width(Length::Shrink)
@@ -45,15 +47,9 @@ impl OverviewState {
                 label_column_width,
                 PickList::new(
                     &mut self.action_picker_state,
-                    game_state
-                        .actions
-                        .list_choosable()
-                        .map(|action| {
-                            PickListContainer::new(
-                                game_state.actions.action(action).name.clone(),
-                                action,
-                            )
-                        })
+                    choosable_actions
+                        .iter()
+                        .map(|action| PickListContainer::new(action.name.clone(), action.id))
                         .collect::<Vec<_>>(),
                     Some(PickListContainer::new(
                         game_state

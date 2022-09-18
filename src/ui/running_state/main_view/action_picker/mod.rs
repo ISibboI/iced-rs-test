@@ -27,12 +27,13 @@ impl ActionPickerState {
             Some(game_state.actions.selected_action)
         };
 
-        for action in game_state
+        let mut choosable_actions: Vec<_> = game_state
             .actions
             .list_choosable()
-            .filter(|action| action != &ACTION_EXPLORE)
-        {
-            let action = game_state.actions.action(action);
+            .filter(|action| action.id != ACTION_EXPLORE)
+            .collect();
+        choosable_actions.sort_by_key(|action| &action.name);
+        for action in choosable_actions {
             action_picker_column = action_picker_column.push(
                 Radio::new(action.id, action.name.clone(), selected_action, |id| {
                     RunningMessage::ActionChanged(id).into()

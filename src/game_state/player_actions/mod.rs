@@ -271,11 +271,12 @@ impl PlayerActions {
         self.in_progress = Some(in_progress);
     }
 
-    pub fn list_choosable(&self) -> impl '_ + Iterator<Item = PlayerActionId> {
+    pub fn list_choosable(&self) -> impl '_ + Iterator<Item = &'_ CompiledPlayerAction> {
         self.active_actions
             .iter()
             .copied()
             .filter(|action_id| action_id != &ACTION_SLEEP)
+            .map(|action_id| self.action(action_id))
     }
 
     pub fn activate_action(
