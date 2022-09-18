@@ -25,4 +25,4 @@ COPY index.html .
 RUN trunk build --release
 
 HEALTHCHECK --start-period=5m CMD curl -f localhost:8080 || exit 1
-CMD ["trunk", "serve", "--release", "--no-autoreload", "--address", "0.0.0.0"]
+CMD ["trunk", "serve", "--release", "--no-autoreload", "--address", "0.0.0.0", "--", "run"]

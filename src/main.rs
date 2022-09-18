@@ -38,7 +38,7 @@ pub enum Command {
     Compile(crate::game_template::compiler::CompileConfiguration),
 }
 
-#[derive(Debug, Args, Clone)]
+#[derive(Debug, Clone, Args)]
 pub struct RunConfiguration {
     #[clap(long, default_value = "savegame.json")]
     savegame_file: PathBuf,
