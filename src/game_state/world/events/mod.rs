@@ -4,6 +4,7 @@ use crate::game_state::player_actions::{
     PlayerActionInProgress, PlayerActionInProgressKind, PlayerActionInProgressSource,
 };
 use crate::game_state::time::GameTime;
+use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::{CompiledMonster, MonsterId};
 use crate::game_state::MAX_COMBAT_DURATION;
 use crate::game_template::parser::WeightedIdentifier;
@@ -99,6 +100,7 @@ impl CompiledExplorationEvent {
         default_duration: GameTime,
         character: &Character,
         monsters: &[CompiledMonster],
+        location: LocationId,
     ) -> PlayerActionInProgress {
         if let Some(monster_id) = self.monster {
             let monster = &monsters[monster_id.0];
@@ -133,6 +135,7 @@ impl CompiledExplorationEvent {
                 end: start_time + duration,
                 attribute_progress,
                 currency_reward,
+                location,
                 success,
             }
         } else {
@@ -145,6 +148,7 @@ impl CompiledExplorationEvent {
                 end: start_time + default_duration,
                 attribute_progress: self.attribute_progress,
                 currency_reward: self.currency_reward,
+                location,
                 success: true,
             }
         }

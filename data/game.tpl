@@ -1,38 +1,3 @@
-INITIALISATION
-starting_location village
-starting_time 5000y+120d
-
-BUILTIN_ACTION WAIT
-name Wait
-progressive waiting
-simple_past waited
-duration 1h
-activation none
-deactivation never
-
-BUILTIN_ACTION SLEEP
-name Sleep
-progressive sleeping
-simple_past slept
-activation none
-deactivation never
-
-BUILTIN_ACTION TAVERN
-name Tavern
-progressive relaxing in the tavern
-simple_past relaxed in the tavern
-duration 1h
-activation none
-deactivation never
-
-BUILTIN_ACTION EXPLORE
-name Explore
-progressive exploring
-simple_past explored
-duration 1h
-activation none
-deactivation never
-
 ACTION train_str
 name Lift weights
 progressive lifting weights
@@ -55,17 +20,23 @@ QUEST_ACTION look_around
 name Look around
 progressive looking around
 simple_past looked around
-type EXPLORE
+type WORK
 duration 1h
 currency 0
 
 LOCATION village
 name Village
-events (1.0, find_money), (0.8, find_more_money)
+events (1.0, rat), (0.8, hare)
 activation none
 deactivation never
 
-EXPLORATION_EVENT find_money
+LOCATION farms
+name Farms
+events (0.5, rat), (0.8, hare), (0.2, dog)
+activation explore_count(10, village)
+deactivation never
+
+EXPLORATION_EVENT rat
 name Find money
 progressive finding money
 simple_past found money
@@ -74,12 +45,21 @@ monster rat
 activation none
 deactivation never
 
-EXPLORATION_EVENT find_more_money
+EXPLORATION_EVENT hare
 name Find money
 progressive finding money
 simple_past found money
 currency 10
 monster hare
+activation none
+deactivation never
+
+EXPLORATION_EVENT dog
+name Find money
+progressive finding money
+simple_past found money
+currency 22
+monster dog
 activation none
 deactivation never
 
@@ -99,4 +79,10 @@ MONSTER dog
 name Dog
 hitpoints 300.0
 activation level_geq(4)
+deactivation never
+
+MONSTER wolf
+name Wolf
+hitpoints 1300.0
+activation level_geq(8)
 deactivation never

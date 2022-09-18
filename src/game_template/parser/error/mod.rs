@@ -1,3 +1,4 @@
+use crate::game_state::player_actions::PlayerActionType;
 use crate::game_template::parser::character_iterator::CharacterCoordinateRange;
 use crate::game_template::parser::section::{
     GameTemplateSectionError, GameTemplateSectionErrorKind,
@@ -42,6 +43,7 @@ pub enum ParserErrorKind {
     ReservedActionId(String),
     IllegalWeight(f64),
     AllWeightsZero,
+    IllegalActionType(PlayerActionType),
 
     MissingSectionInitialisation,
     MissingActionWait,

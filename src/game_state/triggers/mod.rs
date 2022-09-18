@@ -21,6 +21,8 @@ pub enum GameEvent {
     PlayerCharismaChanged { value: u64 },
     ActionStarted { id: String },
     ActionCompleted { id: String },
+    ExplorationStarted { id: String },
+    ExplorationCompleted { id: String },
     MonsterKilled { id: String },
     MonsterFailed { id: String },
 }
@@ -53,6 +55,8 @@ pub enum CompiledGameEvent {
     PlayerCharismaChanged { value: u64 },
     ActionStarted { id: PlayerActionId },
     ActionCompleted { id: PlayerActionId },
+    ExplorationStarted { id: LocationId },
+    ExplorationCompleted { id: LocationId },
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
 }
@@ -70,6 +74,8 @@ pub enum CompiledGameEventIdentifier {
     PlayerCharismaChanged,
     ActionStarted { id: PlayerActionId },
     ActionCompleted { id: PlayerActionId },
+    ExplorationStarted { id: LocationId },
+    ExplorationCompleted { id: LocationId },
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
 }
@@ -120,6 +126,12 @@ impl GameEvent {
             },
             GameEvent::ActionCompleted { id } => CompiledGameEvent::ActionCompleted {
                 id: *id_maps.actions.get(&id).unwrap(),
+            },
+            GameEvent::ExplorationStarted { id } => CompiledGameEvent::ExplorationStarted {
+                id: *id_maps.locations.get(&id).unwrap(),
+            },
+            GameEvent::ExplorationCompleted { id } => CompiledGameEvent::ExplorationCompleted {
+                id: *id_maps.locations.get(&id).unwrap(),
             },
             GameEvent::MonsterKilled { id } => CompiledGameEvent::MonsterKilled {
                 id: *id_maps.monsters.get(&id).unwrap(),
@@ -213,6 +225,12 @@ impl TriggerEvent for CompiledGameEvent {
             }
             CompiledGameEvent::ActionCompleted { id } => {
                 CompiledGameEventIdentifier::ActionCompleted { id: *id }
+            }
+            CompiledGameEvent::ExplorationStarted { id } => {
+                CompiledGameEventIdentifier::ExplorationStarted { id: *id }
+            }
+            CompiledGameEvent::ExplorationCompleted { id } => {
+                CompiledGameEventIdentifier::ExplorationCompleted { id: *id }
             }
             CompiledGameEvent::MonsterKilled { id } => {
                 CompiledGameEventIdentifier::MonsterKilled { id: *id }

@@ -114,6 +114,11 @@ impl GameState {
                 game_events.push(CompiledGameEvent::ActionCompleted {
                     id: self.actions.in_progress().source.action_id(),
                 });
+                if self.actions.in_progress().source.action_id() == ACTION_EXPLORE {
+                    game_events.push(CompiledGameEvent::ExplorationCompleted {
+                        id: self.actions.in_progress().location,
+                    });
+                }
             }
             self.log.log(self.actions.in_progress().deref().clone());
 
@@ -151,7 +156,7 @@ impl GameState {
             } + GameTime::from_hours(6);
 
             let action = self.actions.action(ACTION_SLEEP);
-            let mut action_in_progress = action.spawn(start_time);
+            let mut action_in_progress = action.spawn(start_time, self.world.selected_location);
             action_in_progress.end = end_time;
             action_in_progress
         } else if self.character.currency >= -tavern_currency_gain
@@ -160,28 +165,44 @@ impl GameState {
                 <= time_of_day.seconds()
         {
             let action = self.actions.action(ACTION_TAVERN);
-            action.spawn(start_time)
+            action.spawn(start_time, self.world.selected_location)
         } else {
             let action = self.actions.action(self.actions.selected_action);
 
             if action.id == ACTION_EXPLORE {
                 self.world
                     .explore(&mut self.rng, start_time, action.duration, &self.character)
-                    .unwrap_or_else(|| self.actions.action(ACTION_WAIT).spawn(start_time))
+                    .unwrap_or_else(|| {
+                        self.actions
+                            .action(ACTION_WAIT)
+                            .spawn(start_time, self.world.selected_location)
+                    })
             } else {
-                action.spawn(start_time)
+                action.spawn(start_time, self.world.selected_location)
             }
         };
 
-        assert!(self
-            .actions
-            .action(action.source.action_id())
-            .state
-            .is_active());
+        assert!(
+            self.actions
+                .action(action.source.action_id())
+                .state
+                .is_active(),
+            "{:?}",
+            self.actions.action(action.source.action_id())
+        );
         self.actions.set_in_progress(action);
         iter::once(CompiledGameEvent::ActionStarted {
             id: self.actions.in_progress().source.action_id(),
         })
+        .chain(
+            if self.actions.in_progress().source.action_id() == ACTION_EXPLORE {
+                Some(CompiledGameEvent::ExplorationStarted {
+                    id: self.actions.in_progress().location,
+                })
+            } else {
+                None
+            },
+        )
     }
 
     fn execute_all_triggered_actions(&mut self) {

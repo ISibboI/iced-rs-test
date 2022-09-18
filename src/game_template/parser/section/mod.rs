@@ -541,6 +541,7 @@ impl GameTemplateSection {
         }
 
         let action_type = self.type_name()?;
+        let action_type_range = action_type.range;
         let parsed_action_type = action_type.element.parse();
         let action_type = parsed_action_type.map_err(move |_| {
             ParserError::with_coordinates(
@@ -548,6 +549,18 @@ impl GameTemplateSection {
                 action_type.range,
             )
         })?;
+        if matches!(
+            action_type,
+            PlayerActionType::Explore
+                | PlayerActionType::Sleep
+                | PlayerActionType::Tavern
+                | PlayerActionType::Wait
+        ) {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::IllegalActionType(action_type),
+                action_type_range,
+            ));
+        }
 
         let activation_condition = format!("action_{}_activation", self.id_str);
         let deactivation_condition = format!("action_{}_deactivation", self.id_str);

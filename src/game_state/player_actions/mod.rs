@@ -3,6 +3,7 @@ use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_state::world::events::ExplorationEventId;
+use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::MonsterId;
 use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use crate::game_template::IdMaps;
@@ -178,6 +179,7 @@ pub struct PlayerActionInProgress {
     pub end: GameTime,
     pub attribute_progress: CharacterAttributeProgress,
     pub currency_reward: Currency,
+    pub location: LocationId,
     pub success: bool,
 }
 
@@ -339,7 +341,7 @@ impl PlayerAction {
 }
 
 impl CompiledPlayerAction {
-    pub fn spawn(&self, start_time: GameTime) -> PlayerActionInProgress {
+    pub fn spawn(&self, start_time: GameTime, location: LocationId) -> PlayerActionInProgress {
         PlayerActionInProgress {
             verb_progressive: self.verb_progressive.clone(),
             verb_simple_past: self.verb_simple_past.clone(),
@@ -349,6 +351,7 @@ impl CompiledPlayerAction {
             end: start_time + self.duration,
             attribute_progress: self.attribute_progress_factor.into_progress(self.duration),
             currency_reward: self.currency_reward,
+            location,
             success: true,
         }
     }

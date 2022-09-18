@@ -164,6 +164,17 @@ async fn parse_trigger_condition(
             expect_close_parenthesis(tokens).await?;
             geq(GameEvent::PlayerLevelChanged { value: level })
         }
+        "explore_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let location = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(
+                GameEvent::ExplorationCompleted { id: location },
+                count as usize,
+            )
+        }
         _ => {
             return Err(ParserError::with_coordinates(
                 ParserErrorKind::UnexpectedTriggerCondition(identifier),
@@ -243,6 +254,18 @@ async fn parse_game_event(
         }
         "action_completed" => {
             parse_f_identifier(tokens, |identifier| GameEvent::ActionCompleted {
+                id: identifier,
+            })
+            .await?
+        }
+        "exploration_started" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::ExplorationStarted {
+                id: identifier,
+            })
+            .await?
+        }
+        "exploration_completed" => {
+            parse_f_identifier(tokens, |identifier| GameEvent::ExplorationCompleted {
                 id: identifier,
             })
             .await?

@@ -189,6 +189,7 @@ impl World {
             default_duration,
             character,
             self.monsters.as_slice(),
+            location.id,
         ))
     }
 }
