@@ -13,6 +13,7 @@ RUN sh -c 'echo "fn main() {}" > src/main.rs'
 RUN cargo build --release --target x86_64-unknown-linux-gnu
 RUN cargo build --release --target wasm32-unknown-unknown
 RUN rm -rf src
+RUN bash -c 'rm target/x86_64-unknown-linux-gnu/release/iced-rs-test target/x86_64-unknown-linux-gnu/release/deps/iced_rs_test*'
 
 COPY src/ src/
 COPY data/ data/
