@@ -67,6 +67,7 @@ impl World {
         &mut self.events[event_id.0]
     }
 
+    #[allow(dead_code)]
     pub fn monster(&self, monster_id: MonsterId) -> &CompiledMonster {
         &self.monsters[monster_id.0]
     }

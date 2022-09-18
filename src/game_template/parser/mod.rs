@@ -118,7 +118,18 @@ async fn parse_trigger_condition(
     Ok(match identifier.as_str() {
         "none" => none(),
         "never" => never(),
-        "event_count" => {
+        "exploration_event_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let event = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(
+                GameEvent::ExplorationEventCompleted { id: event },
+                count as usize,
+            )
+        }
+        "game_event_count" => {
             expect_open_parenthesis(tokens).await?;
             let count = expect_integer(tokens).await?.element;
             expect_comma(tokens).await?;
@@ -174,6 +185,30 @@ async fn parse_trigger_condition(
                 GameEvent::ExplorationCompleted { id: location },
                 count as usize,
             )
+        }
+        "quest_activated" => {
+            expect_open_parenthesis(tokens).await?;
+            let quest = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(
+                GameEvent::Action(GameAction::ActivateQuest { id: quest }),
+                1,
+            )
+        }
+        "quest_completed" => {
+            expect_open_parenthesis(tokens).await?;
+            let quest = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(
+                GameEvent::Action(GameAction::CompleteQuest { id: quest }),
+                1,
+            )
+        }
+        "quest_failed" => {
+            expect_open_parenthesis(tokens).await?;
+            let quest = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(GameEvent::Action(GameAction::FailQuest { id: quest }), 1)
         }
         _ => {
             return Err(ParserError::with_coordinates(

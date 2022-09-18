@@ -54,12 +54,6 @@ impl Monster {
     }
 }
 
-impl CompiledMonster {
-    pub fn to_lowercase_string(&self) -> String {
-        self.name.to_lowercase()
-    }
-}
-
 #[allow(dead_code)]
 impl MonsterState {
     pub fn is_inactive(&self) -> bool {

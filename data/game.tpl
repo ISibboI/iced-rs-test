@@ -24,12 +24,6 @@ type WORK
 duration 1h
 currency 0
 
-LOCATION village
-name Village
-events (1.0, rat), (0.8, hare)
-activation none
-deactivation never
-
 LOCATION farms
 name Farms
 events (0.5, rat), (0.8, hare), (0.2, dog)
@@ -38,50 +32,43 @@ deactivation never
 
 LOCATION forest
 name Forest
-events (0.1, dog), (0.3, wolf), (1.0, deer)
+events (0.1, dog), (0.3, wolf), (1.0, deer), (1.0, forest_nothing)
 activation monster_killed_count(10, dog)
 deactivation never
 
+EXPLORATION_EVENT forest_nothing
+name Find nothing in the forest
+progressive finding nothing
+simple_past found nothing
+currency 0
+activation none
+deactivation never
+
 EXPLORATION_EVENT rat
-name Find money
-progressive finding money
-simple_past found money
 currency 1
 monster rat
 activation none
 deactivation never
 
 EXPLORATION_EVENT hare
-name Find money
-progressive finding money
-simple_past found money
 currency 10
 monster hare
 activation none
 deactivation never
 
 EXPLORATION_EVENT dog
-name Find money
-progressive finding money
-simple_past found money
 currency 13
 monster dog
 activation none
 deactivation never
 
 EXPLORATION_EVENT deer
-name Find money
-progressive finding money
-simple_past found money
 currency 20
 monster deer
 activation none
 deactivation never
 
 EXPLORATION_EVENT wolf
-name Find money
-progressive finding money
-simple_past found money
 currency 20
 monster wolf
 activation none

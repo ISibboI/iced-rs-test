@@ -25,6 +25,7 @@ pub enum GameEvent {
     ExplorationCompleted { id: String },
     MonsterKilled { id: String },
     MonsterFailed { id: String },
+    ExplorationEventCompleted { id: String },
 }
 
 #[derive(Debug, Clone)]
@@ -59,6 +60,7 @@ pub enum CompiledGameEvent {
     ExplorationCompleted { id: LocationId },
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
+    ExplorationEventCompleted { id: ExplorationEventId },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
@@ -78,6 +80,7 @@ pub enum CompiledGameEventIdentifier {
     ExplorationCompleted { id: LocationId },
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
+    ExplorationEventCompleted { id: ExplorationEventId },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
@@ -139,6 +142,11 @@ impl GameEvent {
             GameEvent::MonsterFailed { id } => CompiledGameEvent::MonsterFailed {
                 id: *id_maps.monsters.get(&id).unwrap(),
             },
+            GameEvent::ExplorationEventCompleted { id } => {
+                CompiledGameEvent::ExplorationEventCompleted {
+                    id: *id_maps.exploration_events.get(&id).unwrap(),
+                }
+            }
         }
     }
 }
@@ -237,6 +245,9 @@ impl TriggerEvent for CompiledGameEvent {
             }
             CompiledGameEvent::MonsterFailed { id } => {
                 CompiledGameEventIdentifier::MonsterFailed { id: *id }
+            }
+            CompiledGameEvent::ExplorationEventCompleted { id } => {
+                CompiledGameEventIdentifier::ExplorationEventCompleted { id: *id }
             }
         }
     }

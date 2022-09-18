@@ -4,7 +4,7 @@ use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
 use crate::game_state::story::quests::Quest;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::{GameAction, GameEvent};
-use crate::game_state::world::events::ExplorationEvent;
+use crate::game_state::world::events::{ExplorationEvent, ExplorationEventKind};
 use crate::game_state::world::locations::Location;
 use crate::game_state::world::monsters::Monster;
 use crate::game_template::game_initialisation::GameInitialisation;
@@ -672,12 +672,21 @@ impl GameTemplateSection {
             };
         }
 
+        let kind = if self.monster.is_some() {
+            ExplorationEventKind::Monster {
+                monster: self.monster()?.element,
+            }
+        } else {
+            ExplorationEventKind::Normal {
+                name: self.name()?.element,
+                verb_progressive: self.progressive()?.element,
+                verb_simple_past: self.simple_past()?.element,
+            }
+        };
+
         let result = Ok(ExplorationEvent {
             id_str: self.id_str.clone(),
-            name: self.name()?.element,
-            verb_progressive: self.progressive()?.element,
-            verb_simple_past: self.simple_past()?.element,
-            monster: self.monster.take().map(|monster| monster.element),
+            kind,
             attribute_progress: self.take_character_attribute_progress(),
             currency_reward: self
                 .currency

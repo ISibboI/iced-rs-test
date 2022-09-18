@@ -5,7 +5,7 @@ use crate::game_state::player_actions::{PlayerActionInProgress, PlayerActionInPr
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
-use crate::utils::text::{a_or_an, ordinal_suffix};
+use crate::utils::text::ordinal_suffix;
 use crate::{GameState, TITLE};
 use event_trigger_action_system::CompiledTriggers;
 use iced::alignment::{Horizontal, Vertical};
@@ -210,18 +210,13 @@ pub fn active_action_description<'a, T: 'a>(game_state: &GameState) -> Row<'a, T
     let current_action_currency_reward = current_action.currency_reward;
 
     match current_action.kind {
-        PlayerActionInProgressKind::Combat(monster) => {
-            let monster_name = game_state.world.monster(monster).to_lowercase_string();
-            let a_or_an = a_or_an(&monster_name);
+        PlayerActionInProgressKind::Combat(_) => {
             let action_descriptor_row =
                 Row::new()
                     .align_items(Alignment::Start)
                     .push(Text::new(&format!(
-                        "{} {}. {} is fighting {a_or_an} {} to get it.",
-                        game_state.character.name,
-                        current_action.verb_simple_past,
-                        game_state.character.pronoun_capitalised,
-                        monster_name
+                        "{} is {}",
+                        game_state.character.name, current_action.verb_progressive,
                     )));
             if !current_action.success {
                 action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))
@@ -278,18 +273,13 @@ pub fn completed_action_description<'a, T: 'a>(
 ) -> Row<'a, T> {
     let action_currency_reward = action.currency_reward;
     match action.kind {
-        PlayerActionInProgressKind::Combat(monster) => {
-            let monster_name = game_state.world.monster(monster).to_lowercase_string();
-            let a_or_an = a_or_an(&monster_name);
+        PlayerActionInProgressKind::Combat(_) => {
             let action_descriptor_row =
                 Row::new()
                     .align_items(Alignment::Start)
                     .push(Text::new(&format!(
-                        "{} {}. {} fought {} {a_or_an} to get it.",
-                        game_state.character.name,
-                        action.verb_simple_past,
-                        game_state.character.pronoun_capitalised,
-                        monster_name
+                        "{} {}",
+                        game_state.character.name, action.verb_simple_past,
                     )));
             if !action.success {
                 action_descriptor_row.push(Text::new(" (failure)").color(*ERROR_COLOR))

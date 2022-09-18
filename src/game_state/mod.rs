@@ -2,8 +2,8 @@ use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
 use crate::game_state::player_actions::{
-    PlayerActionInProgressKind, PlayerActions, ACTION_EXPLORE, ACTION_SLEEP, ACTION_TAVERN,
-    ACTION_WAIT,
+    PlayerActionInProgressKind, PlayerActionInProgressSource, PlayerActions, ACTION_EXPLORE,
+    ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
 };
 use crate::game_state::story::Story;
 use crate::game_state::time::GameTime;
@@ -126,6 +126,14 @@ impl GameState {
                         game_events.push(CompiledGameEvent::MonsterKilled { id: monster });
                     }
                     PlayerActionInProgressKind::None => {}
+                }
+                match self.actions.in_progress().source {
+                    PlayerActionInProgressSource::Action(_) => {}
+                    PlayerActionInProgressSource::Exploration(exploration_event) => {
+                        game_events.push(CompiledGameEvent::ExplorationEventCompleted {
+                            id: exploration_event,
+                        });
+                    }
                 }
             } else {
                 match self.actions.in_progress().kind {
