@@ -253,7 +253,7 @@ impl RunningState {
                             .push(Space::new(Length::Shrink, Length::Fill))
                             .push(
                                 Text::new(&format!(
-                                    "{:?}; FPS: {}",
+                                    "{}; FPS: {}",
                                     self.game_state.savegame_file.as_ref().to_string_lossy(),
                                     self.fps
                                         .map(|fps| format!("{:.0}", fps))
