@@ -10,7 +10,9 @@ lazy_static! {
 /// Some special case like 'a unit' are obeyed.
 pub fn a_or_an(word: &str) -> &'static str {
     let first_char = word.chars().next().unwrap_or('z');
-    if ['a', 'e', 'i', 'o', 'u'].contains(&first_char) && !SPECIAL_CASE_A.is_match(word) {
+    if ['a', 'e', 'i', 'o', 'u'].contains(&first_char.to_ascii_lowercase())
+        && !SPECIAL_CASE_A.is_match(&word.to_ascii_lowercase())
+    {
         "an"
     } else {
         "a"
