@@ -47,7 +47,10 @@ pub async fn compile(configuration: &CompileConfiguration) -> Result<(), Compile
         );
     }
 
-    info!("Writing...");
+    info!(
+        "Writing to {}...",
+        configuration.compiled_game_data.to_string_lossy()
+    );
     let mut compiled_game_data = File::create(&configuration.compiled_game_data).await?;
     compiled_game_data.write_all(&game_template_vec).await?;
     Ok(())
