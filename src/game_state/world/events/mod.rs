@@ -127,7 +127,7 @@ impl CompiledExplorationEvent {
                 let duration = GameTime::from_milliseconds(
                     (monster.hitpoints * hitpoint_jitter / damage * 60_000.0).round() as i128,
                 )
-                .clamp(MIN_COMBAT_DURATION, MAX_COMBAT_DURATION);
+                .min(MAX_COMBAT_DURATION);
                 let success = duration < MAX_COMBAT_DURATION;
 
                 let currency_jitter = Gamma::new(2.0, 0.25).unwrap().sample(rng) + 0.5;
@@ -152,7 +152,7 @@ impl CompiledExplorationEvent {
                     source: PlayerActionInProgressSource::Exploration(self.id),
                     kind: PlayerActionInProgressKind::Combat(*monster_id),
                     start: start_time,
-                    end: start_time + duration,
+                    end: start_time + duration.max(MIN_COMBAT_DURATION),
                     attribute_progress,
                     currency_reward,
                     location,
