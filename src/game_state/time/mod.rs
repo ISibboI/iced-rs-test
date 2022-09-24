@@ -264,7 +264,7 @@ impl GameTime {
         self.eras() + 1
     }
 
-    pub const fn day_of_week_str(&self) -> &'static str {
+    pub const fn day_of_week_str_common(&self) -> &'static str {
         match self.day_of_week_ord() {
             1 => "Mandas",
             2 => "Tirdas",
@@ -273,6 +273,37 @@ impl GameTime {
             5 => "Perdas",
             6 => "Landas",
             7 => "Sondas",
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_common(&self) -> &'static str {
+        match self.month_of_year_ord() {
+            1 => "White Earth",    // ice month
+            2 => "Sun's Hope",     // thaw month
+            3 => "First Seed",     // seed month
+            4 => "Cloud Break",    // rain month
+            5 => "Flowery Fields", // flower month
+            6 => "Eternal Light",  // light month
+            7 => "Calm Dreams",    // calm month
+            8 => "Harvest",        // harvest month
+            9 => "Leaves' Fall",   // fall month
+            10 => "Wet Mud",       // mud month
+            11 => "Dark Skies",    // dark month
+            12 => "Frost Fire",    // winter solstice month
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn day_of_week_str_old(&self) -> &'static str {
+        match self.day_of_week_ord() {
+            1 => "Mohdar",
+            2 => "Tåsdar",
+            3 => "Weddar",
+            4 => "Usdar",
+            5 => "Pirdar",
+            6 => "Löndar",
+            7 => "Sondar",
             _ => unreachable!(),
         }
     }
@@ -291,6 +322,37 @@ impl GameTime {
             10 => "Mutmon", // mud month
             11 => "Murmon", // dark month
             12 => "Jolmon", // winter solstice month
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn day_of_week_str_ancient(&self) -> &'static str {
+        match self.day_of_week_ord() {
+            1 => "M'da",
+            2 => "Töda",
+            3 => "Kesda",
+            4 => "Urda",
+            5 => "Pr'da",
+            6 => "Löta",
+            7 => "Sosda",
+            _ => unreachable!(),
+        }
+    }
+
+    pub const fn month_of_year_str_ancient(&self) -> &'static str {
+        match self.month_of_year_ord() {
+            1 => "Iskirmor",  // ice month
+            2 => "Vartrmor",  // thaw month
+            3 => "Viljamor",  // seed month
+            4 => "Sartamor",  // rain month
+            5 => "Karstrmor", // flower month
+            6 => "Vaalrmor",  // light month
+            7 => "Rahurmor",  // calm month
+            8 => "Ergarmor",  // harvest month
+            9 => "Siigimor",  // fall month
+            10 => "Lörkmor", // mud month
+            11 => "Pirkrmor", // dark month
+            12 => "Wuranmor", // winter solstice month
             _ => unreachable!(),
         }
     }
@@ -328,24 +390,6 @@ impl GameTime {
             29 => "29th",
             30 => "30th",
             31 => "31st",
-            _ => unreachable!(),
-        }
-    }
-
-    pub const fn month_of_year_str_common(&self) -> &'static str {
-        match self.month_of_year_ord() {
-            1 => "White Earth",    // ice month
-            2 => "Sun's Hope",     // thaw month
-            3 => "First Seed",     // seed month
-            4 => "Cloud Break",    // rain month
-            5 => "Flowery Fields", // flower month
-            6 => "Eternal Light",  // light month
-            7 => "Calm Dreams",    // calm month
-            8 => "Harvest",        // harvest month
-            9 => "Leaves' Fall",   // fall month
-            10 => "Wet Mud",       // mud month
-            11 => "Dark Skies",    // dark month
-            12 => "Frost Fire",    // winter solstice month
             _ => unreachable!(),
         }
     }

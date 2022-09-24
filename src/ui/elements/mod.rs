@@ -340,7 +340,7 @@ pub fn date(time: GameTime) -> Text {
     let year = time.year_of_era() + 1;
     Text::new(&format!(
         "{}, {} of {}, {}{} year of the {} era",
-        time.day_of_week_str(),
+        time.day_of_week_str_common(),
         time.day_of_month_str_ord(),
         time.month_of_year_str_common(),
         year,
@@ -353,7 +353,7 @@ pub fn date_without_era(time: GameTime) -> Text {
     let year = time.year_of_era() + 1;
     Text::new(&format!(
         "{}, {} of {}, {}",
-        time.day_of_week_str(),
+        time.day_of_week_str_common(),
         time.day_of_month_str_ord(),
         time.month_of_year_str_common(),
         year,
