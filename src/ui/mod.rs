@@ -1,10 +1,11 @@
+use std::mem;
 use crate::ui::bulk_update_state::{BulkUpdateMessage, BulkUpdateState};
 use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState};
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
 use crate::ui::load_game_template_state::{LoadGameTemplateMessage, LoadGameTemplateState};
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
 use crate::ui::running_state::{RunningMessage, RunningState};
-use crate::{RunConfiguration, TITLE};
+use crate::{GameState, RunConfiguration, TITLE};
 use async_std::sync::Arc;
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
@@ -39,6 +40,7 @@ pub enum ApplicationUiState {
 pub enum Message {
     NativeEvent(iced_native::Event),
     ChangeState(Box<ApplicationUiState>),
+    ChangeFromRunningToBulkUpdate,
     MainMenu(MainMenuMessage),
     LoadGame(LoadGameMessage),
     LoadGameTemplate(LoadGameTemplateMessage),
@@ -92,6 +94,15 @@ impl Application for ApplicationState {
                 *ui_state = *new_ui_state;
                 debug!("Updated ui state to {ui_state:?}");
                 Command::perform(do_nothing(ui_state.init_message()), |init_message| {
+                    init_message
+                })
+            }
+            (Message::ChangeFromRunningToBulkUpdate, ApplicationUiState::Running(_)) => {
+                let game_state = self.ui_state.running_state_into_game_state();
+                self.ui_state =
+                    ApplicationUiState::BulkUpdate(Box::new(BulkUpdateState::new(game_state)));
+                debug!("Updated ui state from running state to bulk update state");
+                Command::perform(do_nothing(self.ui_state.init_message()), |init_message| {
                     init_message
                 })
             }
@@ -212,6 +223,13 @@ impl ApplicationUiState {
             ApplicationUiState::BulkUpdate(_) => BulkUpdateMessage::Init.into(),
             ApplicationUiState::CreateNewGame(_) => CreateNewGameMessage::Init.into(),
             ApplicationUiState::Running(_) => RunningMessage::Init.into(),
+        }
+    }
+
+    pub fn running_state_into_game_state(self) -> GameState {
+        match self {
+            ApplicationUiState::Running(running_state) => running_state.into_game_state(),
+            _ => panic!(),
         }
     }
 }

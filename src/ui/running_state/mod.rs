@@ -1,10 +1,11 @@
 use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::{PlayerActionId, ACTION_EXPLORE};
+use crate::game_state::time::GameTime;
 use crate::game_state::world::locations::LocationId;
 use crate::io::{save_game_owned, SaveError};
 use crate::ui::elements::{attribute, clock_time, currency, date, title};
 use crate::ui::running_state::main_view::{MainViewMessage, MainViewState};
-use crate::ui::Message;
+use crate::ui::{do_nothing, Message};
 use crate::{GameState, RunConfiguration};
 use async_std::sync::Arc;
 use chrono::{DateTime, Duration, Utc};
@@ -78,7 +79,11 @@ impl RunningState {
                 let current_time = Utc::now();
                 let passed_real_milliseconds =
                     (current_time - self.game_state.last_update).num_milliseconds();
-                if passed_real_milliseconds > 5_000 {
+                if i128::from(passed_real_milliseconds) > GameTime::from_hours(1).milliseconds() {
+                    return Command::perform(do_nothing(()), |()| {
+                        Message::ChangeFromRunningToBulkUpdate
+                    });
+                } else if passed_real_milliseconds > 5_000 {
                     warn!(
                         "Making {:.0} seconds worth of updates",
                         passed_real_milliseconds as f64 / 1000.0
@@ -287,6 +292,10 @@ impl RunningState {
         let post_view = Utc::now();
         self.last_view_duration = post_view - pre_view;
         result
+    }
+
+    pub fn into_game_state(self) -> GameState {
+        self.game_state
     }
 }
 
