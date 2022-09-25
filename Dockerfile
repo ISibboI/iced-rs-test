@@ -17,6 +17,7 @@ RUN rm -rf src
 COPY src/ src/
 COPY data/ data/
 RUN cargo run --offline --release --target x86_64-unknown-linux-gnu -- --log-level Debug compile
+COPY static/ static/
 COPY index.html .
 RUN trunk build --release
 
