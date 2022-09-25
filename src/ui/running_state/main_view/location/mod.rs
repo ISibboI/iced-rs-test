@@ -7,7 +7,7 @@ use crate::{GameState, RunConfiguration};
 use async_std::sync::Arc;
 use iced::{Command, Container, Element, Image, Length, Space};
 use iced_native::image::Handle;
-use log::{error, warn};
+use log::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct LocationState {
@@ -48,8 +48,11 @@ impl LocationState {
             LocationMessage::LoadedImage { url, bytes } => {
                 match bytes {
                     Ok(bytes) => {
+                        info!("Loaded image {url:?}");
                         if Some(url) == self.url {
                             self.handle = Some(Handle::from_memory(bytes));
+                        } else {
+                            debug!("Image was loaded too late, url is now {:?}", self.url);
                         }
                     }
                     Err(error) => {
@@ -72,6 +75,11 @@ impl LocationState {
                 if game_state.world.selected_location == *location {
                     if let Some(url) = game_state.world.selected_location().url.clone() {
                         return load_image_command(configuration, url);
+                    } else {
+                        warn!(
+                            "Location {:?} is missing image url",
+                            game_state.world.selected_location().name
+                        );
                     }
                 } else {
                     warn!(
@@ -106,6 +114,7 @@ impl LocationState {
 }
 
 fn load_image_command(configuration: Arc<RunConfiguration>, url: String) -> Command<Message> {
+    debug!("Creating load_bytes command for url {url:?}");
     Command::perform(load_bytes(configuration, url.clone()), move |bytes| {
         LocationMessage::LoadedImage {
             url: url.clone(),
