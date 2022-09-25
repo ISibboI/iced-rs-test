@@ -2,7 +2,7 @@ use crate::game_state::time::{GameTime, DAYS_PER_MONTH, FIRST_DAY_OF_MONTH};
 use crate::ui::elements::{date, year_of_era};
 use crate::ui::running_state::main_view::MainViewMessage;
 use crate::ui::running_state::RunningMessage;
-use crate::ui::style::FramedContainer;
+use crate::ui::style::{ColoredFramedContainer, FramedContainer};
 use crate::ui::Message;
 use crate::GameState;
 use iced::alignment::{Horizontal, Vertical};
@@ -45,6 +45,7 @@ impl CalendarState {
         let day_width = Length::Units(27);
         let day_height = Length::Units(20);
         let months_per_row = 6;
+        let highlight_color = Color::from_rgb(0.9, 0.05, 0.1);
 
         let months = (0..12).map(|month| {
             let first_day_of_month = GameTime::from_years(self.current_year)
@@ -70,17 +71,23 @@ impl CalendarState {
                     current_row = Row::new().align_items(Alignment::Fill);
                 }
 
-                current_row = current_row.push(
-                    Text::new(&format!("{}", day + 1))
-                        .width(day_width)
-                        .height(day_height)
-                        .horizontal_alignment(Horizontal::Center)
-                        .color(if current_day.days() == game_state.current_time.days() {
-                            Color::from_rgb(0.9, 0.05, 0.1)
-                        } else {
-                            Color::BLACK
-                        }),
-                );
+                let label = Text::new(&format!("{}", day + 1))
+                    .width(day_width)
+                    .height(day_height)
+                    .horizontal_alignment(Horizontal::Center)
+                    .color(if current_day.days() == game_state.current_time.days() {
+                        highlight_color
+                    } else {
+                        Color::BLACK
+                    });
+
+                if current_day.days() == game_state.current_time.days() {
+                    current_row = current_row.push(
+                        Container::new(label).style(ColoredFramedContainer::new(highlight_color)),
+                    );
+                } else {
+                    current_row = current_row.push(label);
+                }
             }
 
             column = column.push(current_row);

@@ -40,6 +40,28 @@ impl container::StyleSheet for FramedContainer {
     }
 }
 
+pub struct ColoredFramedContainer {
+    pub border_color: Color,
+}
+
+impl ColoredFramedContainer {
+    pub fn new(border_color: Color) -> Self {
+        Self { border_color }
+    }
+}
+
+impl container::StyleSheet for ColoredFramedContainer {
+    fn style(&self) -> container::Style {
+        container::Style {
+            text_color: None,
+            background: None,
+            border_radius: 5.0,
+            border_width: 1.0,
+            border_color: self.border_color,
+        }
+    }
+}
+
 pub struct ButtonStyleSheet;
 
 impl button::StyleSheet for ButtonStyleSheet {
