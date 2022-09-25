@@ -27,6 +27,7 @@ pub struct GameTemplateSection {
     id_str: String,
     id_range: CharacterCoordinateRange,
     name: Option<RangedElement<String>>,
+    url: Option<RangedElement<String>>,
     progressive: Option<RangedElement<String>>,
     simple_past: Option<RangedElement<String>>,
     title: Option<RangedElement<String>>,
@@ -92,6 +93,12 @@ pub async fn parse_section(
             TokenKind::Key(key) => match key {
                 KeyTokenKind::Name => {
                     section.set_name(RangedElement::new(
+                        tokens.expect_string_value().await?.element,
+                        range,
+                    ))?;
+                }
+                KeyTokenKind::Url => {
+                    section.set_url(RangedElement::new(
                         tokens.expect_string_value().await?.element,
                         range,
                     ))?;
@@ -433,6 +440,7 @@ impl GameTemplateSection {
             id_str,
             id_range,
             name: None,
+            url: None,
             progressive: None,
             simple_past: None,
             title: None,
@@ -630,6 +638,7 @@ impl GameTemplateSection {
         let result = Ok(Location {
             id_str: self.id_str.clone(),
             name: self.name()?.element,
+            url: self.url.take().map(|url| url.element),
             events: self.events()?.element.into_iter().map(Into::into).collect(),
             activation_condition: self.activation()?.element,
             deactivation_condition: self.deactivation()?.element,

@@ -14,6 +14,7 @@ use serde::{Deserialize, Serialize};
 pub struct Location {
     pub id_str: String,
     pub name: String,
+    pub url: Option<String>,
     pub events: Vec<WeightedExplorationEvent>,
     pub activation_condition: String,
     pub deactivation_condition: String,
@@ -25,6 +26,7 @@ pub struct CompiledLocation {
     pub id_str: String,
     pub state: LocationState,
     pub name: String,
+    pub url: Option<String>,
     pub events: Vec<CompiledWeightedExplorationEvent>,
     pub activation_condition: TriggerHandle,
     pub deactivation_condition: TriggerHandle,
@@ -54,6 +56,7 @@ impl Location {
             id_str: self.id_str,
             state: LocationState::Inactive,
             name: self.name,
+            url: self.url,
             events: self
                 .events
                 .into_iter()

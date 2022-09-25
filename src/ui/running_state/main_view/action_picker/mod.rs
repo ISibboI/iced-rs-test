@@ -1,6 +1,6 @@
 use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::ACTION_EXPLORE;
-use crate::ui::running_state::RunningMessage;
+use crate::ui::running_state::GameStateMessage;
 use crate::ui::style::{FramedContainer, RadioStyleSheet};
 use crate::ui::Message;
 use crate::GameState;
@@ -36,7 +36,7 @@ impl ActionPickerState {
         for action in choosable_actions {
             action_picker_column = action_picker_column.push(
                 Radio::new(action.id, action.name.clone(), selected_action, |id| {
-                    RunningMessage::ActionChanged(id).into()
+                    GameStateMessage::ActionChanged(id).into()
                 })
                 .style(RadioStyleSheet),
             );
@@ -60,7 +60,7 @@ impl ActionPickerState {
                     location.id,
                     location.name.clone(),
                     selected_location,
-                    |id| RunningMessage::ActionChangedExplore(id).into(),
+                    |id| GameStateMessage::ActionChangedExplore(id).into(),
                 )
                 .style(RadioStyleSheet),
             );
@@ -78,7 +78,7 @@ impl ActionPickerState {
                     combat_style,
                     combat_style.to_string(),
                     selected_combat_style,
-                    |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
+                    |combat_style| GameStateMessage::CombatStyleChanged(combat_style).into(),
                 )
                 .style(RadioStyleSheet),
             );

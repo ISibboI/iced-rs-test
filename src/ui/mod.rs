@@ -5,6 +5,7 @@ use crate::ui::load_game_template_state::{LoadGameTemplateMessage, LoadGameTempl
 use crate::ui::main_menu_state::{MainMenuMessage, MainMenuState};
 use crate::ui::running_state::{RunningMessage, RunningState};
 use crate::{RunConfiguration, TITLE};
+use async_std::sync::Arc;
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
 
@@ -19,7 +20,7 @@ mod style;
 
 #[derive(Debug)]
 pub struct ApplicationState {
-    configuration: RunConfiguration,
+    configuration: Arc<RunConfiguration>,
     ui_state: ApplicationUiState,
     should_exit: bool,
 }
@@ -59,7 +60,7 @@ impl Application for ApplicationState {
                     flags.savegame_file.clone(),
                     None,
                 ))),
-                configuration: flags,
+                configuration: flags.into(),
                 should_exit: false,
             },
             Command::none(),
@@ -106,21 +107,22 @@ impl Application for ApplicationState {
             (
                 Message::LoadGame(load_game_message),
                 ApplicationUiState::Loading(load_game_state),
-            ) => load_game_state.update(&self.configuration, load_game_message),
+            ) => load_game_state.update(self.configuration.clone(), load_game_message),
             (
                 Message::LoadGameTemplate(load_game_template_message),
                 ApplicationUiState::LoadingTemplate(load_game_template_state),
-            ) => load_game_template_state.update(&self.configuration, load_game_template_message),
+            ) => load_game_template_state
+                .update(self.configuration.clone(), load_game_template_message),
             (
                 Message::BulkUpdate(bulk_update_message),
                 ApplicationUiState::BulkUpdate(bulk_update_state),
-            ) => bulk_update_state.update(&self.configuration, bulk_update_message),
+            ) => bulk_update_state.update(self.configuration.clone(), bulk_update_message),
             (
                 Message::CreateNewGame(create_new_game_message),
                 ApplicationUiState::CreateNewGame(create_new_game_state),
             ) => create_new_game_state.update(&self.configuration, create_new_game_message),
             (Message::Running(running_message), ApplicationUiState::Running(running_state)) => {
-                running_state.update(&self.configuration, running_message)
+                running_state.update(self.configuration.clone(), running_message)
             }
             (message, ui_state) => {
                 panic!("Illegal combination of message and ui state: {message:?}; {ui_state:?}");

@@ -1,9 +1,10 @@
-use crate::savegames::{load_game, LoadError};
+use crate::io::{load_game, LoadError};
 use crate::ui::bulk_update_state::BulkUpdateState;
 use crate::ui::main_menu_state::MainMenuState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::{GameState, RunConfiguration};
 use async_std::path::PathBuf;
+use async_std::sync::Arc;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
 use log::{info, warn};
@@ -20,7 +21,7 @@ impl LoadGameState {
 
     pub fn update(
         &mut self,
-        configuration: &RunConfiguration,
+        configuration: Arc<RunConfiguration>,
         message: LoadGameMessage,
     ) -> Command<Message> {
         match message {

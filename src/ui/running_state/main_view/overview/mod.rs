@@ -2,7 +2,7 @@ use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::world::locations::LocationId;
 use crate::ui::elements::{event_log, labelled_element, labelled_label, scrollable_quest_column};
-use crate::ui::running_state::RunningMessage;
+use crate::ui::running_state::GameStateMessage;
 use crate::ui::Message;
 use crate::utils::ui::PickListContainer;
 use crate::GameState;
@@ -59,7 +59,7 @@ impl OverviewState {
                             .clone(),
                         game_state.actions.selected_action,
                     )),
-                    |action| RunningMessage::ActionChanged(action.data).into(),
+                    |action| GameStateMessage::ActionChanged(action.data).into(),
                 ),
             ))
             .push(labelled_element(
@@ -75,7 +75,7 @@ impl OverviewState {
                         game_state.world.selected_location().name.clone(),
                         game_state.world.selected_location().id,
                     )),
-                    |location| RunningMessage::ExplorationLocationChanged(location.data).into(),
+                    |location| GameStateMessage::ExplorationLocationChanged(location.data).into(),
                 ),
             ))
             .push(labelled_element(
@@ -85,7 +85,7 @@ impl OverviewState {
                     &mut self.combat_style_picker_state,
                     all::<CombatStyle>().collect::<Vec<_>>(),
                     Some(game_state.character.selected_combat_style),
-                    |combat_style| RunningMessage::CombatStyleChanged(combat_style).into(),
+                    |combat_style| GameStateMessage::CombatStyleChanged(combat_style).into(),
                 ),
             ))
             .push(labelled_label(

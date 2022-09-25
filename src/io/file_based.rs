@@ -1,11 +1,12 @@
 use crate::game_template::CompiledGameTemplate;
-use crate::savegames::{LoadError, SaveError};
+use crate::io::{LoadError, SaveError};
 use crate::{GameState, RunConfiguration};
 use async_std::fs::File;
 use async_std::io::{BufReader, BufWriter, ReadExt, WriteExt};
 use async_std::path::Path;
+use async_std::sync::Arc;
 use flate2::bufread::GzDecoder;
-use log::info;
+use log::{debug, info};
 
 pub async fn load_game(path: impl AsRef<Path>) -> Result<GameState, LoadError> {
     let path = path.as_ref();
@@ -28,7 +29,7 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
 }
 
 pub async fn load_game_template(
-    configuration: RunConfiguration,
+    configuration: Arc<RunConfiguration>,
 ) -> Result<CompiledGameTemplate, LoadError> {
     info!("Loading {:?}", &configuration.compiled_game_data_file);
     let savegame_file = File::open(&configuration.compiled_game_data_file).await?;
@@ -38,4 +39,17 @@ pub async fn load_game_template(
         .await?;
     let decoder = GzDecoder::new(compressed_savegame.as_slice());
     Ok(pot::from_reader(decoder)?)
+}
+
+pub async fn load_bytes(
+    configuration: Arc<RunConfiguration>,
+    static_file: String,
+) -> Result<Vec<u8>, LoadError> {
+    let mut file = configuration.static_prefix_directory.clone();
+    file.push(static_file);
+    debug!("Loading {:?}", file);
+    let mut static_file = File::open(&file).await?;
+    let mut bytes = Vec::new();
+    static_file.read_to_end(&mut bytes).await?;
+    Ok(bytes)
 }

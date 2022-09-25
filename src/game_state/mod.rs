@@ -10,7 +10,7 @@ use crate::game_state::time::GameTime;
 use crate::game_state::triggers::{CompiledGameAction, CompiledGameEvent};
 use crate::game_state::world::World;
 use crate::game_template::CompiledGameTemplate;
-use crate::savegames::pathbuf_serde::PathBufSerde;
+use crate::io::pathbuf_serde::PathBufSerde;
 use async_std::path::PathBuf;
 use chrono::{DateTime, Duration, Utc};
 use event_trigger_action_system::CompiledTriggers;

@@ -1,9 +1,10 @@
 use crate::game_template::CompiledGameTemplate;
-use crate::savegames::{load_game_template, LoadError};
+use crate::io::{load_game_template, LoadError};
 use crate::ui::create_new_game_state::CreateNewGameState;
 use crate::ui::main_menu_state::MainMenuState;
 use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::RunConfiguration;
+use async_std::sync::Arc;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{Command, Element, Length, Text};
 use log::{error, info};
@@ -24,12 +25,12 @@ impl LoadGameTemplateState {
 
     pub fn update(
         &mut self,
-        configuration: &RunConfiguration,
+        configuration: Arc<RunConfiguration>,
         message: LoadGameTemplateMessage,
     ) -> Command<Message> {
         match message {
             LoadGameTemplateMessage::Init => {
-                Command::perform(load_game_template(configuration.clone()), |loaded| {
+                Command::perform(load_game_template(configuration), |loaded| {
                     LoadGameTemplateMessage::Loaded(Box::new(loaded)).into()
                 })
             }

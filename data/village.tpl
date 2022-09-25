@@ -1,5 +1,6 @@
 LOCATION village
 name Village
+url village.png
 events (1.0, rat), (1.0, infected_rat), (0.8, hare), (0.1, find_rat_plague)
 activation none
 deactivation never

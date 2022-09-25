@@ -4,13 +4,13 @@ use wasm_bindgen::JsValue;
 #[cfg(not(target_arch = "wasm32"))]
 mod file_based;
 #[cfg(not(target_arch = "wasm32"))]
-pub use file_based::{load_game, load_game_template, save_game};
+pub use file_based::{load_bytes, load_game, load_game_template, save_game};
 
 #[cfg(target_arch = "wasm32")]
 mod browser_based;
 use crate::GameState;
 #[cfg(target_arch = "wasm32")]
-pub use browser_based::{load_game, load_game_template, save_game};
+pub use browser_based::{load_bytes, load_game, load_game_template, save_game};
 
 pub mod pathbuf_serde;
 

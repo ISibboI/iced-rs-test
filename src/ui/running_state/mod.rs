@@ -1,11 +1,12 @@
 use crate::game_state::character::CombatStyle;
 use crate::game_state::player_actions::{PlayerActionId, ACTION_EXPLORE};
 use crate::game_state::world::locations::LocationId;
-use crate::savegames::{save_game_owned, SaveError};
+use crate::io::{save_game_owned, SaveError};
 use crate::ui::elements::{attribute, clock_time, currency, date, title};
 use crate::ui::running_state::main_view::{MainViewMessage, MainViewState};
 use crate::ui::Message;
 use crate::{GameState, RunConfiguration};
+use async_std::sync::Arc;
 use chrono::{DateTime, Duration, Utc};
 use iced::alignment::Horizontal;
 use iced::{Alignment, Column, Command, Element, Length, Row, Space, Text};
@@ -37,11 +38,16 @@ pub enum RunningMessage {
     GameSaved(Result<(), SaveError>),
     SaveAndQuit,
 
+    GameState(GameStateMessage),
+    MainView(MainViewMessage),
+}
+
+#[derive(Clone, Debug)]
+pub enum GameStateMessage {
     ActionChanged(PlayerActionId),
     ActionChangedExplore(LocationId),
     ExplorationLocationChanged(LocationId),
     CombatStyleChanged(CombatStyle),
-    MainView(MainViewMessage),
 }
 
 impl RunningState {
@@ -58,11 +64,15 @@ impl RunningState {
 
     pub fn update(
         &mut self,
-        configuration: &RunConfiguration,
+        configuration: Arc<RunConfiguration>,
         message: RunningMessage,
     ) -> Command<Message> {
         match message {
-            RunningMessage::Init => {}
+            RunningMessage::Init => {
+                return Command::batch([self
+                    .main_view_state
+                    .update(configuration, MainViewMessage::Init)])
+            }
             RunningMessage::Update => {
                 // measure time delta
                 let current_time = Utc::now();
@@ -137,18 +147,27 @@ impl RunningState {
                     Message::Quit
                 });
             }
-            RunningMessage::ActionChanged(action) => {
-                self.game_state.actions.selected_action = action;
-            }
-            RunningMessage::ActionChangedExplore(location) => {
-                self.game_state.actions.selected_action = ACTION_EXPLORE;
-                self.game_state.world.selected_location = location;
-            }
-            RunningMessage::ExplorationLocationChanged(location) => {
-                self.game_state.world.selected_location = location;
-            }
-            RunningMessage::CombatStyleChanged(combat_style) => {
-                self.game_state.character.selected_combat_style = combat_style;
+            RunningMessage::GameState(game_state_message) => {
+                match &game_state_message {
+                    GameStateMessage::ActionChanged(action) => {
+                        self.game_state.actions.selected_action = *action;
+                    }
+                    GameStateMessage::ActionChangedExplore(location) => {
+                        self.game_state.actions.selected_action = ACTION_EXPLORE;
+                        self.game_state.world.selected_location = *location;
+                    }
+                    GameStateMessage::ExplorationLocationChanged(location) => {
+                        self.game_state.world.selected_location = *location;
+                    }
+                    GameStateMessage::CombatStyleChanged(combat_style) => {
+                        self.game_state.character.selected_combat_style = *combat_style;
+                    }
+                }
+                return self.main_view_state.update_game_state(
+                    configuration,
+                    &self.game_state,
+                    &game_state_message,
+                );
             }
             RunningMessage::MainView(main_view_message) => {
                 return self
@@ -268,5 +287,11 @@ impl RunningState {
         let post_view = Utc::now();
         self.last_view_duration = post_view - pre_view;
         result
+    }
+}
+
+impl From<GameStateMessage> for Message {
+    fn from(message: GameStateMessage) -> Self {
+        Message::Running(RunningMessage::GameState(message))
     }
 }

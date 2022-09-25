@@ -13,7 +13,7 @@ use simplelog::{ColorChoice, CombinedLogger, ConfigBuilder, TermLogger, Terminal
 
 mod game_state;
 mod game_template;
-mod savegames;
+mod io;
 mod ui;
 mod utils;
 
@@ -48,6 +48,12 @@ pub struct RunConfiguration {
 
     #[clap(long, default_value = "data.bin.gz")]
     compiled_game_data_url: String,
+
+    #[clap(long, default_value = "static")]
+    static_prefix_directory: PathBuf,
+
+    #[clap(long, default_value = "static")]
+    static_prefix_url: String,
 
     #[clap(long, default_value = "60.0")]
     target_fps: f32,
@@ -117,6 +123,8 @@ impl RunConfiguration {
             savegame_file: "savegame.json".into(),
             compiled_game_data_file: "".into(),
             compiled_game_data_url: "data.bin.gz".into(),
+            static_prefix_directory: "".into(),
+            static_prefix_url: "static".into(),
             target_fps: 60.0,
             profile: false,
         }

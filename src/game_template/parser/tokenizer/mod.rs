@@ -36,6 +36,7 @@ pub enum SectionTokenKind {
 #[derive(Debug, Clone)]
 pub enum KeyTokenKind {
     Name,
+    Url,
     Progressive,
     SimplePast,
     Title,
@@ -138,6 +139,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                     "MONSTER" => Ok(Some(Token::new(SectionTokenKind::Monster.into(), range))),
 
                     "name" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Name), range))),
+                    "url" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Url), range))),
                     "progressive" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::Progressive),
                         range,

@@ -1,7 +1,8 @@
 use crate::game_template::CompiledGameTemplate;
-use crate::savegames::{LoadError, SaveError};
+use crate::io::{LoadError, SaveError};
 use crate::{GameState, RunConfiguration};
 use async_std::path::Path;
+use async_std::sync::Arc;
 use flate2::bufread::GzDecoder;
 use log::info;
 use reqwest::Url;
@@ -32,7 +33,7 @@ pub async fn save_game(game_state: &GameState) -> Result<(), SaveError> {
 }
 
 pub async fn load_game_template(
-    configuration: RunConfiguration,
+    configuration: Arc<RunConfiguration>,
 ) -> Result<CompiledGameTemplate, LoadError> {
     let base_url = Url::parse(
         &window()
@@ -41,9 +42,27 @@ pub async fn load_game_template(
             .href()
             .map_err(|error| LoadError::JsError(format!("{error:?}")))?,
     )?;
-    info!("Loading {:?}", &configuration.compiled_game_data_url);
     let url = base_url.join(&configuration.compiled_game_data_url)?;
+    info!("Loading {:?}", url);
     let body = reqwest::get(url).await?.bytes().await?;
     let decoder = GzDecoder::new(&body[..]);
     Ok(pot::from_reader(decoder)?)
+}
+
+pub async fn load_bytes(
+    configuration: Arc<RunConfiguration>,
+    static_file: String,
+) -> Result<Vec<u8>, LoadError> {
+    let base_url = Url::parse(
+        &window()
+            .ok_or(LoadError::JsWindowNotFound)?
+            .location()
+            .href()
+            .map_err(|error| LoadError::JsError(format!("{error:?}")))?,
+    )?;
+    let url = base_url.join(&configuration.static_prefix_url)?;
+    let url = url.join(&static_file)?;
+    info!("Loading {:?}", url);
+    let body = reqwest::get(url).await?.bytes().await?;
+    Ok(body.into())
 }
