@@ -1,4 +1,3 @@
-use std::mem;
 use crate::ui::bulk_update_state::{BulkUpdateMessage, BulkUpdateState};
 use crate::ui::create_new_game_state::{CreateNewGameMessage, CreateNewGameState};
 use crate::ui::load_game_state::{LoadGameMessage, LoadGameState};
@@ -9,6 +8,7 @@ use crate::{GameState, RunConfiguration, TITLE};
 use async_std::sync::Arc;
 use iced::{Application, Command, Element, Subscription};
 use log::{debug, info};
+use std::mem;
 
 mod bulk_update_state;
 mod create_new_game_state;
@@ -28,6 +28,7 @@ pub struct ApplicationState {
 
 #[derive(Debug, Clone)]
 pub enum ApplicationUiState {
+    Invalid,
     MainMenu(Box<MainMenuState>),
     Loading(Box<LoadGameState>),
     LoadingTemplate(Box<LoadGameTemplateState>),
@@ -97,8 +98,9 @@ impl Application for ApplicationState {
                     init_message
                 })
             }
-            (Message::ChangeFromRunningToBulkUpdate, ApplicationUiState::Running(_)) => {
-                let game_state = self.ui_state.running_state_into_game_state();
+            (Message::ChangeFromRunningToBulkUpdate, ui_state @ ApplicationUiState::Running(_)) => {
+                let old_ui_state = mem::replace(ui_state, ApplicationUiState::Invalid);
+                let game_state = old_ui_state.running_state_into_game_state();
                 self.ui_state =
                     ApplicationUiState::BulkUpdate(Box::new(BulkUpdateState::new(game_state)));
                 debug!("Updated ui state from running state to bulk update state");
@@ -156,6 +158,7 @@ impl Application for ApplicationState {
 
     fn view(&mut self) -> Element<Self::Message> {
         match &mut self.ui_state {
+            ApplicationUiState::Invalid => panic!("Cannot view invalid UI state"),
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
             ApplicationUiState::Loading(load_game_state) => load_game_state.view(),
             ApplicationUiState::LoadingTemplate(load_game_template_state) => {
@@ -217,6 +220,7 @@ async fn do_nothing<T>(t: T) -> T {
 impl ApplicationUiState {
     pub fn init_message(&self) -> Message {
         match self {
+            ApplicationUiState::Invalid => panic!("Cannot init invalid UI state"),
             ApplicationUiState::MainMenu(_) => MainMenuMessage::Init.into(),
             ApplicationUiState::Loading(_) => LoadGameMessage::Init.into(),
             ApplicationUiState::LoadingTemplate(_) => LoadGameTemplateMessage::Init.into(),
