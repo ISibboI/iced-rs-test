@@ -38,8 +38,8 @@ deactivation never
 
 LOCATION forest
 name Forest
-events (0.1, dog), (0.3, wolf), (1.0, deer), (1.0, forest_nothing)
-activation monster_killed_count(10, dog)
+events (0.1, dog), (0.3, wolf), (1.0, deer), (1.0, forest_nothing), (0.5, carry_wood)
+activation or(monster_killed_count(10, dog), quest_activated(wood_cutter))
 deactivation never
 
 EXPLORATION_EVENT forest_nothing
