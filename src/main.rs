@@ -84,7 +84,7 @@ fn initialize_logging(log_level: LevelFilter) {
     info!("Logging initialised successfully");
 }
 
-fn main() {
+fn main() -> Result<(), Error> {
     #[cfg(not(target_arch = "wasm32"))]
     let cli = Cli::parse();
     #[cfg(target_arch = "wasm32")]
@@ -104,16 +104,17 @@ fn main() {
             settings.exit_on_close_request = false;
             settings.window.resizable = false;
             settings.window.size = (1500, 800);
-            ApplicationState::run(settings).unwrap_or_else(|err| panic!("Error: {err}"));
+            ApplicationState::run(settings)?;
         }
         #[cfg(not(target_arch = "wasm32"))]
         Command::Compile(configuration) => {
             async_std::task::Builder::new()
                 .name("Game data compiler".to_string())
-                .blocking(crate::game_template::compiler::compile(&configuration))
-                .unwrap_or_else(|err| panic!("Error: {err:?}"));
+                .blocking(crate::game_template::compiler::compile(&configuration))?;
         }
     }
+
+    Ok(())
 }
 
 impl RunConfiguration {
@@ -128,5 +129,25 @@ impl RunConfiguration {
             target_fps: 60.0,
             profile: false,
         }
+    }
+}
+
+#[derive(Debug)]
+enum Error {
+    IcedError(iced::Error),
+    #[cfg(not(target_arch = "wasm32"))]
+    CompilerError(crate::game_template::compiler::CompilerError),
+}
+
+impl From<iced::Error> for Error {
+    fn from(error: iced::Error) -> Self {
+        Self::IcedError(error)
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl From<crate::game_template::compiler::CompilerError> for Error {
+    fn from(error: crate::game_template::compiler::CompilerError) -> Self {
+        Self::CompilerError(error)
     }
 }

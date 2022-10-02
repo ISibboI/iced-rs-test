@@ -180,8 +180,11 @@ impl GameAction {
                 id: *id_maps.quests.get(&id).unwrap(),
             },
             GameAction::CompleteQuestStage { quest_id, stage_id } => {
-                let quest_id = *id_maps.quests.get(&quest_id).unwrap();
-                let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
+                let compiled_quest_id = *id_maps.quests.get(&quest_id).unwrap();
+                let id = *id_maps
+                    .quest_stages
+                    .get(&(compiled_quest_id, stage_id.clone()))
+                    .unwrap_or_else(|| panic!("Quest {quest_id} misses stage {stage_id}"));
                 CompiledGameAction::CompleteQuestStage { id }
             }
             GameAction::FailQuest { id } => CompiledGameAction::FailQuest {

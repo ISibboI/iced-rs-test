@@ -11,12 +11,18 @@ deactivation never
 
 QUEST look_around
 title Figure out where you are
-description You woke up on the side of a road in a village unknown to you. Take a look around to figure out where you are.
+description You woke up on the side of a road in a village unknown to you.
 activation none
-completion action_count(2, look_around)
 failure never
+BEGIN
+    QUEST_STAGE look_around
+    task Take a look around to figure out where you are.
+    completion action_count(2, look_around)
+END
 
-QUEST_ACTION look_around
+QUEST_STAGE_ACTION look_around
+quest look_around
+quest_stage look_around
 name Look around
 progressive looking around
 simple_past looked around

@@ -136,7 +136,7 @@ impl IdMaps {
 
 impl GameTemplate {
     pub fn compile(mut self) -> Result<CompiledGameTemplate, ParserError> {
-        debug!("Compiling game template file");
+        debug!("Compiling game template");
 
         // put the builtin actions to their required position
         self.actions.sort_by_key(|action| match action.action_type {

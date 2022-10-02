@@ -9,8 +9,12 @@ QUEST find_all_village
 title Find all quests in the village
 description Explore the village to find all the available quests. Some might be rare finds, so you have to explore quite a bit.
 activation none
-completion and(quest_activated(rat_plague))
 failure never
+BEGIN
+    QUEST_STAGE find_all
+    task Find all quests in the village.
+    completion and(quest_activated(rat_plague))
+END
 
 EXPLORATION_EVENT find_rat_plague
 name Find the healer
@@ -24,8 +28,12 @@ QUEST rat_plague
 title The rat plague
 description You talked to the villages healer and she told you that there is an ongoing rat plague that is making people sick. You will be greatly rewarded for each killed infected rat!
 activation exploration_event_count(1, find_rat_plague)
-completion monster_killed_count(10, infected_rat)
 failure never
+BEGIN
+    QUEST_STAGE kill
+    task Kill infected rats.
+    completion monster_killed_count(10, infected_rat)
+END
 
 EXPLORATION_EVENT infected_rat
 monster infected_rat

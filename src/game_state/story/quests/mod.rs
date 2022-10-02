@@ -139,7 +139,7 @@ impl QuestStage {
         CompiledQuestStage {
             id: *id_maps
                 .quest_stages
-                .get(&(quest_id, self.completion_condition.clone()))
+                .get(&(quest_id, self.id_str.clone()))
                 .unwrap(),
             id_str: self.id_str.clone(),
             description: self.description,

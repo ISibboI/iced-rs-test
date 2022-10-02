@@ -408,14 +408,14 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                                 .ok_or_else(|| {
                                     ParserError::with_coordinates(
                                         ParserErrorKind::UnexpectedField {
-                                            id_str: id_str.clone(),
+                                            id_str: section.id_str.clone(),
                                             field: "completion".to_string(),
                                         },
                                         range,
                                     )
                                 })?
                                 .to_string(),
-                            stage_id: id_str.clone(),
+                            stage_id: section.id_str.clone(),
                         }],
                     )
                     .await?;
@@ -759,7 +759,7 @@ impl GameTemplateSection {
                 .take()
                 .map(|description| description.element),
             activation_condition: self.activation()?.element,
-            failure_condition: self.deactivation()?.element,
+            failure_condition: self.failure()?.element,
             stages: self
                 .subsections()?
                 .element
