@@ -1,7 +1,7 @@
 use crate::game_state::player_actions::{
     PlayerAction, PlayerActionId, PlayerActionType, PlayerActions,
 };
-use crate::game_state::story::quests::{Quest, QuestId};
+use crate::game_state::story::quests::{Quest, QuestId, QuestStageId};
 use crate::game_state::story::Story;
 use crate::game_state::triggers::{CompiledGameEvent, GameAction, GameEvent};
 use crate::game_state::world::events::{ExplorationEvent, ExplorationEventId};
@@ -44,6 +44,7 @@ pub struct CompiledGameTemplate {
 pub struct IdMaps {
     pub actions: HashMap<String, PlayerActionId>,
     pub quests: HashMap<String, QuestId>,
+    pub quest_stages: HashMap<(QuestId, String), QuestStageId>,
     pub locations: HashMap<String, LocationId>,
     pub exploration_events: HashMap<String, ExplorationEventId>,
     pub monsters: HashMap<String, MonsterId>,
@@ -52,6 +53,32 @@ pub struct IdMaps {
 
 impl IdMaps {
     pub fn from_game_template(game_template: &GameTemplate) -> Result<Self, ParserError> {
+        let quests = build_id_map(
+            &game_template.quests,
+            |quest| quest.id_str.clone(),
+            |identifier| {
+                ParserError::without_coordinates(ParserErrorKind::DuplicateQuestIdentifier(
+                    identifier,
+                ))
+            },
+        )?;
+        let mut quest_stages = game_template
+            .quests
+            .iter()
+            .flat_map(|quest| {
+                let quest_id = *quests.get(&quest.id_str).unwrap();
+                quest.stages.iter().enumerate().map(|(index, stage)| {
+                    (
+                        (quest_id, stage.id_str.clone()),
+                        QuestStageId {
+                            quest_id,
+                            stage_id: index,
+                        },
+                    )
+                })
+            })
+            .collect();
+
         Ok(Self {
             actions: build_id_map(
                 &game_template.actions,
@@ -62,15 +89,8 @@ impl IdMaps {
                     ))
                 },
             )?,
-            quests: build_id_map(
-                &game_template.quests,
-                |quest| quest.id_str.clone(),
-                |identifier| {
-                    ParserError::without_coordinates(ParserErrorKind::DuplicateQuestIdentifier(
-                        identifier,
-                    ))
-                },
-            )?,
+            quests,
+            quest_stages,
             locations: build_id_map(
                 &game_template.locations,
                 |location| location.id_str.clone(),

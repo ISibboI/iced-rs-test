@@ -18,6 +18,8 @@ pub enum TokenKind {
     Section(SectionTokenKind),
     Key(KeyTokenKind),
     Value(ValueTokenKind),
+    Begin,
+    End,
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -26,8 +28,9 @@ pub enum SectionTokenKind {
 
     BuiltinAction,
     Action,
-    QuestAction,
+    QuestStageAction,
     Quest,
+    QuestStage,
     Location,
     ExplorationEvent,
     Monster,
@@ -41,6 +44,10 @@ pub enum KeyTokenKind {
     SimplePast,
     Title,
     Description,
+    Task,
+
+    Quest,
+    QuestStage,
 
     Strength,
     Stamina,
@@ -126,11 +133,14 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         range,
                     ))),
                     "ACTION" => Ok(Some(Token::new(SectionTokenKind::Action.into(), range))),
-                    "QUEST_ACTION" => Ok(Some(Token::new(
-                        SectionTokenKind::QuestAction.into(),
+                    "QUEST_STAGE_ACTION" => Ok(Some(Token::new(
+                        SectionTokenKind::QuestStageAction.into(),
                         range,
                     ))),
                     "QUEST" => Ok(Some(Token::new(SectionTokenKind::Quest.into(), range))),
+                    "QUEST_STAGE" => {
+                        Ok(Some(Token::new(SectionTokenKind::QuestStage.into(), range)))
+                    }
                     "LOCATION" => Ok(Some(Token::new(SectionTokenKind::Location.into(), range))),
                     "EXPLORATION_EVENT" => Ok(Some(Token::new(
                         SectionTokenKind::ExplorationEvent.into(),
@@ -153,6 +163,10 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         TokenKind::Key(KeyTokenKind::Description),
                         range,
                     ))),
+                    "task" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Task), range))),
+
+                    "quest" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Quest), range))),
+                    "quest_stage" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::QuestStage), range))),
 
                     "str" | "strength" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::Strength),
@@ -226,6 +240,9 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         TokenKind::Key(KeyTokenKind::StartingTime),
                         range,
                     ))),
+
+                    "BEGIN" => Ok(Some(Token::new(TokenKind::Begin, range))),
+                    "END" => Ok(Some(Token::new(TokenKind::End, range))),
 
                     _ => Err(ParserError::with_coordinates(
                         ParserErrorKind::IllegalKeyword(word),

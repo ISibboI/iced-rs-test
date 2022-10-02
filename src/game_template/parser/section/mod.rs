@@ -1,7 +1,7 @@
 use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
-use crate::game_state::story::quests::Quest;
+use crate::game_state::story::quests::{Quest, QuestStage};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::{GameAction, GameEvent};
 use crate::game_state::world::events::{ExplorationEvent, ExplorationEventKind};
@@ -17,10 +17,12 @@ use crate::game_template::parser::{
     expect_identifier, parse_trigger, parse_weighted_events, WeightedIdentifier,
 };
 use crate::game_template::GameTemplate;
+use async_recursion::async_recursion;
 use async_std::io::Read;
 use event_trigger_action_system::{event_count, or, Trigger, TriggerCondition};
 use log::trace;
 use section_parser_derive::SectionParser;
+use std::mem;
 
 #[derive(Debug, SectionParser)]
 pub struct GameTemplateSection {
@@ -32,6 +34,10 @@ pub struct GameTemplateSection {
     simple_past: Option<RangedElement<String>>,
     title: Option<RangedElement<String>>,
     description: Option<RangedElement<String>>,
+    task: Option<RangedElement<String>>,
+
+    quest: Option<RangedElement<String>>,
+    quest_stage: Option<RangedElement<String>>,
 
     strength: Option<RangedElement<f64>>,
     stamina: Option<RangedElement<f64>>,
@@ -54,6 +60,8 @@ pub struct GameTemplateSection {
 
     starting_location: Option<RangedElement<String>>,
     starting_time: Option<RangedElement<GameTime>>,
+
+    subsections: Option<RangedElement<Vec<GameTemplateSection>>>,
 }
 
 pub struct GameTemplateSectionError {
@@ -70,10 +78,12 @@ pub enum GameTemplateSectionErrorKind {
     DuplicateField,
 }
 
+#[async_recursion]
 pub async fn parse_section(
     game_template: &mut GameTemplate,
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
     section_kind: &SectionTokenKind,
+    parent_id: Option<&str>,
 ) -> Result<(GameTemplateSection, Option<Token>), ParserError> {
     trace!("Parsing section {section_kind:?}");
     let (id_str, id_range) = if section_kind == &SectionTokenKind::Initialisation {
@@ -82,13 +92,13 @@ pub async fn parse_section(
         expect_identifier(tokens).await?.decompose()
     };
     let mut section = GameTemplateSection::new(id_str, id_range);
-    let mut section_token = None;
+    let mut next_token = None;
 
     while let Some(token) = tokens.next().await? {
         let (kind, range) = token.decompose();
         match kind {
             TokenKind::Section(section) => {
-                section_token = Some(Token::new(TokenKind::Section(section), range));
+                next_token = Some(Token::new(TokenKind::Section(section), range));
             }
             TokenKind::Key(key) => match key {
                 KeyTokenKind::Name => {
@@ -127,6 +137,26 @@ pub async fn parse_section(
                         range,
                     ))?;
                 }
+                KeyTokenKind::Task => {
+                    section.set_task(RangedElement::new(
+                        tokens.expect_string_value().await?.element,
+                        range,
+                    ))?;
+                }
+
+                KeyTokenKind::Quest => {
+                    section.set_quest(RangedElement::new(
+                        expect_identifier(tokens).await?.element,
+                        range,
+                    ))?;
+                }
+                KeyTokenKind::QuestStage => {
+                    section.set_quest_stage(RangedElement::new(
+                        expect_identifier(tokens).await?.element,
+                        range,
+                    ))?;
+                }
+
                 KeyTokenKind::Strength => {
                     let strength = tokens.expect_string_value().await?;
                     let parsed = strength.element.parse();
@@ -276,7 +306,7 @@ pub async fn parse_section(
                     let (section_name_lowercase, game_action) = match section_kind {
                         SectionTokenKind::BuiltinAction
                         | SectionTokenKind::Action
-                        | SectionTokenKind::QuestAction => (
+                        | SectionTokenKind::QuestStageAction => (
                             "action",
                             GameAction::ActivateAction {
                                 id: section.id_str.clone(),
@@ -306,7 +336,7 @@ pub async fn parse_section(
                                 id: section.id_str.clone(),
                             },
                         ),
-                        SectionTokenKind::Initialisation => {
+                        SectionTokenKind::Initialisation | SectionTokenKind::QuestStage => {
                             return Err(ParserError::with_coordinates(
                                 ParserErrorKind::UnexpectedField {
                                     id_str: section.id_str.clone(),
@@ -325,7 +355,7 @@ pub async fn parse_section(
                     let (section_name_lowercase, game_action) = match section_kind {
                         SectionTokenKind::BuiltinAction
                         | SectionTokenKind::Action
-                        | SectionTokenKind::QuestAction => (
+                        | SectionTokenKind::QuestStageAction => (
                             "action",
                             GameAction::DeactivateAction {
                                 id: section.id_str.clone(),
@@ -349,7 +379,9 @@ pub async fn parse_section(
                                 id: section.id_str.clone(),
                             },
                         ),
-                        SectionTokenKind::Quest | SectionTokenKind::Initialisation => {
+                        SectionTokenKind::Initialisation
+                        | SectionTokenKind::Quest
+                        | SectionTokenKind::QuestStage => {
                             return Err(ParserError::with_coordinates(
                                 ParserErrorKind::UnexpectedField {
                                     id_str: section.id_str.clone(),
@@ -371,8 +403,9 @@ pub async fn parse_section(
                         game_template,
                         tokens,
                         id_str.clone(),
-                        vec![GameAction::CompleteQuest {
-                            id: section.id_str.clone(),
+                        vec![GameAction::CompleteQuestStage {
+                            quest_id: parent_id.ok_or_else(|| ParserError::with_coordinates(ParserErrorKind::UnexpectedField { id_str: id_str.clone(), field: "completion".to_string() }, range))?.to_string(),
+                            stage_id: id_str.clone(),
                         }],
                     )
                     .await?;
@@ -422,18 +455,47 @@ pub async fn parse_section(
                     range,
                 ));
             }
+            TokenKind::Begin => {
+                let mut subsections = Vec::new();
+                if let Some(token) = tokens.next().await? {
+                    let mut current_section_token = Some(token);
+                    while let Some(token) = current_section_token.take() {
+                        let (token_kind, token_range) = token.decompose();
+                        match token_kind {
+                            TokenKind::Section(section_token) => {
+                                let (subsection, next_section_token) =
+                                    parse_section(game_template, tokens, &section_token, Some(&id_str)).await?;
+                                subsections.push(subsection);
+                                current_section_token = next_section_token;
+                            }
+                            TokenKind::End => next_token = tokens.next().await?,
+                            other => {
+                                return Err(ParserError::with_coordinates(
+                                    ParserErrorKind::ExpectedSectionOrEnd(other),
+                                    token_range,
+                                ))
+                            }
+                        }
+                    }
+                    section.set_subsections(RangedElement::new(subsections, range))?;
+                } else {
+                    return Err(ParserError::with_coordinates(
+                        ParserErrorKind::BeginWithoutEnd,
+                        range,
+                    ));
+                }
+            }
+            TokenKind::End => next_token = Some(Token::new(TokenKind::End, range)),
         }
 
-        if section_token.is_some() {
+        if next_token.is_some() {
             break;
         }
     }
 
-    Ok((section, section_token))
+    Ok((section, next_token))
 }
 
-// TODO only allow deactivation of actions etc after they are activated, i.e. make a sequence condition for deactivation with first element being activation
-// TODO also think this through for failure of quests
 impl GameTemplateSection {
     fn new(id_str: String, id_range: CharacterCoordinateRange) -> Self {
         Self {
@@ -445,6 +507,9 @@ impl GameTemplateSection {
             simple_past: None,
             title: None,
             description: None,
+            task: None,
+            quest: None,
+            quest_stage: None,
             strength: None,
             stamina: None,
             dexterity: None,
@@ -463,10 +528,14 @@ impl GameTemplateSection {
             failure: None,
             starting_location: None,
             starting_time: None,
+            subsections: None,
         }
     }
 
-    pub fn into_builtin_action(mut self) -> Result<PlayerAction, ParserError> {
+    pub fn into_builtin_action(
+        mut self,
+        game_template: &mut GameTemplate,
+    ) -> Result<PlayerAction, ParserError> {
         let action_type = match self.id_str.as_str() {
             "EXPLORE" => PlayerActionType::Explore,
             "SLEEP" => PlayerActionType::Sleep,
@@ -478,6 +547,27 @@ impl GameTemplateSection {
                     self.id_range,
                 ))
             }
+        };
+
+        let deactivation_condition = self.deactivation()?.element;
+        let deactivation_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == deactivation_condition)
+            .unwrap();
+        let deactivation_trigger_condition =
+            mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+        deactivation_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::Action(GameAction::ActivateAction {
+                        id: self.id_str.clone(),
+                    }),
+                },
+                deactivation_trigger_condition,
+            ],
         };
 
         let duration = match action_type {
@@ -495,13 +585,16 @@ impl GameTemplateSection {
             attribute_progress_factor: Default::default(),
             currency_reward: Default::default(),
             activation_condition: self.activation()?.element,
-            deactivation_condition: self.deactivation()?.element,
+            deactivation_condition,
         });
         self.ensure_empty()?;
         result
     }
 
-    pub fn into_action(mut self) -> Result<PlayerAction, ParserError> {
+    pub fn into_action(
+        mut self,
+        game_template: &mut GameTemplate,
+    ) -> Result<PlayerAction, ParserError> {
         match self.id_str.as_str() {
             "EXPLORE" | "SLEEP" | "TAVERN" | "WAIT" => {
                 return Err(ParserError::with_coordinates(
@@ -521,6 +614,27 @@ impl GameTemplateSection {
             )
         })?;
 
+        let deactivation_condition = self.deactivation()?.element;
+        let deactivation_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == deactivation_condition)
+            .unwrap();
+        let deactivation_trigger_condition =
+            mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+        deactivation_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::Action(GameAction::ActivateAction {
+                        id: self.id_str.clone(),
+                    }),
+                },
+                deactivation_trigger_condition,
+            ],
+        };
+
         let result = Ok(PlayerAction {
             id_str: self.id_str.clone(),
             name: self.name()?.element,
@@ -531,13 +645,13 @@ impl GameTemplateSection {
             attribute_progress_factor: self.take_character_attribute_progress_factor(),
             currency_reward: self.currency()?.element,
             activation_condition: self.activation()?.element,
-            deactivation_condition: self.deactivation()?.element,
+            deactivation_condition,
         });
         self.ensure_empty()?;
         result
     }
 
-    pub fn into_quest_action(
+    pub fn into_quest_stage_action(
         mut self,
         game_template: &mut GameTemplate,
     ) -> Result<PlayerAction, ParserError> {
@@ -570,14 +684,18 @@ impl GameTemplateSection {
             ));
         }
 
+        let quest_id = self.quest()?.element;
+        let stage_id = self.quest_stage()?.element;
+
         let activation_condition = format!("action_{}_activation", self.id_str);
         let deactivation_condition = format!("action_{}_deactivation", self.id_str);
         game_template.triggers.push(Trigger::new(
             activation_condition.clone(),
             event_count(
-                GameEvent::Action(GameAction::ActivateQuest {
-                    id: self.id_str.clone(),
-                }),
+                GameEvent::QuestStageActivated {
+                    quest_id,
+                    stage_id,
+                },
                 1,
             ),
             vec![GameAction::ActivateAction {
@@ -588,15 +706,17 @@ impl GameTemplateSection {
             deactivation_condition.clone(),
             or(vec![
                 event_count(
-                    GameEvent::Action(GameAction::CompleteQuest {
-                        id: self.id_str.clone(),
+                    GameEvent::Action(GameAction::CompleteQuestStage {
+                        quest_id: quest_id.clone(),
+                        stage_id: stage_id.clone(),
                     }),
                     1,
                 ),
                 event_count(
-                    GameEvent::Action(GameAction::FailQuest {
-                        id: self.id_str.clone(),
-                    }),
+                    GameEvent::QuestStageFailed {
+                        quest_id: quest_id.clone(),
+                        stage_id: stage_id.clone(),
+                    },
                     1,
                 ),
             ]),
@@ -621,27 +741,102 @@ impl GameTemplateSection {
         result
     }
 
-    pub fn into_quest(mut self) -> Result<Quest, ParserError> {
+    pub fn into_quest(mut self, game_template: &mut GameTemplate) -> Result<Quest, ParserError> {
         let result = Ok(Quest {
             id_str: self.id_str.clone(),
             title: self.title()?.element,
-            description: self.description()?.element,
+            description: self
+                .description
+                .take()
+                .map(|description| description.element),
             activation_condition: self.activation()?.element,
-            completion_condition: self.completion()?.element,
-            failure_condition: self.failure()?.element,
+            failure_condition: self.deactivation()?.element,
+            stages: self
+                .subsections()?
+                .element
+                .into_iter()
+                .enumerate()
+                .map(|(index, subsection)| {
+                    subsection.into_quest_stage(
+                        self.id_str.clone(),
+                        game_template,
+                    )
+                })
+                .collect::<Result<Vec<_>, _>>()?,
         });
         self.ensure_empty()?;
         result
     }
 
-    pub fn into_location(mut self) -> Result<Location, ParserError> {
+    pub fn into_quest_stage(
+        mut self,
+        quest_id: String,
+        game_template: &mut GameTemplate,
+    ) -> Result<QuestStage, ParserError> {
+        let completion_condition = self.completion()?.element;
+        let completion_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == completion_condition)
+            .unwrap();
+        let completion_trigger_condition =
+            mem::replace(&mut completion_trigger.condition, TriggerCondition::Never);
+        completion_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::QuestStageActivated { quest_id, stage_id: self.id_str.clone() },
+                },
+                completion_trigger_condition,
+            ],
+        };
+
+        let result = Ok(QuestStage {
+            id_str: self.id_str.clone(),
+            description: self
+                .description
+                .take()
+                .map(|description| description.element),
+            task: self.task()?.element,
+            completion_condition,
+        });
+        self.ensure_empty()?;
+        result
+    }
+
+    pub fn into_location(
+        mut self,
+        game_template: &mut GameTemplate,
+    ) -> Result<Location, ParserError> {
+        let deactivation_condition = self.deactivation()?.element;
+        let deactivation_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == deactivation_condition)
+            .unwrap();
+        let deactivation_trigger_condition =
+            mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+        deactivation_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::Action(GameAction::ActivateLocation {
+                        id: self.id_str.clone(),
+                    }),
+                },
+                deactivation_trigger_condition,
+            ],
+        };
+
         let result = Ok(Location {
             id_str: self.id_str.clone(),
             name: self.name()?.element,
             url: self.url.take().map(|url| url.element),
             events: self.events()?.element.into_iter().map(Into::into).collect(),
             activation_condition: self.activation()?.element,
-            deactivation_condition: self.deactivation()?.element,
+            deactivation_condition,
         });
         self.ensure_empty()?;
         result
@@ -673,11 +868,23 @@ impl GameTemplateSection {
                 .rev()
                 .find(|trigger| trigger.id_str == deactivation_condition)
                 .unwrap();
-            deactivation_trigger.condition |= TriggerCondition::EventCount {
+            let deactivation_trigger_condition =
+                mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+            deactivation_trigger.condition = TriggerCondition::EventCount {
                 required: 1,
                 event: GameEvent::Action(GameAction::DeactivateMonster {
                     id: monster.clone(),
                 }),
+            } | TriggerCondition::Sequence {
+                conditions: vec![
+                    TriggerCondition::EventCount {
+                        required: 1,
+                        event: GameEvent::Action(GameAction::ActivateExplorationEvent {
+                            id: self.id_str.clone(),
+                        }),
+                    },
+                    deactivation_trigger_condition,
+                ],
             };
         }
 
@@ -709,13 +916,37 @@ impl GameTemplateSection {
         result
     }
 
-    pub fn into_monster(mut self) -> Result<Monster, ParserError> {
+    pub fn into_monster(
+        mut self,
+        game_template: &mut GameTemplate,
+    ) -> Result<Monster, ParserError> {
+        let deactivation_condition = self.deactivation()?.element;
+        let deactivation_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == deactivation_condition)
+            .unwrap();
+        let deactivation_trigger_condition =
+            mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+        deactivation_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::Action(GameAction::ActivateMonster {
+                        id: self.id_str.clone(),
+                    }),
+                },
+                deactivation_trigger_condition,
+            ],
+        };
+
         let result = Ok(Monster {
             id_str: self.id_str.clone(),
             name: self.name()?.element,
             hitpoints: self.hitpoints()?.element,
             activation_condition: self.activation()?.element,
-            deactivation_condition: self.deactivation()?.element,
+            deactivation_condition,
         });
         self.ensure_empty()?;
         result

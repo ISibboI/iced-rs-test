@@ -80,7 +80,10 @@ pub enum ExplorationEventState {
     Active {
         activation_time: GameTime,
     },
-    Deactivated {
+    DeactivatedWhileInactive {
+        deactivation_time: GameTime,
+    },
+    DeactivatedWhileActive {
         activation_time: GameTime,
         deactivation_time: GameTime,
     },
@@ -218,7 +221,11 @@ impl ExplorationEventState {
     }
 
     pub fn is_deactivated(&self) -> bool {
-        matches!(self, ExplorationEventState::Deactivated { .. })
+        matches!(
+            self,
+            ExplorationEventState::DeactivatedWhileInactive { .. }
+                | ExplorationEventState::DeactivatedWhileActive { .. }
+        )
     }
 }
 

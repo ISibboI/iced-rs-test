@@ -1,4 +1,4 @@
-use crate::game_state::story::quests::{CompiledQuest, QuestId, QuestState};
+use crate::game_state::story::quests::{CompiledQuest, QuestId, QuestStageId, QuestState};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use serde::{Deserialize, Serialize};
@@ -22,6 +22,7 @@ pub struct Story {
     active_failed_quests_by_failure_time: BTreeSet<(GameTime, QuestId)>,
 }
 
+// TODO ignore completed stages when their quest has failed already
 impl Story {
     pub fn new(quests: Vec<CompiledQuest>) -> Self {
         let inactive_quests = quests.iter().map(|quest| quest.id).collect();
@@ -63,6 +64,7 @@ impl Story {
             .map(|(_, quest_id)| self.quest(*quest_id))
     }
 
+    // TODO make work with new quest stage system
     pub fn activate_quest(
         &mut self,
         quest_id: QuestId,
@@ -81,9 +83,10 @@ impl Story {
         iter::empty()
     }
 
-    pub fn complete_quest(
+    // TODO make work with new quest stage system
+    pub fn complete_quest_stage(
         &mut self,
-        quest_id: QuestId,
+        quest_stage_id: QuestStageId,
         time: GameTime,
     ) -> impl Iterator<Item = CompiledGameEvent> {
         let quest = self.quest_mut(quest_id);

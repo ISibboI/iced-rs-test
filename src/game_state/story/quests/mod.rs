@@ -22,19 +22,22 @@ use serde::{Deserialize, Serialize};
     ]
 }*/
 
-#[derive(
-    Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
-)]
-pub struct QuestId(pub usize);
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quest {
     pub id_str: String,
     pub title: String,
-    pub description: String,
+    pub description: Option<String>,
     pub activation_condition: String,
-    pub completion_condition: String,
     pub failure_condition: String,
+    pub stages: Vec<QuestStage>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestStage {
+    pub id_str: String,
+    pub description: Option<String>,
+    pub task: String,
+    pub completion_condition: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -42,26 +45,35 @@ pub struct CompiledQuest {
     pub id: QuestId,
     pub id_str: String,
     pub title: String,
-    pub description: String,
+    pub description: Option<String>,
     pub activation_condition: TriggerHandle,
-    pub completion_condition: TriggerHandle,
     pub failure_condition: TriggerHandle,
+    pub stages: Vec<CompiledQuestStage>,
+    active_stage: usize,
     pub state: QuestState,
 }
 
-impl Quest {
-    pub fn compile(self, id_maps: &IdMaps) -> CompiledQuest {
-        CompiledQuest {
-            id: *id_maps.quests.get(&self.id_str).unwrap(),
-            id_str: self.id_str,
-            title: self.title,
-            description: self.description,
-            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
-            completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
-            failure_condition: *id_maps.triggers.get(&self.failure_condition).unwrap(),
-            state: QuestState::Inactive,
-        }
-    }
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CompiledQuestStage {
+    pub id: QuestStageId,
+    pub id_str: String,
+    pub description: Option<String>,
+    pub task: String,
+    pub completion_condition: TriggerHandle,
+    pub state: QuestState,
+}
+
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
+)]
+pub struct QuestId(pub usize);
+
+#[derive(
+    Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
+)]
+pub struct QuestStageId {
+    pub quest_id: QuestId,
+    pub stage_id: usize,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
@@ -81,6 +93,46 @@ pub enum QuestState {
         activation_time: GameTime,
         failure_time: GameTime,
     },
+}
+
+impl Quest {
+    pub fn compile(self, id_maps: &IdMaps) -> CompiledQuest {
+        let id = *id_maps.quests.get(&self.id_str).unwrap();
+        CompiledQuest {
+            id,
+            id_str: self.id_str,
+            title: self.title,
+            description: self.description,
+            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
+            failure_condition: *id_maps.triggers.get(&self.failure_condition).unwrap(),
+            stages: self
+                .stages
+                .into_iter()
+                .map(|stage| stage.compile(id_maps, id))
+                .collect(),
+            active_stage: 0,
+            state: QuestState::Inactive,
+        }
+    }
+}
+
+impl QuestStage {
+    pub fn compile(self, id_maps: &IdMaps, quest_id: QuestId) -> CompiledQuestStage {
+        CompiledQuestStage {
+            id: *id_maps.quest_stages.get(&(quest_id, self.completion_condition)).unwrap(),
+            id_str: self.id_str.clone(),
+            description: self.description,
+            task: self.task,
+            completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
+            state: QuestState::Inactive,
+        }
+    }
+}
+
+impl CompiledQuest {
+    pub fn active_stage(&self) -> Option<&CompiledQuestStage> {
+        self.stages.get(self.active_stage)
+    }
 }
 
 #[allow(dead_code)]
@@ -126,6 +178,6 @@ impl QuestState {
 
 impl From<usize> for QuestId {
     fn from(n: usize) -> Self {
-        QuestId(n)
+        Self(n)
     }
 }

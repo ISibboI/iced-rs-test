@@ -1,6 +1,6 @@
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::PlayerActionId;
-use crate::game_state::story::quests::QuestId;
+use crate::game_state::story::quests::{QuestId, QuestStageId};
 use crate::game_state::world::events::ExplorationEventId;
 use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::MonsterId;
@@ -11,6 +11,9 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone)]
 pub enum GameEvent {
     Action(GameAction),
+    QuestStageActivated { quest_id: String, stage_id: String },
+    QuestStageFailed { quest_id: String, stage_id: String },
+    QuestCompleted { id: String },
     CurrencyChanged { value: Currency },
     PlayerLevelChanged { value: u64 },
     PlayerStrengthChanged { value: u64 },
@@ -31,7 +34,7 @@ pub enum GameEvent {
 #[derive(Debug, Clone)]
 pub enum GameAction {
     ActivateQuest { id: String },
-    CompleteQuest { id: String },
+    CompleteQuestStage { quest_id: String, stage_id: String },
     FailQuest { id: String },
     ActivateAction { id: String },
     DeactivateAction { id: String },
@@ -46,6 +49,9 @@ pub enum GameAction {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum CompiledGameEvent {
     Action(CompiledGameAction),
+    QuestStageActivated { id: QuestStageId },
+    QuestStageFailed { id: QuestStageId },
+    QuestCompleted { id: QuestId },
     CurrencyChanged { value: Currency },
     PlayerLevelChanged { value: u64 },
     PlayerStrengthChanged { value: u64 },
@@ -66,6 +72,9 @@ pub enum CompiledGameEvent {
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 pub enum CompiledGameEventIdentifier {
     Action(CompiledGameAction),
+    QuestStageActivated { id: QuestStageId },
+    QuestStageFailed { id: QuestStageId },
+    QuestCompleted { id: QuestId },
     CurrencyChanged,
     PlayerLevelChanged,
     PlayerStrengthChanged,
@@ -86,7 +95,7 @@ pub enum CompiledGameEventIdentifier {
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
 pub enum CompiledGameAction {
     ActivateQuest { id: QuestId },
-    CompleteQuest { id: QuestId },
+    CompleteQuestStage { id: QuestStageId },
     FailQuest { id: QuestId },
     ActivateAction { id: PlayerActionId },
     DeactivateAction { id: PlayerActionId },
@@ -102,6 +111,23 @@ impl GameEvent {
     pub fn compile(self, id_maps: &IdMaps) -> CompiledGameEvent {
         match self {
             GameEvent::Action(action) => CompiledGameEvent::Action(action.compile(id_maps)),
+            GameEvent::QuestStageActivated { quest_id, stage_id } => {
+                let quest_id = *id_maps.quests.get(&quest_id).unwrap();
+                let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
+                CompiledGameEvent::QuestStageActivated {
+                    id,
+                }
+            },
+            GameEvent::QuestStageFailed { quest_id, stage_id } => {
+                let quest_id = *id_maps.quests.get(&quest_id).unwrap();
+                let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
+                CompiledGameEvent::QuestStageFailed {
+                    id,
+                }
+            },
+            GameEvent::QuestCompleted { id } => CompiledGameEvent::QuestCompleted {
+                id: *id_maps.quests.get(&id).unwrap(),
+            },
             GameEvent::CurrencyChanged { value } => CompiledGameEvent::CurrencyChanged { value },
             GameEvent::PlayerLevelChanged { value } => {
                 CompiledGameEvent::PlayerLevelChanged { value }
@@ -157,8 +183,12 @@ impl GameAction {
             GameAction::ActivateQuest { id } => CompiledGameAction::ActivateQuest {
                 id: *id_maps.quests.get(&id).unwrap(),
             },
-            GameAction::CompleteQuest { id } => CompiledGameAction::CompleteQuest {
-                id: *id_maps.quests.get(&id).unwrap(),
+            GameAction::CompleteQuestStage { quest_id, stage_id } => {
+                let quest_id = *id_maps.quests.get(&quest_id).unwrap();
+                let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
+                CompiledGameAction::CompleteQuestStage {
+                    id,
+                }
             },
             GameAction::FailQuest { id } => CompiledGameAction::FailQuest {
                 id: *id_maps.quests.get(&id).unwrap(),
@@ -203,6 +233,15 @@ impl TriggerEvent for CompiledGameEvent {
         match self {
             CompiledGameEvent::Action(action) => {
                 CompiledGameEventIdentifier::Action(action.clone())
+            }
+            CompiledGameEvent::QuestStageActivated { id } => {
+                CompiledGameEventIdentifier::QuestStageActivated { id: *id }
+            }
+            CompiledGameEvent::QuestStageFailed { id } => {
+                CompiledGameEventIdentifier::QuestStageFailed { id: *id }
+            }
+            CompiledGameEvent::QuestCompleted { id } => {
+                CompiledGameEventIdentifier::QuestCompleted { id: *id }
             }
             CompiledGameEvent::CurrencyChanged { .. } => {
                 CompiledGameEventIdentifier::CurrencyChanged

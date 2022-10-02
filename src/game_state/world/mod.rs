@@ -131,8 +131,13 @@ impl World {
         let event = self.event_mut(event_id);
         assert!(event.state.is_active());
         match event.state {
+            ExplorationEventState::Inactive => {
+                event.state = ExplorationEventState::DeactivatedWhileInactive {
+                    deactivation_time: time,
+                };
+            }
             ExplorationEventState::Active { activation_time } => {
-                event.state = ExplorationEventState::Deactivated {
+                event.state = ExplorationEventState::DeactivatedWhileActive {
                     activation_time,
                     deactivation_time: time,
                 };

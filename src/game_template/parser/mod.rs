@@ -43,7 +43,7 @@ async fn parse(
         next_token = match token.kind() {
             TokenKind::Section(section) => {
                 let (section_template, next_token) =
-                    parse_section(game_template, tokens, section).await?;
+                    parse_section(game_template, tokens, section, None).await?;
                 match section {
                     SectionTokenKind::Initialisation => {
                         if game_template
@@ -58,24 +58,28 @@ async fn parse(
                         };
                     }
                     SectionTokenKind::BuiltinAction => {
-                        game_template
-                            .actions
-                            .push(section_template.into_builtin_action()?);
+                        let builtin_action = section_template.into_builtin_action(game_template)?;
+                        game_template.actions.push(builtin_action);
                     }
                     SectionTokenKind::Action => {
-                        game_template.actions.push(section_template.into_action()?);
+                        let action = section_template.into_action(game_template)?;
+                        game_template.actions.push(action);
                     }
-                    SectionTokenKind::QuestAction => {
-                        let quest_action = section_template.into_quest_action(game_template)?;
+                    SectionTokenKind::QuestStageAction => {
+                        let quest_action =
+                            section_template.into_quest_stage_action(game_template)?;
                         game_template.actions.push(quest_action);
                     }
                     SectionTokenKind::Quest => {
-                        game_template.quests.push(section_template.into_quest()?);
+                        let quest = section_template.into_quest(game_template)?;
+                        game_template.quests.push(quest);
+                    }
+                    SectionTokenKind::QuestStage => {
+                        return Err(token.error(|_| ParserErrorKind::UnexpectedQuestStage));
                     }
                     SectionTokenKind::Location => {
-                        game_template
-                            .locations
-                            .push(section_template.into_location()?);
+                        let location = section_template.into_location(game_template)?;
+                        game_template.locations.push(location);
                     }
                     SectionTokenKind::ExplorationEvent => {
                         let exploration_event =
@@ -83,9 +87,8 @@ async fn parse(
                         game_template.exploration_events.push(exploration_event);
                     }
                     SectionTokenKind::Monster => {
-                        game_template
-                            .monsters
-                            .push(section_template.into_monster()?);
+                        let monster = section_template.into_monster(game_template)?;
+                        game_template.monsters.push(monster);
                     }
                 }
                 next_token
@@ -145,7 +148,7 @@ async fn parse_trigger_condition(
         }
         "and" => and(parse_trigger_condition_sequence(tokens, true).await?),
         "or" => or(parse_trigger_condition_sequence(tokens, true).await?),
-        "sequence" => sequence(parse_trigger_condition_sequence(tokens, true).await?),
+        "sequence" | "seq" => sequence(parse_trigger_condition_sequence(tokens, true).await?),
         "any_n" => {
             expect_open_parenthesis(tokens).await?;
             let count = expect_integer(tokens).await?.element;
@@ -199,10 +202,7 @@ async fn parse_trigger_condition(
             expect_open_parenthesis(tokens).await?;
             let quest = expect_identifier(tokens).await?.element;
             expect_close_parenthesis(tokens).await?;
-            event_count(
-                GameEvent::Action(GameAction::CompleteQuest { id: quest }),
-                1,
-            )
+            event_count(GameEvent::QuestCompleted { id: quest }, 1)
         }
         "quest_failed" => {
             expect_open_parenthesis(tokens).await?;

@@ -244,8 +244,8 @@ impl GameState {
             CompiledGameAction::ActivateQuest { id } => {
                 Box::new(self.story.activate_quest(id, self.current_time))
             }
-            CompiledGameAction::CompleteQuest { id } => {
-                Box::new(self.story.complete_quest(id, self.current_time))
+            CompiledGameAction::CompleteQuestStage { id } => {
+                Box::new(self.story.complete_quest_stage(id, self.current_time))
             }
             CompiledGameAction::FailQuest { id } => {
                 Box::new(self.story.fail_quest(id, self.current_time))
