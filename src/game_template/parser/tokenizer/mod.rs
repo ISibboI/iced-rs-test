@@ -166,7 +166,10 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                     "task" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Task), range))),
 
                     "quest" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Quest), range))),
-                    "quest_stage" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::QuestStage), range))),
+                    "quest_stage" => Ok(Some(Token::new(
+                        TokenKind::Key(KeyTokenKind::QuestStage),
+                        range,
+                    ))),
 
                     "str" | "strength" => Ok(Some(Token::new(
                         TokenKind::Key(KeyTokenKind::Strength),

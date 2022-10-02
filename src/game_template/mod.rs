@@ -62,22 +62,25 @@ impl IdMaps {
                 ))
             },
         )?;
-        let mut quest_stages = game_template
-            .quests
-            .iter()
-            .flat_map(|quest| {
-                let quest_id = *quests.get(&quest.id_str).unwrap();
-                quest.stages.iter().enumerate().map(|(index, stage)| {
-                    (
-                        (quest_id, stage.id_str.clone()),
-                        QuestStageId {
-                            quest_id,
-                            stage_id: index,
-                        },
-                    )
-                })
-            })
-            .collect();
+
+        let mut quest_stages = HashMap::new();
+        for quest in &game_template.quests {
+            let quest_id = *quests.get(&quest.id_str).unwrap();
+            for (index, stage) in quest.stages.iter().enumerate() {
+                let previous = quest_stages.insert(
+                    (quest_id, stage.id_str.clone()),
+                    QuestStageId {
+                        quest_id,
+                        stage_id: index,
+                    },
+                );
+                if previous.is_some() {
+                    return Err(ParserError::without_coordinates(
+                        ParserErrorKind::DuplicateQuestStageIdentifier(stage.id_str.clone()),
+                    ));
+                }
+            }
+        }
 
         Ok(Self {
             actions: build_id_map(

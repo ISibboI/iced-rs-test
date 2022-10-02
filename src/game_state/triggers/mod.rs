@@ -114,17 +114,13 @@ impl GameEvent {
             GameEvent::QuestStageActivated { quest_id, stage_id } => {
                 let quest_id = *id_maps.quests.get(&quest_id).unwrap();
                 let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
-                CompiledGameEvent::QuestStageActivated {
-                    id,
-                }
-            },
+                CompiledGameEvent::QuestStageActivated { id }
+            }
             GameEvent::QuestStageFailed { quest_id, stage_id } => {
                 let quest_id = *id_maps.quests.get(&quest_id).unwrap();
                 let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
-                CompiledGameEvent::QuestStageFailed {
-                    id,
-                }
-            },
+                CompiledGameEvent::QuestStageFailed { id }
+            }
             GameEvent::QuestCompleted { id } => CompiledGameEvent::QuestCompleted {
                 id: *id_maps.quests.get(&id).unwrap(),
             },
@@ -186,10 +182,8 @@ impl GameAction {
             GameAction::CompleteQuestStage { quest_id, stage_id } => {
                 let quest_id = *id_maps.quests.get(&quest_id).unwrap();
                 let id = *id_maps.quest_stages.get(&(quest_id, stage_id)).unwrap();
-                CompiledGameAction::CompleteQuestStage {
-                    id,
-                }
-            },
+                CompiledGameAction::CompleteQuestStage { id }
+            }
             GameAction::FailQuest { id } => CompiledGameAction::FailQuest {
                 id: *id_maps.quests.get(&id).unwrap(),
             },

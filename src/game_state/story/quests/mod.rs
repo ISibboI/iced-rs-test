@@ -49,7 +49,6 @@ pub struct CompiledQuest {
     pub activation_condition: TriggerHandle,
     pub failure_condition: TriggerHandle,
     pub stages: Vec<CompiledQuestStage>,
-    active_stage: usize,
     pub state: QuestState,
 }
 
@@ -60,7 +59,7 @@ pub struct CompiledQuestStage {
     pub description: Option<String>,
     pub task: String,
     pub completion_condition: TriggerHandle,
-    pub state: QuestState,
+    pub state: QuestStageState,
 }
 
 #[derive(
@@ -78,6 +77,26 @@ pub struct QuestStageId {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum QuestState {
+    Inactive,
+    Active {
+        activation_time: GameTime,
+        active_stage: usize,
+    },
+    Completed {
+        activation_time: GameTime,
+        completion_time: GameTime,
+    },
+    FailedWhileInactive {
+        failure_time: GameTime,
+    },
+    FailedWhileActive {
+        activation_time: GameTime,
+        failure_time: GameTime,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+pub enum QuestStageState {
     Inactive,
     Active {
         activation_time: GameTime,
@@ -110,7 +129,6 @@ impl Quest {
                 .into_iter()
                 .map(|stage| stage.compile(id_maps, id))
                 .collect(),
-            active_stage: 0,
             state: QuestState::Inactive,
         }
     }
@@ -119,19 +137,32 @@ impl Quest {
 impl QuestStage {
     pub fn compile(self, id_maps: &IdMaps, quest_id: QuestId) -> CompiledQuestStage {
         CompiledQuestStage {
-            id: *id_maps.quest_stages.get(&(quest_id, self.completion_condition)).unwrap(),
+            id: *id_maps
+                .quest_stages
+                .get(&(quest_id, self.completion_condition.clone()))
+                .unwrap(),
             id_str: self.id_str.clone(),
             description: self.description,
             task: self.task,
             completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
-            state: QuestState::Inactive,
+            state: QuestStageState::Inactive,
         }
     }
 }
 
 impl CompiledQuest {
     pub fn active_stage(&self) -> Option<&CompiledQuestStage> {
-        self.stages.get(self.active_stage)
+        match self.state {
+            QuestState::Active { active_stage, .. } => self.stages.get(active_stage),
+            _ => None,
+        }
+    }
+
+    pub fn active_stage_mut(&mut self) -> Option<&mut CompiledQuestStage> {
+        match self.state {
+            QuestState::Active { active_stage, .. } => self.stages.get_mut(active_stage),
+            _ => None,
+        }
     }
 }
 
@@ -149,10 +180,19 @@ impl QuestState {
         matches!(self, QuestState::Completed { .. })
     }
 
+    pub fn is_failed(&self) -> bool {
+        matches!(
+            self,
+            QuestState::FailedWhileInactive { .. } | QuestState::FailedWhileActive { .. }
+        )
+    }
+
     pub fn activation_time(&self) -> Option<GameTime> {
         match self {
             QuestState::Inactive => None,
-            QuestState::Active { activation_time } => Some(*activation_time),
+            QuestState::Active {
+                activation_time, ..
+            } => Some(*activation_time),
             QuestState::Completed {
                 activation_time, ..
             } => Some(*activation_time),
@@ -172,6 +212,68 @@ impl QuestState {
             } => Some(*completion_time),
             QuestState::FailedWhileInactive { .. } => None,
             QuestState::FailedWhileActive { .. } => None,
+        }
+    }
+
+    pub fn active_stage(&self) -> Option<usize> {
+        match self {
+            QuestState::Active { active_stage, .. } => Some(*active_stage),
+            _ => None,
+        }
+    }
+
+    pub fn increment_active_stage(&mut self) {
+        match self {
+            QuestState::Active { active_stage, .. } => *active_stage += 1,
+            _ => panic!(),
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl QuestStageState {
+    pub fn is_inactive(&self) -> bool {
+        matches!(self, QuestStageState::Inactive)
+    }
+
+    pub fn is_active(&self) -> bool {
+        matches!(self, QuestStageState::Active { .. })
+    }
+
+    pub fn is_completed(&self) -> bool {
+        matches!(self, QuestStageState::Completed { .. })
+    }
+
+    pub fn is_failed(&self) -> bool {
+        matches!(
+            self,
+            QuestStageState::FailedWhileInactive { .. } | QuestStageState::FailedWhileActive { .. }
+        )
+    }
+
+    pub fn activation_time(&self) -> Option<GameTime> {
+        match self {
+            QuestStageState::Inactive => None,
+            QuestStageState::Active { activation_time } => Some(*activation_time),
+            QuestStageState::Completed {
+                activation_time, ..
+            } => Some(*activation_time),
+            QuestStageState::FailedWhileInactive { .. } => None,
+            QuestStageState::FailedWhileActive {
+                activation_time, ..
+            } => Some(*activation_time),
+        }
+    }
+
+    pub fn completion_time(&self) -> Option<GameTime> {
+        match self {
+            QuestStageState::Inactive => None,
+            QuestStageState::Active { .. } => None,
+            QuestStageState::Completed {
+                completion_time, ..
+            } => Some(*completion_time),
+            QuestStageState::FailedWhileInactive { .. } => None,
+            QuestStageState::FailedWhileActive { .. } => None,
         }
     }
 }

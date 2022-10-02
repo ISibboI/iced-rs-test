@@ -48,7 +48,7 @@ pub enum ParserErrorKind {
     AllWeightsZero,
     IllegalActionType(PlayerActionType),
     BeginWithoutEnd,
-    EndWithoutBegin,
+    QuestHasNoStages,
 
     MissingSectionInitialisation,
     MissingActionWait,

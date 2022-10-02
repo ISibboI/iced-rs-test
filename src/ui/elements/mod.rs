@@ -153,18 +153,23 @@ pub fn scrollable_quest_column<'a, T: 'a>(
         .padding(5)
         .push(Text::new("Active quests:").size(24));
     for quest in story.iter_active_quests_by_activation_time().rev() {
-        let (progress, goal) = triggers.progress(quest.completion_condition).unwrap();
+        let (progress, goal) = triggers
+            .progress(quest.active_stage().unwrap().completion_condition)
+            .unwrap();
         quest_column = quest_column
             .push(Text::new(&quest.title))
-            .push(Text::new(&quest.description).size(16))
+            .push(Text::new(&quest.active_stage().unwrap().task).size(16))
             .push(ProgressBar::new(0.0..=goal as f32, progress as f32).height(Length::Units(10)));
     }
 
     quest_column = quest_column.push(Text::new("Completed quests:").size(24));
     for quest in story.iter_completed_quests_by_completion_time().rev() {
-        quest_column = quest_column
-            .push(Text::new(&quest.title))
-            .push(Text::new(&quest.description).size(16));
+        quest_column = quest_column.push(Text::new(&quest.title));
+        quest_column = if let Some(description) = &quest.description {
+            quest_column.push(Text::new(description).size(16))
+        } else {
+            quest_column
+        };
     }
 
     Scrollable::new(scrollable_state)

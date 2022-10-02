@@ -79,11 +79,11 @@ pub enum GameTemplateSectionErrorKind {
 }
 
 #[async_recursion]
-pub async fn parse_section(
+pub async fn parse_section<'parent_id: 'async_recursion>(
     game_template: &mut GameTemplate,
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
     section_kind: &SectionTokenKind,
-    parent_id: Option<&str>,
+    parent_id: Option<&'parent_id str>,
 ) -> Result<(GameTemplateSection, Option<Token>), ParserError> {
     trace!("Parsing section {section_kind:?}");
     let (id_str, id_range) = if section_kind == &SectionTokenKind::Initialisation {
@@ -91,7 +91,7 @@ pub async fn parse_section(
     } else {
         expect_identifier(tokens).await?.decompose()
     };
-    let mut section = GameTemplateSection::new(id_str, id_range);
+    let mut section = GameTemplateSection::new(id_str.clone(), id_range);
     let mut next_token = None;
 
     while let Some(token) = tokens.next().await? {
@@ -404,7 +404,17 @@ pub async fn parse_section(
                         tokens,
                         id_str.clone(),
                         vec![GameAction::CompleteQuestStage {
-                            quest_id: parent_id.ok_or_else(|| ParserError::with_coordinates(ParserErrorKind::UnexpectedField { id_str: id_str.clone(), field: "completion".to_string() }, range))?.to_string(),
+                            quest_id: parent_id
+                                .ok_or_else(|| {
+                                    ParserError::with_coordinates(
+                                        ParserErrorKind::UnexpectedField {
+                                            id_str: id_str.clone(),
+                                            field: "completion".to_string(),
+                                        },
+                                        range,
+                                    )
+                                })?
+                                .to_string(),
                             stage_id: id_str.clone(),
                         }],
                     )
@@ -463,8 +473,13 @@ pub async fn parse_section(
                         let (token_kind, token_range) = token.decompose();
                         match token_kind {
                             TokenKind::Section(section_token) => {
-                                let (subsection, next_section_token) =
-                                    parse_section(game_template, tokens, &section_token, Some(&id_str)).await?;
+                                let (subsection, next_section_token) = parse_section(
+                                    game_template,
+                                    tokens,
+                                    &section_token,
+                                    Some(&id_str),
+                                )
+                                .await?;
                                 subsections.push(subsection);
                                 current_section_token = next_section_token;
                             }
@@ -693,8 +708,8 @@ impl GameTemplateSection {
             activation_condition.clone(),
             event_count(
                 GameEvent::QuestStageActivated {
-                    quest_id,
-                    stage_id,
+                    quest_id: quest_id.clone(),
+                    stage_id: stage_id.clone(),
                 },
                 1,
             ),
@@ -712,13 +727,7 @@ impl GameTemplateSection {
                     }),
                     1,
                 ),
-                event_count(
-                    GameEvent::QuestStageFailed {
-                        quest_id: quest_id.clone(),
-                        stage_id: stage_id.clone(),
-                    },
-                    1,
-                ),
+                event_count(GameEvent::QuestStageFailed { quest_id, stage_id }, 1),
             ]),
             vec![GameAction::DeactivateAction {
                 id: self.id_str.clone(),
@@ -742,7 +751,7 @@ impl GameTemplateSection {
     }
 
     pub fn into_quest(mut self, game_template: &mut GameTemplate) -> Result<Quest, ParserError> {
-        let result = Ok(Quest {
+        let result = Quest {
             id_str: self.id_str.clone(),
             title: self.title()?.element,
             description: self
@@ -755,17 +764,19 @@ impl GameTemplateSection {
                 .subsections()?
                 .element
                 .into_iter()
-                .enumerate()
-                .map(|(index, subsection)| {
-                    subsection.into_quest_stage(
-                        self.id_str.clone(),
-                        game_template,
-                    )
-                })
+                .map(|subsection| subsection.into_quest_stage(self.id_str.clone(), game_template))
                 .collect::<Result<Vec<_>, _>>()?,
-        });
+        };
+
+        if result.stages.is_empty() {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::QuestHasNoStages,
+                self.id_range,
+            ));
+        }
+
         self.ensure_empty()?;
-        result
+        Ok(result)
     }
 
     pub fn into_quest_stage(
@@ -786,7 +797,10 @@ impl GameTemplateSection {
             conditions: vec![
                 TriggerCondition::EventCount {
                     required: 1,
-                    event: GameEvent::QuestStageActivated { quest_id, stage_id: self.id_str.clone() },
+                    event: GameEvent::QuestStageActivated {
+                        quest_id,
+                        stage_id: self.id_str.clone(),
+                    },
                 },
                 completion_trigger_condition,
             ],
