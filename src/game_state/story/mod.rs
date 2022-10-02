@@ -8,7 +8,7 @@ use std::iter;
 
 pub mod quests;
 
-#[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Story {
     quests: Vec<CompiledQuest>,
     inactive_quests: HashSet<QuestId>,

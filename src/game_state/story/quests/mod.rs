@@ -37,7 +37,7 @@ pub struct Quest {
     pub failure_condition: String,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledQuest {
     pub id: QuestId,
     pub id_str: String,
