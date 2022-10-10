@@ -1,7 +1,8 @@
 use crate::game_state::player_actions::{
     PlayerAction, PlayerActionId, PlayerActionType, PlayerActions,
 };
-use crate::game_state::story::quests::{Quest, QuestId, QuestStageId};
+use crate::game_state::story::quests::quest_stages::QuestStageId;
+use crate::game_state::story::quests::{Quest, QuestId};
 use crate::game_state::story::Story;
 use crate::game_state::triggers::{CompiledGameEvent, GameAction, GameEvent};
 use crate::game_state::world::events::{ExplorationEvent, ExplorationEventId};

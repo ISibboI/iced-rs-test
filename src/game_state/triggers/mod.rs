@@ -1,6 +1,7 @@
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::PlayerActionId;
-use crate::game_state::story::quests::{QuestId, QuestStageId};
+use crate::game_state::story::quests::quest_stages::QuestStageId;
+use crate::game_state::story::quests::QuestId;
 use crate::game_state::world::events::ExplorationEventId;
 use crate::game_state::world::locations::LocationId;
 use crate::game_state::world::monsters::MonsterId;

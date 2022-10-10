@@ -9,6 +9,25 @@ currency 0
 activation none
 deactivation never
 
+QUEST multistage_test
+title Multistage test
+description You woke up on the side of a road in a village unknown to you.
+activation none
+failure never
+BEGIN
+    QUEST_STAGE look_around_1
+    task Take a look around to figure out where you are.
+    completion action_count(1, train_str)
+
+    QUEST_STAGE look_around_2
+    task Second.
+    completion action_count(1, train_str)
+
+    QUEST_STAGE look_around_3
+    task Third a b dfg  sef rtca rcartr rrtr.
+    completion action_count(1, train_str)
+END
+
 QUEST look_around
 title Figure out where you are
 description You woke up on the side of a road in a village unknown to you.

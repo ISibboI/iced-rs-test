@@ -1,6 +1,9 @@
 use crate::game_state::time::GameTime;
+use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
+use log::debug;
+use quest_stages::{CompiledQuestStage, QuestStage, QuestStageId, QuestStageState};
 use serde::{Deserialize, Serialize};
 
 /*pub fn init_quests() -> Vec<Quest> {
@@ -22,6 +25,8 @@ use serde::{Deserialize, Serialize};
     ]
 }*/
 
+pub mod quest_stages;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Quest {
     pub id_str: String,
@@ -33,14 +38,6 @@ pub struct Quest {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct QuestStage {
-    pub id_str: String,
-    pub description: Option<String>,
-    pub task: String,
-    pub completion_condition: String,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CompiledQuest {
     pub id: QuestId,
     pub id_str: String,
@@ -48,32 +45,14 @@ pub struct CompiledQuest {
     pub description: Option<String>,
     pub activation_condition: TriggerHandle,
     pub failure_condition: TriggerHandle,
-    pub stages: Vec<CompiledQuestStage>,
-    pub state: QuestState,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CompiledQuestStage {
-    pub id: QuestStageId,
-    pub id_str: String,
-    pub description: Option<String>,
-    pub task: String,
-    pub completion_condition: TriggerHandle,
-    pub state: QuestStageState,
+    stages: Vec<CompiledQuestStage>,
+    state: QuestState,
 }
 
 #[derive(
     Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
 )]
 pub struct QuestId(pub usize);
-
-#[derive(
-    Debug, Clone, Copy, Serialize, Deserialize, Default, Eq, PartialEq, Hash, Ord, PartialOrd,
-)]
-pub struct QuestStageId {
-    pub quest_id: QuestId,
-    pub stage_id: usize,
-}
 
 #[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
 pub enum QuestState {
@@ -92,26 +71,17 @@ pub enum QuestState {
     FailedWhileActive {
         activation_time: GameTime,
         failure_time: GameTime,
+        failed_stage: usize,
     },
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Eq, PartialEq)]
-pub enum QuestStageState {
+#[derive(Debug, Clone)]
+pub enum CurrentQuestStage<'a> {
     Inactive,
-    Active {
-        activation_time: GameTime,
-    },
-    Completed {
-        activation_time: GameTime,
-        completion_time: GameTime,
-    },
-    FailedWhileInactive {
-        failure_time: GameTime,
-    },
-    FailedWhileActive {
-        activation_time: GameTime,
-        failure_time: GameTime,
-    },
+    Active(&'a CompiledQuestStage),
+    Completed,
+    FailedWhileInactive,
+    FailedWhileActive(&'a CompiledQuestStage),
 }
 
 impl Quest {
@@ -134,35 +104,182 @@ impl Quest {
     }
 }
 
-impl QuestStage {
-    pub fn compile(self, id_maps: &IdMaps, quest_id: QuestId) -> CompiledQuestStage {
-        CompiledQuestStage {
-            id: *id_maps
-                .quest_stages
-                .get(&(quest_id, self.id_str.clone()))
-                .unwrap(),
-            id_str: self.id_str.clone(),
-            description: self.description,
-            task: self.task,
-            completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
-            state: QuestStageState::Inactive,
-        }
-    }
-}
-
 impl CompiledQuest {
     pub fn active_stage(&self) -> Option<&CompiledQuestStage> {
         match self.state {
-            QuestState::Active { active_stage, .. } => self.stages.get(active_stage),
+            QuestState::Active { active_stage, .. } => Some(self.stages.get(active_stage).unwrap()),
             _ => None,
         }
     }
 
     pub fn active_stage_mut(&mut self) -> Option<&mut CompiledQuestStage> {
         match self.state {
-            QuestState::Active { active_stage, .. } => self.stages.get_mut(active_stage),
+            QuestState::Active { active_stage, .. } => {
+                Some(self.stages.get_mut(active_stage).unwrap())
+            }
             _ => None,
         }
+    }
+
+    pub fn failed_stage(&self) -> Option<&CompiledQuestStage> {
+        match self.state {
+            QuestState::FailedWhileInactive { .. } => Some(self.stages.first().unwrap()),
+            QuestState::FailedWhileActive { failed_stage, .. } => {
+                Some(self.stages.get(failed_stage).unwrap())
+            }
+            _ => None,
+        }
+    }
+
+    pub fn state(&self) -> &QuestState {
+        &self.state
+    }
+
+    pub fn completed_stages(&self) -> impl Iterator<Item = &'_ CompiledQuestStage> {
+        self.stages.iter().take(match self.state {
+            QuestState::Inactive => 0,
+            QuestState::Active { active_stage, .. } => active_stage,
+            QuestState::Completed { .. } => self.stages.len(),
+            QuestState::FailedWhileInactive { .. } => 0,
+            QuestState::FailedWhileActive { failed_stage, .. } => failed_stage,
+        })
+    }
+
+    pub fn current_stage(&self) -> CurrentQuestStage<'_> {
+        match self.state {
+            QuestState::Inactive => CurrentQuestStage::Inactive,
+            QuestState::Active { .. } => CurrentQuestStage::Active(self.active_stage().unwrap()),
+            QuestState::Completed { .. } => CurrentQuestStage::Completed,
+            QuestState::FailedWhileInactive { .. } => CurrentQuestStage::FailedWhileInactive,
+            QuestState::FailedWhileActive { .. } => {
+                CurrentQuestStage::FailedWhileActive(self.failed_stage().unwrap())
+            }
+        }
+    }
+
+    pub fn activate(&mut self, time: GameTime) -> impl Iterator<Item = CompiledGameEvent> {
+        assert!(self.state.is_inactive());
+        self.state = QuestState::Active {
+            activation_time: time,
+            active_stage: 0,
+        };
+        let stage = self.stages.first_mut().unwrap();
+        assert!(stage.state.is_inactive());
+        stage.state = QuestStageState::Active {
+            activation_time: time,
+        };
+
+        Some(CompiledGameEvent::QuestStageActivated {
+            id: QuestStageId {
+                quest_id: self.id,
+                stage_id: 0,
+            },
+        })
+        .into_iter()
+    }
+
+    pub fn complete_quest_stage(
+        &mut self,
+        quest_stage_id: QuestStageId,
+        time: GameTime,
+        complete_quest_callback: impl FnOnce(GameTime),
+    ) -> Box<dyn Iterator<Item = CompiledGameEvent>> // this should be possible with impl Trait once #79415 is fixed
+    {
+        assert!(self.state.is_active());
+        debug!(
+            "Completing quest stage {} {}",
+            self.id_str,
+            self.active_stage().unwrap().id_str
+        );
+        let active_stage = self.active_stage_mut().unwrap();
+        assert!(active_stage.state.is_active());
+        assert_eq!(active_stage.id, quest_stage_id);
+        let activation_time = active_stage.state.activation_time().unwrap();
+        active_stage.state = QuestStageState::Completed {
+            activation_time,
+            completion_time: time,
+        };
+
+        let new_stage_id = self.state.increment_active_stage();
+        if let Some(active_stage) = self.stages.get_mut(new_stage_id) {
+            assert!(active_stage.state.is_inactive());
+            active_stage.state = QuestStageState::Active {
+                activation_time: time,
+            };
+            Box::new(
+                Some(CompiledGameEvent::QuestStageActivated {
+                    id: QuestStageId {
+                        quest_id: self.id,
+                        stage_id: self.state.active_stage().unwrap(),
+                    },
+                })
+                .into_iter(),
+            )
+        } else {
+            let activation_time = self.state.activation_time().unwrap();
+            debug!("Completing quest {}", self.id_str);
+            self.state = QuestState::Completed {
+                activation_time,
+                completion_time: time,
+            };
+
+            complete_quest_callback(activation_time);
+            Box::new(Some(CompiledGameEvent::QuestCompleted { id: self.id }).into_iter())
+        }
+    }
+
+    pub fn fail(
+        &mut self,
+        time: GameTime,
+        fail_quest_callback: impl FnOnce(Option<GameTime>),
+    ) -> Box<dyn Iterator<Item = CompiledGameEvent>> // this should be possible with impl Trait once #79415 is fixed
+    {
+        let quest_id = self.id;
+        let failed_event_creator = move |stage_id| CompiledGameEvent::QuestStageFailed {
+            id: QuestStageId { quest_id, stage_id },
+        };
+
+        assert!(!self.state.is_failed());
+
+        Box::new(match self.state {
+            QuestState::Inactive => {
+                self.state = QuestState::FailedWhileInactive { failure_time: time };
+                fail_quest_callback(None);
+
+                for stage in &mut self.stages {
+                    assert!(stage.state.is_inactive());
+                    stage.state = QuestStageState::FailedWhileInactive { failure_time: time };
+                }
+
+                (0..self.stages.len()).map(failed_event_creator)
+            }
+            QuestState::Active {
+                activation_time,
+                active_stage,
+            } => {
+                self.state = QuestState::FailedWhileActive {
+                    activation_time,
+                    failure_time: time,
+                    failed_stage: active_stage,
+                };
+                fail_quest_callback(Some(activation_time));
+
+                assert!(self.stages[active_stage].state.is_active());
+                let active_stage_activation_time =
+                    self.stages[active_stage].state.activation_time().unwrap();
+                self.stages[active_stage].state = QuestStageState::FailedWhileActive {
+                    activation_time: active_stage_activation_time,
+                    failure_time: time,
+                };
+                for stage in self.stages.iter_mut().skip(active_stage + 1) {
+                    assert!(stage.state.is_inactive());
+                    stage.state = QuestStageState::FailedWhileInactive { failure_time: time };
+                }
+
+                (active_stage..self.stages.len()).map(failed_event_creator)
+            }
+            _ => unreachable!(),
+        })
     }
 }
 
@@ -222,58 +339,13 @@ impl QuestState {
         }
     }
 
-    pub fn increment_active_stage(&mut self) {
+    pub fn increment_active_stage(&mut self) -> usize {
         match self {
-            QuestState::Active { active_stage, .. } => *active_stage += 1,
+            QuestState::Active { active_stage, .. } => {
+                *active_stage += 1;
+                *active_stage
+            }
             _ => panic!(),
-        }
-    }
-}
-
-#[allow(dead_code)]
-impl QuestStageState {
-    pub fn is_inactive(&self) -> bool {
-        matches!(self, QuestStageState::Inactive)
-    }
-
-    pub fn is_active(&self) -> bool {
-        matches!(self, QuestStageState::Active { .. })
-    }
-
-    pub fn is_completed(&self) -> bool {
-        matches!(self, QuestStageState::Completed { .. })
-    }
-
-    pub fn is_failed(&self) -> bool {
-        matches!(
-            self,
-            QuestStageState::FailedWhileInactive { .. } | QuestStageState::FailedWhileActive { .. }
-        )
-    }
-
-    pub fn activation_time(&self) -> Option<GameTime> {
-        match self {
-            QuestStageState::Inactive => None,
-            QuestStageState::Active { activation_time } => Some(*activation_time),
-            QuestStageState::Completed {
-                activation_time, ..
-            } => Some(*activation_time),
-            QuestStageState::FailedWhileInactive { .. } => None,
-            QuestStageState::FailedWhileActive {
-                activation_time, ..
-            } => Some(*activation_time),
-        }
-    }
-
-    pub fn completion_time(&self) -> Option<GameTime> {
-        match self {
-            QuestStageState::Inactive => None,
-            QuestStageState::Active { .. } => None,
-            QuestStageState::Completed {
-                completion_time, ..
-            } => Some(*completion_time),
-            QuestStageState::FailedWhileInactive { .. } => None,
-            QuestStageState::FailedWhileActive { .. } => None,
         }
     }
 }

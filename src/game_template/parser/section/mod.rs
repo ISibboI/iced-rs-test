@@ -1,7 +1,8 @@
 use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::currency::Currency;
 use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
-use crate::game_state::story::quests::{Quest, QuestStage};
+use crate::game_state::story::quests::quest_stages::QuestStage;
+use crate::game_state::story::quests::Quest;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::{GameAction, GameEvent};
 use crate::game_state::world::events::{ExplorationEvent, ExplorationEventKind};

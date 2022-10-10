@@ -1,8 +1,8 @@
-use crate::game_state::story::quests::{
-    CompiledQuest, QuestId, QuestStageId, QuestStageState, QuestState,
-};
+use crate::game_state::story::quests::{CompiledQuest, QuestId};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
+use log::debug;
+use quests::quest_stages::QuestStageId;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
@@ -21,6 +21,8 @@ pub struct Story {
     inactive_failed_quests_by_failure_time: BTreeSet<(GameTime, QuestId)>,
     active_failed_quests: HashSet<QuestId>,
     active_failed_quests_by_failure_time: BTreeSet<(GameTime, QuestId)>,
+    failed_quests: HashSet<QuestId>,
+    failed_quests_by_failure_time: BTreeSet<(GameTime, QuestId)>,
 }
 
 impl Story {
@@ -37,6 +39,8 @@ impl Story {
             inactive_failed_quests_by_failure_time: Default::default(),
             active_failed_quests: Default::default(),
             active_failed_quests_by_failure_time: Default::default(),
+            failed_quests: Default::default(),
+            failed_quests_by_failure_time: Default::default(),
         }
     }
 
@@ -64,39 +68,38 @@ impl Story {
             .map(|(_, quest_id)| self.quest(*quest_id))
     }
 
+    pub fn iter_failed_quests_by_failure_time(
+        &self,
+    ) -> impl Iterator<Item = &'_ CompiledQuest> + DoubleEndedIterator {
+        self.failed_quests_by_failure_time
+            .iter()
+            .map(|(_, quest_id)| self.quest(*quest_id))
+    }
+
+    pub fn iter_all_quests(&self) -> impl Iterator<Item = &'_ CompiledQuest> + DoubleEndedIterator {
+        self.quests.iter()
+    }
+
     pub fn activate_quest(
         &mut self,
         quest_id: QuestId,
         time: GameTime,
     ) -> impl Iterator<Item = CompiledGameEvent> {
         let quest = self.quest_mut(quest_id);
-        if quest.state.is_failed() {
-            return None.into_iter();
+        debug!("Activating quest {}", quest.id_str);
+        if !quest.state().is_failed() {
+            let result = quest.activate(time);
+            assert!(self.inactive_quests.remove(&quest_id));
+            assert!(self.active_quests.insert(quest_id));
+            assert!(self
+                .active_quests_by_activation_time
+                .insert((time, quest_id)));
+            Some(result)
+        } else {
+            None
         }
-
-        assert!(quest.state.is_inactive());
-        quest.state = QuestState::Active {
-            activation_time: time,
-            active_stage: 0,
-        };
-        let stage = quest.stages.first_mut().unwrap();
-        assert!(stage.state.is_inactive());
-        stage.state = QuestStageState::Active {
-            activation_time: time,
-        };
-        assert!(self.inactive_quests.remove(&quest_id));
-        assert!(self.active_quests.insert(quest_id));
-        assert!(self
-            .active_quests_by_activation_time
-            .insert((time, quest_id)));
-
-        Some(CompiledGameEvent::QuestStageActivated {
-            id: QuestStageId {
-                quest_id,
-                stage_id: 0,
-            },
-        })
         .into_iter()
+        .flatten()
     }
 
     pub fn complete_quest_stage(
@@ -105,48 +108,23 @@ impl Story {
         time: GameTime,
     ) -> impl Iterator<Item = CompiledGameEvent> {
         let quest_id = quest_stage_id.quest_id;
-        let quest = self.quest_mut(quest_id);
-        if quest.state.is_failed() {
-            return None.into_iter();
-        }
-
-        assert!(quest.state.is_active());
-        let active_stage = quest.active_stage_mut().unwrap();
-        assert!(active_stage.state.is_active());
-        let activation_time = active_stage.state.activation_time().unwrap();
-        active_stage.state = QuestStageState::Completed {
-            activation_time,
-            completion_time: time,
-        };
-
-        quest.state.increment_active_stage();
-        if let Some(active_stage) = quest.active_stage_mut() {
-            assert!(active_stage.state.is_inactive());
-            active_stage.state = QuestStageState::Active {
-                activation_time: time,
-            };
-            Some(CompiledGameEvent::QuestStageActivated {
-                id: QuestStageId {
-                    quest_id,
-                    stage_id: quest.state.active_stage().unwrap(),
-                },
-            })
-            .into_iter()
+        let quest = self.quests.get_mut(quest_stage_id.quest_id.0).unwrap();
+        let result = if !quest.state().is_failed() {
+            let result = quest.complete_quest_stage(quest_stage_id, time, |activation_time| {
+                assert!(self.active_quests.remove(&quest_id));
+                assert!(self
+                    .active_quests_by_activation_time
+                    .remove(&(activation_time, quest_id)));
+                assert!(self.completed_quests.insert(quest_id));
+                assert!(self
+                    .completed_quests_by_completion_time
+                    .insert((time, quest_id)));
+            });
+            Some(result)
         } else {
-            quest.state = QuestState::Completed {
-                activation_time,
-                completion_time: time,
-            };
-            assert!(self.active_quests.remove(&quest_id));
-            assert!(self
-                .active_quests_by_activation_time
-                .remove(&(activation_time, quest_id)));
-            assert!(self.completed_quests.insert(quest_id));
-            assert!(self
-                .completed_quests_by_completion_time
-                .insert((time, quest_id)));
-            Some(CompiledGameEvent::QuestCompleted { id: quest_id }).into_iter()
-        }
+            None
+        };
+        result.into_iter().flatten()
     }
 
     pub fn fail_quest(
@@ -154,37 +132,10 @@ impl Story {
         quest_id: QuestId,
         time: GameTime,
     ) -> impl Iterator<Item = CompiledGameEvent> {
-        let failed_event_creator = move |stage_id| CompiledGameEvent::QuestStageFailed {
-            id: QuestStageId { quest_id, stage_id },
-        };
-        let quest = self.quest_mut(quest_id);
-        assert!(!quest.state.is_failed());
-
-        match quest.state {
-            QuestState::Inactive => {
-                quest.state = QuestState::FailedWhileInactive { failure_time: time };
-                assert!(self.inactive_quests.remove(&quest_id));
-                assert!(self.inactive_failed_quests.insert(quest_id));
-                assert!(self
-                    .inactive_failed_quests_by_failure_time
-                    .insert((time, quest_id)));
-
-                let quest = self.quest_mut(quest_id);
-                for stage in &mut quest.stages {
-                    assert!(stage.state.is_inactive());
-                    stage.state = QuestStageState::FailedWhileInactive { failure_time: time };
-                }
-
-                (0..quest.stages.len()).map(failed_event_creator)
-            }
-            QuestState::Active {
-                activation_time,
-                active_stage,
-            } => {
-                quest.state = QuestState::FailedWhileActive {
-                    activation_time,
-                    failure_time: time,
-                };
+        let quest = self.quests.get_mut(quest_id.0).unwrap();
+        debug!("Failing quest {}", quest.id_str);
+        quest.fail(time, |activation_time| {
+            if let Some(activation_time) = activation_time {
                 assert!(self.active_quests.remove(&quest_id));
                 assert!(self
                     .active_quests_by_activation_time
@@ -193,23 +144,17 @@ impl Story {
                 assert!(self
                     .active_failed_quests_by_failure_time
                     .insert((time, quest_id)));
-
-                let quest = self.quest_mut(quest_id);
-                assert!(quest.stages[active_stage].state.is_active());
-                let active_stage_activation_time =
-                    quest.stages[active_stage].state.activation_time().unwrap();
-                quest.stages[active_stage].state = QuestStageState::FailedWhileActive {
-                    activation_time: active_stage_activation_time,
-                    failure_time: time,
-                };
-                for stage in quest.stages.iter_mut().skip(active_stage + 1) {
-                    assert!(stage.state.is_inactive());
-                    stage.state = QuestStageState::FailedWhileInactive { failure_time: time };
-                }
-
-                (active_stage..quest.stages.len()).map(failed_event_creator)
+                assert!(self.failed_quests.insert(quest_id));
+                assert!(self.failed_quests_by_failure_time.insert((time, quest_id)));
+            } else {
+                assert!(self.inactive_quests.remove(&quest_id));
+                assert!(self.inactive_failed_quests.insert(quest_id));
+                assert!(self
+                    .inactive_failed_quests_by_failure_time
+                    .insert((time, quest_id)));
+                assert!(self.failed_quests.insert(quest_id));
+                assert!(self.failed_quests_by_failure_time.insert((time, quest_id)));
             }
-            _ => unreachable!(),
-        }
+        })
     }
 }

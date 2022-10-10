@@ -3,6 +3,7 @@ use crate::ui::running_state::main_view::action_picker::ActionPickerState;
 use crate::ui::running_state::main_view::calendar::{CalendarMessage, CalendarState};
 use crate::ui::running_state::main_view::location::{LocationMessage, LocationState};
 use crate::ui::running_state::main_view::overview::OverviewState;
+use crate::ui::running_state::main_view::story::{StoryMessage, StoryState};
 use crate::ui::running_state::{GameStateMessage, RunningMessage};
 use crate::ui::style::{ButtonStyleSheet, FramedContainer, SelectedButtonStyleSheet};
 use crate::ui::Message;
@@ -14,6 +15,7 @@ mod action_picker;
 mod calendar;
 mod location;
 mod overview;
+mod story;
 
 #[derive(Debug, Clone)]
 pub struct MainViewState {
@@ -21,11 +23,13 @@ pub struct MainViewState {
     overview_state: OverviewState,
     location_state: LocationState,
     action_picker_state: ActionPickerState,
+    story_state: StoryState,
     calendar_state: CalendarState,
 
     overview_button: button::State,
     location_button: button::State,
     action_picker_button: button::State,
+    story_button: button::State,
     calendar_button: button::State,
 }
 
@@ -34,6 +38,7 @@ pub enum SelectedView {
     Overview,
     Location,
     ActionPicker,
+    Story,
     Calendar,
 }
 
@@ -42,6 +47,7 @@ pub enum MainViewMessage {
     Init,
     SelectView(SelectedView),
     Calendar(CalendarMessage),
+    Story(StoryMessage),
     Location(LocationMessage),
 }
 
@@ -52,11 +58,13 @@ impl MainViewState {
             overview_state: OverviewState::new(),
             location_state: LocationState::new(game_state),
             action_picker_state: ActionPickerState::new(),
+            story_state: StoryState::new(game_state),
             calendar_state: CalendarState::new(game_state),
 
             overview_button: Default::default(),
             location_button: Default::default(),
             action_picker_button: Default::default(),
+            story_button: Default::default(),
             calendar_button: Default::default(),
         }
     }
@@ -65,17 +73,23 @@ impl MainViewState {
         &mut self,
         configuration: Arc<RunConfiguration>,
         message: MainViewMessage,
+        game_state: &GameState,
     ) -> Command<Message> {
         match message {
-            MainViewMessage::Init => Command::batch([self
-                .location_state
-                .update(configuration, LocationMessage::Init)]),
+            MainViewMessage::Init => Command::batch([
+                self.location_state
+                    .update(configuration, LocationMessage::Init),
+                self.story_state.update(StoryMessage::Init, game_state),
+            ]),
             MainViewMessage::SelectView(selected_view) => {
                 self.selected_view = selected_view;
                 Command::none()
             }
             MainViewMessage::Calendar(calendar_message) => {
                 self.calendar_state.update(calendar_message)
+            }
+            MainViewMessage::Story(story_message) => {
+                self.story_state.update(story_message, game_state)
             }
             MainViewMessage::Location(location_message) => {
                 self.location_state.update(configuration, location_message)
@@ -140,6 +154,17 @@ impl MainViewState {
                                     }),
                             )
                             .push(
+                                Button::new(&mut self.story_button, Text::new("Quests"))
+                                    .on_press(
+                                        MainViewMessage::SelectView(SelectedView::Story).into(),
+                                    )
+                                    .style(if self.selected_view == SelectedView::Story {
+                                        SelectedButtonStyleSheet::style_sheet()
+                                    } else {
+                                        ButtonStyleSheet::style_sheet()
+                                    }),
+                            )
+                            .push(
                                 Button::new(&mut self.calendar_button, Text::new("Calendar"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::Calendar).into(),
@@ -157,6 +182,7 @@ impl MainViewState {
                     SelectedView::Overview => self.overview_state.view(game_state),
                     SelectedView::Location => self.location_state.view(),
                     SelectedView::ActionPicker => self.action_picker_state.view(game_state),
+                    SelectedView::Story => self.story_state.view(game_state),
                     SelectedView::Calendar => self.calendar_state.view(game_state),
                 })
                 .push(active_action_description(game_state))

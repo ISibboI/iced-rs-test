@@ -70,9 +70,11 @@ impl RunningState {
     ) -> Command<Message> {
         match message {
             RunningMessage::Init => {
-                return Command::batch([self
-                    .main_view_state
-                    .update(configuration, MainViewMessage::Init)])
+                return Command::batch([self.main_view_state.update(
+                    configuration,
+                    MainViewMessage::Init,
+                    &self.game_state,
+                )])
             }
             RunningMessage::Update => {
                 // measure time delta
@@ -175,9 +177,11 @@ impl RunningState {
                 );
             }
             RunningMessage::MainView(main_view_message) => {
-                return self
-                    .main_view_state
-                    .update(configuration, main_view_message)
+                return self.main_view_state.update(
+                    configuration,
+                    main_view_message,
+                    &self.game_state,
+                )
             }
         }
 
