@@ -56,6 +56,7 @@ pub enum KeyTokenKind {
     Wisdom,
     Charisma,
     Currency,
+    Items,
 
     Type,
     Duration,
@@ -199,6 +200,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         TokenKind::Key(KeyTokenKind::Currency),
                         range,
                     ))),
+                    "items" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Items), range))),
 
                     "type" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Type), range))),
                     "duration" => Ok(Some(Token::new(

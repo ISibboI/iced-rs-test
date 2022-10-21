@@ -1,5 +1,6 @@
 use crate::game_state::character::{Character, CharacterAttributeProgress};
 use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::{CompiledExpectedItemCount, ExpectedItemCount};
 use crate::game_state::player_actions::{
     PlayerActionInProgress, PlayerActionInProgressKind, PlayerActionInProgressSource,
 };
@@ -22,6 +23,7 @@ pub struct ExplorationEvent {
     pub kind: ExplorationEventKind,
     pub attribute_progress: CharacterAttributeProgress,
     pub currency_reward: Currency,
+    pub items: Vec<ExpectedItemCount>,
     pub activation_condition: String,
     pub deactivation_condition: String,
 }
@@ -34,6 +36,7 @@ pub struct CompiledExplorationEvent {
     pub kind: CompiledExplorationEventKind,
     pub attribute_progress: CharacterAttributeProgress,
     pub currency_reward: Currency,
+    pub items: Vec<CompiledExpectedItemCount>,
     pub activation_condition: TriggerHandle,
     pub deactivation_condition: TriggerHandle,
 }
@@ -103,6 +106,11 @@ impl ExplorationEvent {
             kind: self.kind.compile(id_maps),
             attribute_progress: self.attribute_progress,
             currency_reward: self.currency_reward,
+            items: self
+                .items
+                .into_iter()
+                .map(|item| item.compile(id_maps))
+                .collect(),
             activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
             deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
         }
@@ -119,6 +127,8 @@ impl CompiledExplorationEvent {
         monsters: &[CompiledMonster],
         location: LocationId,
     ) -> PlayerActionInProgress {
+        let items = self.items.iter().map(|item| item.spawn(rng)).collect();
+
         match &self.kind {
             CompiledExplorationEventKind::Monster {
                 monster: monster_id,
@@ -158,6 +168,7 @@ impl CompiledExplorationEvent {
                     end: start_time + duration.max(MIN_COMBAT_DURATION),
                     attribute_progress,
                     currency_reward,
+                    items,
                     location,
                     success,
                 }
@@ -175,6 +186,7 @@ impl CompiledExplorationEvent {
                 end: start_time + default_duration,
                 attribute_progress: self.attribute_progress,
                 currency_reward: self.currency_reward,
+                items,
                 location,
                 success: true,
             },

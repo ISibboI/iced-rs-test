@@ -1,3 +1,5 @@
+use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::{CompiledExpectedItemCount, ExpectedItemCount};
 use crate::game_state::story::quests::QuestId;
 use crate::game_state::time::GameTime;
 use crate::game_template::IdMaps;
@@ -9,6 +11,8 @@ pub struct QuestStage {
     pub id_str: String,
     pub description: Option<String>,
     pub task: String,
+    pub currency_reward: Currency,
+    pub items: Vec<ExpectedItemCount>,
     pub completion_condition: String,
 }
 
@@ -18,6 +22,8 @@ pub struct CompiledQuestStage {
     pub id_str: String,
     pub description: Option<String>,
     pub task: String,
+    pub currency_reward: Currency,
+    pub items: Vec<CompiledExpectedItemCount>,
     pub completion_condition: TriggerHandle,
     pub state: QuestStageState,
 }
@@ -59,6 +65,12 @@ impl QuestStage {
             id_str: self.id_str.clone(),
             description: self.description,
             task: self.task,
+            currency_reward: self.currency_reward,
+            items: self
+                .items
+                .into_iter()
+                .map(|item| item.compile(id_maps))
+                .collect(),
             completion_condition: *id_maps.triggers.get(&self.completion_condition).unwrap(),
             state: QuestStageState::Inactive,
         }

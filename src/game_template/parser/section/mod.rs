@@ -15,7 +15,8 @@ use crate::game_template::parser::tokenizer::{
     KeyTokenKind, RangedElement, SectionTokenKind, Token, TokenIterator, TokenKind, ValueTokenKind,
 };
 use crate::game_template::parser::{
-    expect_identifier, parse_trigger, parse_weighted_events, WeightedIdentifier,
+    expect_identifier, parse_expected_identifier_counts, parse_trigger, parse_weighted_identifiers,
+    ExpectedIdentifierCount, WeightedIdentifier,
 };
 use crate::game_template::GameTemplate;
 use async_recursion::async_recursion;
@@ -47,6 +48,7 @@ pub struct GameTemplateSection {
     wisdom: Option<RangedElement<f64>>,
     charisma: Option<RangedElement<f64>>,
     currency: Option<RangedElement<Currency>>,
+    items: Option<RangedElement<Vec<ExpectedIdentifierCount>>>,
 
     type_name: Option<RangedElement<String>>,
     duration: Option<RangedElement<GameTime>>,
@@ -257,6 +259,10 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                         return Err(unexpected_eof());
                     }
                 }
+                KeyTokenKind::Items => {
+                    section.set_items(parse_expected_identifier_counts(tokens).await?)?;
+                }
+
                 KeyTokenKind::Type => {
                     section.set_type_name(RangedElement::new(
                         tokens.expect_string_value().await?.element,
@@ -282,7 +288,7 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                     }
                 }
                 KeyTokenKind::Events => {
-                    section.set_events(parse_weighted_events(tokens).await?)?;
+                    section.set_events(parse_weighted_identifiers(tokens).await?)?;
                 }
                 KeyTokenKind::Monsters => {
                     section.set_monster(RangedElement::new(
@@ -533,6 +539,7 @@ impl GameTemplateSection {
             wisdom: None,
             charisma: None,
             currency: None,
+            items: None,
             type_name: None,
             duration: None,
             events: None,
@@ -600,6 +607,7 @@ impl GameTemplateSection {
             duration,
             attribute_progress_factor: Default::default(),
             currency_reward: Default::default(),
+            items: Default::default(),
             activation_condition: self.activation()?.element,
             deactivation_condition,
         });
@@ -660,6 +668,11 @@ impl GameTemplateSection {
             duration: self.duration()?.element,
             attribute_progress_factor: self.take_character_attribute_progress_factor(),
             currency_reward: self.currency()?.element,
+            items: self
+                .items
+                .take()
+                .map(|items| items.element.into_iter().map(Into::into).collect())
+                .unwrap_or_default(),
             activation_condition: self.activation()?.element,
             deactivation_condition,
         });
@@ -744,6 +757,11 @@ impl GameTemplateSection {
             duration: self.duration()?.element,
             attribute_progress_factor: self.take_character_attribute_progress_factor(),
             currency_reward: self.currency()?.element,
+            items: self
+                .items
+                .take()
+                .map(|items| items.element.into_iter().map(Into::into).collect())
+                .unwrap_or_default(),
             activation_condition,
             deactivation_condition,
         });
@@ -759,6 +777,16 @@ impl GameTemplateSection {
                 .description
                 .take()
                 .map(|description| description.element),
+            currency_reward: self
+                .currency
+                .take()
+                .map(|currency| currency.element)
+                .unwrap_or_default(),
+            items: self
+                .items
+                .take()
+                .map(|items| items.element.into_iter().map(Into::into).collect())
+                .unwrap_or_default(),
             activation_condition: self.activation()?.element,
             failure_condition: self.failure()?.element,
             stages: self
@@ -814,6 +842,16 @@ impl GameTemplateSection {
                 .take()
                 .map(|description| description.element),
             task: self.task()?.element,
+            currency_reward: self
+                .currency
+                .take()
+                .map(|currency| currency.element)
+                .unwrap_or_default(),
+            items: self
+                .items
+                .take()
+                .map(|items| items.element.into_iter().map(Into::into).collect())
+                .unwrap_or_default(),
             completion_condition,
         });
         self.ensure_empty()?;
@@ -923,7 +961,12 @@ impl GameTemplateSection {
                 .currency
                 .take()
                 .map(|currency| currency.element)
-                .unwrap_or(Currency::zero()),
+                .unwrap_or_default(),
+            items: self
+                .items
+                .take()
+                .map(|items| items.element.into_iter().map(Into::into).collect())
+                .unwrap_or_default(),
             activation_condition,
             deactivation_condition,
         });

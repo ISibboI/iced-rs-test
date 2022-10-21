@@ -235,7 +235,7 @@ impl RunningState {
                                 clock_time(self.game_state.current_time)
                                     .horizontal_alignment(Horizontal::Center),
                             )
-                            .push(currency(self.game_state.character.currency, true))
+                            .push(currency(self.game_state.inventory.currency, true))
                             .push(Space::new(Length::Shrink, Length::Units(20)))
                             .push(
                                 Text::new("Attributes")

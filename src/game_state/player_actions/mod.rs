@@ -1,5 +1,6 @@
 use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::{CompiledExpectedItemCount, ExpectedItemCount, ItemCount};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_state::world::events::ExplorationEventId;
@@ -9,6 +10,7 @@ use crate::game_template::parser::error::{ParserError, ParserErrorKind};
 use crate::game_template::IdMaps;
 use enum_iterator::Sequence;
 use event_trigger_action_system::TriggerHandle;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::iter;
@@ -137,6 +139,7 @@ pub struct PlayerAction {
     pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
     pub currency_reward: Currency,
+    pub items: Vec<ExpectedItemCount>,
     pub activation_condition: String,
     pub deactivation_condition: String,
 }
@@ -153,6 +156,7 @@ pub struct CompiledPlayerAction {
     pub duration: GameTime,
     pub attribute_progress_factor: CharacterAttributeProgressFactor,
     pub currency_reward: Currency,
+    pub items: Vec<CompiledExpectedItemCount>,
     pub activation_condition: TriggerHandle,
     pub deactivation_condition: TriggerHandle,
 }
@@ -179,6 +183,7 @@ pub struct PlayerActionInProgress {
     pub end: GameTime,
     pub attribute_progress: CharacterAttributeProgress,
     pub currency_reward: Currency,
+    pub items: Vec<ItemCount>,
     pub location: LocationId,
     pub success: bool,
 }
@@ -335,6 +340,11 @@ impl PlayerAction {
             duration: self.duration,
             attribute_progress_factor: self.attribute_progress_factor,
             currency_reward: self.currency_reward,
+            items: self
+                .items
+                .into_iter()
+                .map(|item| item.compile(id_maps))
+                .collect(),
             activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
             deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
         }
@@ -342,7 +352,12 @@ impl PlayerAction {
 }
 
 impl CompiledPlayerAction {
-    pub fn spawn(&self, start_time: GameTime, location: LocationId) -> PlayerActionInProgress {
+    pub fn spawn(
+        &self,
+        rng: &mut impl Rng,
+        start_time: GameTime,
+        location: LocationId,
+    ) -> PlayerActionInProgress {
         PlayerActionInProgress {
             verb_progressive: self.verb_progressive.clone(),
             verb_simple_past: self.verb_simple_past.clone(),
@@ -352,6 +367,7 @@ impl CompiledPlayerAction {
             end: start_time + self.duration,
             attribute_progress: self.attribute_progress_factor.into_progress(self.duration),
             currency_reward: self.currency_reward,
+            items: self.items.iter().map(|item| item.spawn(rng)).collect(),
             location,
             success: true,
         }

@@ -1,8 +1,11 @@
+use crate::game_state::currency::Currency;
+use crate::game_state::inventory::Inventory;
 use crate::game_state::story::quests::{CompiledQuest, QuestId};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use log::debug;
 use quests::quest_stages::QuestStageId;
+use rand::Rng;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeSet, HashSet};
 use std::fmt::Debug;
@@ -104,22 +107,50 @@ impl Story {
 
     pub fn complete_quest_stage(
         &mut self,
+        rng: &mut impl Rng,
+        inventory: &mut Inventory,
         quest_stage_id: QuestStageId,
         time: GameTime,
     ) -> impl Iterator<Item = CompiledGameEvent> {
         let quest_id = quest_stage_id.quest_id;
         let quest = self.quests.get_mut(quest_stage_id.quest_id.0).unwrap();
         let result = if !quest.state().is_failed() {
-            let result = quest.complete_quest_stage(quest_stage_id, time, |activation_time| {
-                assert!(self.active_quests.remove(&quest_id));
-                assert!(self
-                    .active_quests_by_activation_time
-                    .remove(&(activation_time, quest_id)));
-                assert!(self.completed_quests.insert(quest_id));
-                assert!(self
-                    .completed_quests_by_completion_time
-                    .insert((time, quest_id)));
-            });
+            let result = quest.complete_quest_stage(
+                rng,
+                inventory,
+                quest_stage_id,
+                time,
+                |quest, rng, inventory, activation_time| {
+                    assert!(self.active_quests.remove(&quest_id));
+                    assert!(self
+                        .active_quests_by_activation_time
+                        .remove(&(activation_time, quest_id)));
+                    assert!(self.completed_quests.insert(quest_id));
+                    assert!(self
+                        .completed_quests_by_completion_time
+                        .insert((time, quest_id)));
+
+                    let currency_change_event = if quest.currency_reward > Currency::zero() {
+                        inventory.currency += quest.currency_reward;
+                        Some(CompiledGameEvent::CurrencyChanged {
+                            value: inventory.currency,
+                        })
+                    } else {
+                        Default::default()
+                    }
+                    .into_iter();
+                    let mut stage_item_change_events = Vec::new();
+                    for item in quest.items.iter() {
+                        let count = item.spawn(rng);
+                        if count.count > 0 {
+                            stage_item_change_events.extend(inventory.add(count.id, count.count));
+                        }
+                    }
+                    let item_change_events = stage_item_change_events.into_iter();
+
+                    Box::new(currency_change_event.chain(item_change_events))
+                },
+            );
             Some(result)
         } else {
             None

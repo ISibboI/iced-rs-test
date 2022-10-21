@@ -1,6 +1,7 @@
 use crate::game_state::character::{Character, CharacterRace};
 use crate::game_state::currency::Currency;
 use crate::game_state::event_log::EventLog;
+use crate::game_state::inventory::Inventory;
 use crate::game_state::player_actions::{
     PlayerActionInProgressKind, PlayerActionInProgressSource, PlayerActions, ACTION_EXPLORE,
     ACTION_SLEEP, ACTION_TAVERN, ACTION_WAIT,
@@ -25,6 +26,7 @@ use std::ops::Deref;
 pub mod character;
 pub mod currency;
 pub mod event_log;
+pub mod inventory;
 pub mod player_actions;
 pub mod story;
 pub mod time;
@@ -46,6 +48,7 @@ pub struct GameState {
     pub actions: PlayerActions,
     pub story: Story,
     pub world: World,
+    pub inventory: Inventory,
     pub triggers: CompiledTriggers<CompiledGameEvent>,
 }
 
@@ -76,6 +79,7 @@ impl GameState {
             actions: game_template.actions,
             story: game_template.story,
             world: game_template.world,
+            inventory: game_template.inventory,
             triggers: game_template.triggers,
         };
         result.execute_all_triggered_actions();
@@ -106,11 +110,11 @@ impl GameState {
                     self.character
                         .add_attribute_progress(self.actions.in_progress().attribute_progress),
                 );
-                self.character.currency += self.actions.in_progress().currency_reward;
+                self.inventory.currency += self.actions.in_progress().currency_reward;
 
                 if self.actions.in_progress().currency_reward != Currency::zero() {
                     game_events.push(CompiledGameEvent::CurrencyChanged {
-                        value: self.character.currency,
+                        value: self.inventory.currency,
                     })
                 }
                 game_events.push(CompiledGameEvent::ActionCompleted {
@@ -180,16 +184,17 @@ impl GameState {
             } + GameTime::from_hours(6);
 
             let action = self.actions.action(ACTION_SLEEP);
-            let mut action_in_progress = action.spawn(start_time, self.world.selected_location);
+            let mut action_in_progress =
+                action.spawn(&mut self.rng, start_time, self.world.selected_location);
             action_in_progress.end = end_time;
             action_in_progress
-        } else if self.character.currency >= -tavern_currency_gain
+        } else if self.inventory.currency >= -tavern_currency_gain
             && rand::thread_rng()
                 .gen_range(earliest_tavern_time.seconds()..=latest_tavern_time.seconds())
                 <= time_of_day.seconds()
         {
             let action = self.actions.action(ACTION_TAVERN);
-            action.spawn(start_time, self.world.selected_location)
+            action.spawn(&mut self.rng, start_time, self.world.selected_location)
         } else {
             let action = self.actions.action(self.actions.selected_action);
 
@@ -197,12 +202,14 @@ impl GameState {
                 self.world
                     .explore(&mut self.rng, start_time, action.duration, &self.character)
                     .unwrap_or_else(|| {
-                        self.actions
-                            .action(ACTION_WAIT)
-                            .spawn(start_time, self.world.selected_location)
+                        self.actions.action(ACTION_WAIT).spawn(
+                            &mut self.rng,
+                            start_time,
+                            self.world.selected_location,
+                        )
                     })
             } else {
-                action.spawn(start_time, self.world.selected_location)
+                action.spawn(&mut self.rng, start_time, self.world.selected_location)
             }
         };
 
@@ -245,7 +252,12 @@ impl GameState {
                 Box::new(self.story.activate_quest(id, self.current_time))
             }
             CompiledGameAction::CompleteQuestStage { id } => {
-                Box::new(self.story.complete_quest_stage(id, self.current_time))
+                Box::new(self.story.complete_quest_stage(
+                    &mut self.rng,
+                    &mut self.inventory,
+                    id,
+                    self.current_time,
+                ))
             }
             CompiledGameAction::FailQuest { id } => {
                 Box::new(self.story.fail_quest(id, self.current_time))

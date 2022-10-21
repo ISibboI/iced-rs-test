@@ -1,4 +1,5 @@
 use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::ItemId;
 use crate::game_state::player_actions::PlayerActionId;
 use crate::game_state::story::quests::quest_stages::QuestStageId;
 use crate::game_state::story::quests::QuestId;
@@ -30,6 +31,7 @@ pub enum GameEvent {
     MonsterKilled { id: String },
     MonsterFailed { id: String },
     ExplorationEventCompleted { id: String },
+    ItemCountChanged { id: String, count: usize },
 }
 
 #[derive(Debug, Clone)]
@@ -68,6 +70,7 @@ pub enum CompiledGameEvent {
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
     ExplorationEventCompleted { id: ExplorationEventId },
+    ItemCountChanged { id: ItemId, count: usize },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
@@ -91,6 +94,7 @@ pub enum CompiledGameEventIdentifier {
     MonsterKilled { id: MonsterId },
     MonsterFailed { id: MonsterId },
     ExplorationEventCompleted { id: ExplorationEventId },
+    ItemCountChanged { id: ItemId },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Ord, PartialOrd, Eq, PartialEq)]
@@ -170,6 +174,10 @@ impl GameEvent {
                     id: *id_maps.exploration_events.get(&id).unwrap(),
                 }
             }
+            GameEvent::ItemCountChanged { id, count } => CompiledGameEvent::ItemCountChanged {
+                id: *id_maps.items.get(&id).unwrap(),
+                count,
+            },
         }
     }
 }
@@ -286,6 +294,9 @@ impl TriggerEvent for CompiledGameEvent {
             CompiledGameEvent::ExplorationEventCompleted { id } => {
                 CompiledGameEventIdentifier::ExplorationEventCompleted { id: *id }
             }
+            CompiledGameEvent::ItemCountChanged { id, .. } => {
+                CompiledGameEventIdentifier::ItemCountChanged { id: *id }
+            }
         }
     }
 
@@ -323,6 +334,14 @@ impl TriggerEvent for CompiledGameEvent {
                 CompiledGameEvent::PlayerCharismaChanged { value: value_lhs },
                 CompiledGameEvent::PlayerCharismaChanged { value: value_rhs },
             ) => Some(value_lhs >= value_rhs),
+            (
+                CompiledGameEvent::ItemCountChanged {
+                    count: count_lhs, ..
+                },
+                CompiledGameEvent::ItemCountChanged {
+                    count: count_rhs, ..
+                },
+            ) => Some(count_lhs >= count_rhs),
             _ => None,
         }
     }
@@ -361,6 +380,14 @@ impl TriggerEvent for CompiledGameEvent {
                 CompiledGameEvent::PlayerCharismaChanged { value: value_lhs },
                 CompiledGameEvent::PlayerCharismaChanged { value: value_rhs },
             ) => Some(*value_lhs as f64 / *value_rhs as f64),
+            (
+                CompiledGameEvent::ItemCountChanged {
+                    count: count_lhs, ..
+                },
+                CompiledGameEvent::ItemCountChanged {
+                    count: count_rhs, ..
+                },
+            ) => Some(*count_lhs as f64 / *count_rhs as f64),
             _ => None,
         }
     }

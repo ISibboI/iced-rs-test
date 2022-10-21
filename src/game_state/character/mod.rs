@@ -1,4 +1,3 @@
-use crate::game_state::currency::Currency;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use enum_iterator::Sequence;
@@ -18,8 +17,6 @@ pub struct Character {
 
     attributes: CharacterAttributes,
     attribute_progress: CharacterAttributeProgress,
-
-    pub currency: Currency,
 
     pub selected_combat_style: CombatStyle,
 }
@@ -81,8 +78,6 @@ impl Character {
 
             attributes: race.starting_basic_attributes(),
             attribute_progress: Default::default(),
-
-            currency: Currency::from_copper(0),
 
             selected_combat_style: race.starting_combat_style(),
         }

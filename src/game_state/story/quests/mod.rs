@@ -1,10 +1,15 @@
+use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::{CompiledExpectedItemCount, ExpectedItemCount};
+use crate::game_state::inventory::Inventory;
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use crate::game_template::IdMaps;
 use event_trigger_action_system::TriggerHandle;
 use log::debug;
 use quest_stages::{CompiledQuestStage, QuestStage, QuestStageId, QuestStageState};
+use rand::Rng;
 use serde::{Deserialize, Serialize};
+use std::iter;
 
 /*pub fn init_quests() -> Vec<Quest> {
     vec![
@@ -32,6 +37,8 @@ pub struct Quest {
     pub id_str: String,
     pub title: String,
     pub description: Option<String>,
+    pub currency_reward: Currency,
+    pub items: Vec<ExpectedItemCount>,
     pub activation_condition: String,
     pub failure_condition: String,
     pub stages: Vec<QuestStage>,
@@ -43,6 +50,8 @@ pub struct CompiledQuest {
     pub id_str: String,
     pub title: String,
     pub description: Option<String>,
+    pub currency_reward: Currency,
+    pub items: Vec<CompiledExpectedItemCount>,
     pub activation_condition: TriggerHandle,
     pub failure_condition: TriggerHandle,
     stages: Vec<CompiledQuestStage>,
@@ -92,6 +101,12 @@ impl Quest {
             id_str: self.id_str,
             title: self.title,
             description: self.description,
+            currency_reward: self.currency_reward,
+            items: self
+                .items
+                .into_iter()
+                .map(|item| item.compile(id_maps))
+                .collect(),
             activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
             failure_condition: *id_maps.triggers.get(&self.failure_condition).unwrap(),
             stages: self
@@ -178,11 +193,18 @@ impl CompiledQuest {
         .into_iter()
     }
 
-    pub fn complete_quest_stage(
+    pub fn complete_quest_stage<Random: Rng>(
         &mut self,
+        rng: &mut Random,
+        inventory: &mut Inventory,
         quest_stage_id: QuestStageId,
         time: GameTime,
-        complete_quest_callback: impl FnOnce(GameTime),
+        complete_quest_callback: impl FnOnce(
+            &CompiledQuest,
+            &mut Random,
+            &mut Inventory,
+            GameTime,
+        ) -> Box<dyn Iterator<Item = CompiledGameEvent>>,
     ) -> Box<dyn Iterator<Item = CompiledGameEvent>> // this should be possible with impl Trait once #79415 is fixed
     {
         assert!(self.state.is_active());
@@ -200,6 +222,24 @@ impl CompiledQuest {
             completion_time: time,
         };
 
+        let stage_currency_change_event = if active_stage.currency_reward > Currency::zero() {
+            inventory.currency += active_stage.currency_reward;
+            Some(CompiledGameEvent::CurrencyChanged {
+                value: inventory.currency,
+            })
+        } else {
+            Default::default()
+        }
+        .into_iter();
+        let mut stage_item_change_events = Vec::new();
+        for item in active_stage.items.iter() {
+            let count = item.spawn(rng);
+            if count.count > 0 {
+                stage_item_change_events.extend(inventory.add(count.id, count.count));
+            }
+        }
+        let stage_item_change_events = stage_item_change_events.into_iter();
+
         let new_stage_id = self.state.increment_active_stage();
         if let Some(active_stage) = self.stages.get_mut(new_stage_id) {
             assert!(active_stage.state.is_inactive());
@@ -207,13 +247,14 @@ impl CompiledQuest {
                 activation_time: time,
             };
             Box::new(
-                Some(CompiledGameEvent::QuestStageActivated {
-                    id: QuestStageId {
-                        quest_id: self.id,
-                        stage_id: self.state.active_stage().unwrap(),
-                    },
-                })
-                .into_iter(),
+                stage_currency_change_event
+                    .chain(stage_item_change_events)
+                    .chain(iter::once(CompiledGameEvent::QuestStageActivated {
+                        id: QuestStageId {
+                            quest_id: self.id,
+                            stage_id: self.state.active_stage().unwrap(),
+                        },
+                    })),
             )
         } else {
             let activation_time = self.state.activation_time().unwrap();
@@ -223,8 +264,16 @@ impl CompiledQuest {
                 completion_time: time,
             };
 
-            complete_quest_callback(activation_time);
-            Box::new(Some(CompiledGameEvent::QuestCompleted { id: self.id }).into_iter())
+            let complete_quest_events =
+                complete_quest_callback(self, rng, inventory, activation_time);
+            Box::new(
+                stage_currency_change_event
+                    .chain(stage_item_change_events)
+                    .chain(complete_quest_events)
+                    .chain(iter::once(CompiledGameEvent::QuestCompleted {
+                        id: self.id,
+                    })),
+            )
         }
     }
 

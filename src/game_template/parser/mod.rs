@@ -25,6 +25,13 @@ pub struct WeightedIdentifier {
     pub identifier: String,
 }
 
+#[derive(Debug)]
+pub struct ExpectedIdentifierCount {
+    pub mean: f64,
+    pub variance: f64,
+    pub identifier: String,
+}
+
 pub async fn parse_game_template_file(
     game_template: &mut GameTemplate,
     input: impl Read + Unpin + Send,
@@ -210,6 +217,20 @@ async fn parse_trigger_condition(
             expect_close_parenthesis(tokens).await?;
             event_count(GameEvent::Action(GameAction::FailQuest { id: quest }), 1)
         }
+        "item_count" => {
+            expect_open_parenthesis(tokens).await?;
+            let count = expect_integer(tokens).await?.element;
+            expect_comma(tokens).await?;
+            let item = expect_identifier(tokens).await?.element;
+            expect_close_parenthesis(tokens).await?;
+            event_count(
+                GameEvent::ItemCountChanged {
+                    id: item,
+                    count: count as usize,
+                },
+                1,
+            )
+        }
         _ => {
             return Err(ParserError::with_coordinates(
                 ParserErrorKind::UnexpectedTriggerCondition(identifier),
@@ -356,7 +377,7 @@ async fn parse_f_identifier(
     Ok(constructor(identifier))
 }
 
-async fn parse_weighted_events(
+async fn parse_weighted_identifiers(
     tokens: &mut TokenIterator<impl Read + Unpin + Send>,
 ) -> Result<RangedElement<Vec<WeightedIdentifier>>, ParserError> {
     let mut result = Vec::new();
@@ -397,6 +418,53 @@ async fn parse_weighted_events(
             ParserErrorKind::AllWeightsZero,
             range.unwrap_or_else(CharacterCoordinateRange::zero),
         ));
+    }
+
+    Ok(RangedElement::new(
+        result,
+        range.unwrap_or_else(CharacterCoordinateRange::zero),
+    ))
+}
+
+async fn parse_expected_identifier_counts(
+    tokens: &mut TokenIterator<impl Read + Unpin + Send>,
+) -> Result<RangedElement<Vec<ExpectedIdentifierCount>>, ParserError> {
+    let mut result = Vec::new();
+    let mut is_first_event = true;
+    let mut range: Option<CharacterCoordinateRange> = None;
+
+    while !tokens.is_first_of_line().await? {
+        if is_first_event {
+            is_first_event = false;
+        } else {
+            expect_comma(tokens).await?;
+        }
+
+        let mut local_range = expect_open_parenthesis(tokens).await?;
+        let (mean, mean_range) = expect_float(tokens).await?.decompose();
+        if !mean.is_finite() {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::IllegalMean(mean),
+                mean_range,
+            ));
+        }
+        expect_comma(tokens).await?;
+        let (variance, variance_range) = expect_float(tokens).await?.decompose();
+        if !variance.is_finite() {
+            return Err(ParserError::with_coordinates(
+                ParserErrorKind::IllegalVariance(variance),
+                variance_range,
+            ));
+        }
+        expect_comma(tokens).await?;
+        let identifier = expect_identifier(tokens).await?.element;
+        local_range.merge(expect_close_parenthesis(tokens).await?);
+        result.push(ExpectedIdentifierCount::new(mean, variance, identifier));
+        if let Some(range) = &mut range {
+            range.merge(local_range);
+        } else {
+            range = Some(local_range);
+        }
     }
 
     Ok(RangedElement::new(
@@ -502,5 +570,15 @@ async fn expect_any(
 impl WeightedIdentifier {
     fn new(weight: f64, identifier: String) -> Self {
         Self { weight, identifier }
+    }
+}
+
+impl ExpectedIdentifierCount {
+    fn new(mean: f64, variance: f64, identifier: String) -> Self {
+        Self {
+            mean,
+            variance,
+            identifier,
+        }
     }
 }

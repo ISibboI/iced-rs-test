@@ -1,3 +1,5 @@
+use crate::game_state::inventory::item::{Item, ItemId};
+use crate::game_state::inventory::Inventory;
 use crate::game_state::player_actions::{
     PlayerAction, PlayerActionId, PlayerActionType, PlayerActions,
 };
@@ -29,6 +31,7 @@ pub struct GameTemplate {
     locations: Vec<Location>,
     exploration_events: Vec<ExplorationEvent>,
     monsters: Vec<Monster>,
+    items: Vec<Item>,
     triggers: Vec<Trigger<GameEvent, GameAction>>,
 }
 
@@ -38,6 +41,7 @@ pub struct CompiledGameTemplate {
     pub actions: PlayerActions,
     pub story: Story,
     pub world: World,
+    pub inventory: Inventory,
     pub triggers: CompiledTriggers<CompiledGameEvent>,
 }
 
@@ -49,6 +53,7 @@ pub struct IdMaps {
     pub locations: HashMap<String, LocationId>,
     pub exploration_events: HashMap<String, ExplorationEventId>,
     pub monsters: HashMap<String, MonsterId>,
+    pub items: HashMap<String, ItemId>,
     pub triggers: HashMap<String, TriggerHandle>,
 }
 
@@ -122,6 +127,15 @@ impl IdMaps {
                     ))
                 },
             )?,
+            items: build_id_map(
+                &game_template.items,
+                |item| item.id_str.clone(),
+                |identifier| {
+                    ParserError::without_coordinates(ParserErrorKind::DuplicateItemIdentifier(
+                        identifier,
+                    ))
+                },
+            )?,
             triggers: build_id_map(
                 &game_template.triggers,
                 |trigger| trigger.id_str.clone(),
@@ -183,6 +197,12 @@ impl GameTemplate {
                 self.monsters
                     .into_iter()
                     .map(|monster| monster.compile(&id_maps))
+                    .collect(),
+            ),
+            inventory: Inventory::new(
+                self.items
+                    .into_iter()
+                    .map(|item| item.compile(&id_maps))
                     .collect(),
             ),
             triggers: CompiledTriggers::new(
