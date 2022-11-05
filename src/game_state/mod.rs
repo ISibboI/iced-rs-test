@@ -111,6 +111,10 @@ impl GameState {
                         .add_attribute_progress(self.actions.in_progress().attribute_progress),
                 );
                 self.inventory.currency += self.actions.in_progress().currency_reward;
+                game_events.extend(
+                    self.inventory
+                        .add_multiple(self.actions.in_progress().items.iter().copied()),
+                );
 
                 if self.actions.in_progress().currency_reward != Currency::zero() {
                     game_events.push(CompiledGameEvent::CurrencyChanged {

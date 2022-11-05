@@ -1,5 +1,5 @@
 use crate::game_state::currency::Currency;
-use crate::game_state::inventory::item::{CompiledItem, ItemId, ItemState};
+use crate::game_state::inventory::item::{CompiledItem, ItemCount, ItemId, ItemState};
 use crate::game_state::time::GameTime;
 use crate::game_state::triggers::CompiledGameEvent;
 use hashbag::HashBag;
@@ -54,6 +54,17 @@ impl Inventory {
             None
         }
         .into_iter()
+    }
+
+    pub fn add_multiple(
+        &mut self,
+        iterator: impl Iterator<Item = ItemCount>,
+    ) -> impl Iterator<Item = CompiledGameEvent> {
+        let mut events = Vec::new();
+        for item_count in iterator {
+            events.extend(self.add(item_count.id, item_count.count));
+        }
+        events.into_iter()
     }
 
     /*/// Remove some items from the inventory.

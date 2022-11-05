@@ -43,7 +43,7 @@ pub struct CompiledExpectedItemCount {
     pub variance: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct ItemCount {
     pub id: ItemId,
     pub count: usize,
