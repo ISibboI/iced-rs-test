@@ -1,4 +1,5 @@
 use crate::game_state::time::GameTime;
+use crate::game_state::triggers::GameAction;
 use crate::game_template::parser::character_iterator::{
     CharacterCoordinateRange, CharacterIterator, CharacterIteratorWithCoordinates,
     PeekableCharacterIteratorWithCoordinates,
@@ -463,6 +464,80 @@ impl Token {
 
     pub fn error(self, error_kind: impl FnOnce(TokenKind) -> ParserErrorKind) -> ParserError {
         ParserError::with_coordinates(error_kind(self.kind), self.range)
+    }
+}
+
+impl SectionTokenKind {
+    pub fn to_snake_case_string(&self) -> &'static str {
+        match self {
+            SectionTokenKind::Initialisation => "initialisation",
+            SectionTokenKind::BuiltinAction => "builtin_action",
+            SectionTokenKind::Action => "action",
+            SectionTokenKind::QuestStageAction => "quest_stage_action",
+            SectionTokenKind::Quest => "quest",
+            SectionTokenKind::QuestStage => "quest_stage",
+            SectionTokenKind::Location => "location",
+            SectionTokenKind::ExplorationEvent => "exploration_event",
+            SectionTokenKind::Monster => "monster",
+            SectionTokenKind::Item => "item",
+        }
+    }
+
+    pub fn activation_action(
+        &self,
+        id_str: String,
+        id_range: CharacterCoordinateRange,
+    ) -> Result<GameAction, ParserError> {
+        Ok(match self {
+            SectionTokenKind::BuiltinAction
+            | SectionTokenKind::Action
+            | SectionTokenKind::QuestStageAction => GameAction::ActivateAction { id: id_str },
+            SectionTokenKind::Quest => GameAction::ActivateQuest { id: id_str },
+            SectionTokenKind::Location => GameAction::ActivateLocation { id: id_str },
+            SectionTokenKind::ExplorationEvent => {
+                GameAction::ActivateExplorationEvent { id: id_str }
+            }
+            SectionTokenKind::Monster => GameAction::ActivateMonster { id: id_str },
+            SectionTokenKind::Item => GameAction::ActivateItem { id: id_str },
+            SectionTokenKind::Initialisation | SectionTokenKind::QuestStage => {
+                return Err(ParserError::with_coordinates(
+                    ParserErrorKind::UnexpectedField {
+                        id_str,
+                        field: "activation".to_string(),
+                    },
+                    id_range,
+                ));
+            }
+        })
+    }
+
+    pub fn deactivation_action(
+        &self,
+        id_str: String,
+        id_range: CharacterCoordinateRange,
+    ) -> Result<GameAction, ParserError> {
+        Ok(match self {
+            SectionTokenKind::BuiltinAction
+            | SectionTokenKind::Action
+            | SectionTokenKind::QuestStageAction => GameAction::DeactivateAction { id: id_str },
+            SectionTokenKind::Location => GameAction::DeactivateLocation { id: id_str },
+            SectionTokenKind::ExplorationEvent => {
+                GameAction::DeactivateExplorationEvent { id: id_str }
+            }
+            SectionTokenKind::Monster => GameAction::DeactivateMonster { id: id_str },
+            SectionTokenKind::Item => GameAction::DeactivateItem { id: id_str },
+            SectionTokenKind::Initialisation
+            | SectionTokenKind::QuestStage
+            | SectionTokenKind::Quest => {
+                return Err(ParserError::with_coordinates(
+                    ParserErrorKind::UnexpectedField {
+                        id_str,
+                        field: "activation".to_string(),
+                    },
+                    id_range,
+                ));
+            }
+        })
     }
 }
 
