@@ -19,8 +19,8 @@ pub struct CompiledMonster {
     pub state: MonsterState,
     pub name: String,
     pub hitpoints: f64,
-    pub activation: TriggerHandle,
-    pub deactivation: TriggerHandle,
+    pub activation_condition: TriggerHandle,
+    pub deactivation_condition: TriggerHandle,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -48,8 +48,8 @@ impl Monster {
             state: MonsterState::Inactive,
             name: self.name,
             hitpoints: self.hitpoints,
-            activation: *id_maps.triggers.get(&self.activation_condition).unwrap(),
-            deactivation: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
+            activation_condition: *id_maps.triggers.get(&self.activation_condition).unwrap(),
+            deactivation_condition: *id_maps.triggers.get(&self.deactivation_condition).unwrap(),
         }
     }
 }

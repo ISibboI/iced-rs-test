@@ -34,6 +34,7 @@ pub enum SectionTokenKind {
     Location,
     ExplorationEvent,
     Monster,
+    Item,
 }
 
 #[derive(Debug, Clone)]
@@ -56,6 +57,7 @@ pub enum KeyTokenKind {
     Wisdom,
     Charisma,
     Currency,
+    Value,
     Items,
 
     Type,
@@ -148,6 +150,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         range,
                     ))),
                     "MONSTER" => Ok(Some(Token::new(SectionTokenKind::Monster.into(), range))),
+                    "ITEM" => Ok(Some(Token::new(SectionTokenKind::Item.into(), range))),
 
                     "name" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Name), range))),
                     "url" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Url), range))),
@@ -200,6 +203,7 @@ impl<Input: Read + Unpin> TokenIterator<Input> {
                         TokenKind::Key(KeyTokenKind::Currency),
                         range,
                     ))),
+                    "value" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Value), range))),
                     "items" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Items), range))),
 
                     "type" => Ok(Some(Token::new(TokenKind::Key(KeyTokenKind::Type), range))),

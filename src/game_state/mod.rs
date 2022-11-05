@@ -287,6 +287,12 @@ impl GameState {
             CompiledGameAction::DeactivateMonster { id } => {
                 Box::new(self.world.deactivate_monster(id, self.current_time))
             }
+            CompiledGameAction::ActivateItem { id } => {
+                Box::new(self.inventory.activate_item(id, self.current_time))
+            }
+            CompiledGameAction::DeactivateItem { id } => {
+                Box::new(self.inventory.deactivate_item(id, self.current_time))
+            }
         }
     }
 

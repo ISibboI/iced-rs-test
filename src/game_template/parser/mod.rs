@@ -97,6 +97,10 @@ async fn parse(
                         let monster = section_template.into_monster(game_template)?;
                         game_template.monsters.push(monster);
                     }
+                    SectionTokenKind::Item => {
+                        let item = section_template.into_item(game_template)?;
+                        game_template.items.push(item);
+                    }
                 }
                 next_token
             }

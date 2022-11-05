@@ -1,5 +1,6 @@
 use crate::game_state::character::{CharacterAttributeProgress, CharacterAttributeProgressFactor};
 use crate::game_state::currency::Currency;
+use crate::game_state::inventory::item::Item;
 use crate::game_state::player_actions::{PlayerAction, PlayerActionType};
 use crate::game_state::story::quests::quest_stages::QuestStage;
 use crate::game_state::story::quests::Quest;
@@ -48,6 +49,7 @@ pub struct GameTemplateSection {
     wisdom: Option<RangedElement<f64>>,
     charisma: Option<RangedElement<f64>>,
     currency: Option<RangedElement<Currency>>,
+    value: Option<RangedElement<Currency>>,
     items: Option<RangedElement<Vec<ExpectedIdentifierCount>>>,
 
     type_name: Option<RangedElement<String>>,
@@ -238,16 +240,23 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                         range,
                     ))?;
                 }
-                KeyTokenKind::Currency => {
+                KeyTokenKind::Currency | KeyTokenKind::Value => {
                     if let Some(token) = tokens.next().await? {
                         let (kind, range) = token.decompose();
                         match kind {
-                            TokenKind::Value(ValueTokenKind::Integer(integer)) => {
-                                section.set_currency(RangedElement::new(
+                            TokenKind::Value(ValueTokenKind::Integer(integer)) => match key {
+                                KeyTokenKind::Currency => {
+                                    section.set_currency(RangedElement::new(
+                                        Currency::from_copper(integer.into()),
+                                        range,
+                                    ))?
+                                }
+                                KeyTokenKind::Value => section.set_value(RangedElement::new(
                                     Currency::from_copper(integer.into()),
                                     range,
-                                ))?;
-                            }
+                                ))?,
+                                _ => unreachable!(),
+                            },
                             kind => {
                                 return Err(ParserError::with_coordinates(
                                     ParserErrorKind::ExpectedInteger(kind.into()),
@@ -343,6 +352,12 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                                 id: section.id_str.clone(),
                             },
                         ),
+                        SectionTokenKind::Item => (
+                            "item",
+                            GameAction::ActivateItem {
+                                id: section.id_str.clone(),
+                            },
+                        ),
                         SectionTokenKind::Initialisation | SectionTokenKind::QuestStage => {
                             return Err(ParserError::with_coordinates(
                                 ParserErrorKind::UnexpectedField {
@@ -383,6 +398,12 @@ pub async fn parse_section<'parent_id: 'async_recursion>(
                         SectionTokenKind::Monster => (
                             "monster",
                             GameAction::DeactivateMonster {
+                                id: section.id_str.clone(),
+                            },
+                        ),
+                        SectionTokenKind::Item => (
+                            "item",
+                            GameAction::DeactivateItem {
                                 id: section.id_str.clone(),
                             },
                         ),
@@ -539,6 +560,7 @@ impl GameTemplateSection {
             wisdom: None,
             charisma: None,
             currency: None,
+            value: None,
             items: None,
             type_name: None,
             duration: None,
@@ -1003,6 +1025,40 @@ impl GameTemplateSection {
             id_str: self.id_str.clone(),
             name: self.name()?.element,
             hitpoints: self.hitpoints()?.element,
+            activation_condition: self.activation()?.element,
+            deactivation_condition,
+        });
+        self.ensure_empty()?;
+        result
+    }
+
+    pub fn into_item(mut self, game_template: &mut GameTemplate) -> Result<Item, ParserError> {
+        let deactivation_condition = self.deactivation()?.element;
+        let deactivation_trigger = game_template
+            .triggers
+            .iter_mut()
+            .rev()
+            .find(|trigger| trigger.id_str == deactivation_condition)
+            .unwrap();
+        let deactivation_trigger_condition =
+            mem::replace(&mut deactivation_trigger.condition, TriggerCondition::Never);
+        deactivation_trigger.condition = TriggerCondition::Sequence {
+            conditions: vec![
+                TriggerCondition::EventCount {
+                    required: 1,
+                    event: GameEvent::Action(GameAction::ActivateItem {
+                        id: self.id_str.clone(),
+                    }),
+                },
+                deactivation_trigger_condition,
+            ],
+        };
+
+        let result = Ok(Item {
+            id_str: self.id_str.clone(),
+            name: self.name()?.element,
+            description: self.description()?.element,
+            value: self.value()?.element,
             activation_condition: self.activation()?.element,
             deactivation_condition,
         });

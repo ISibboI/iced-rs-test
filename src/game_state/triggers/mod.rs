@@ -47,6 +47,8 @@ pub enum GameAction {
     DeactivateExplorationEvent { id: String },
     ActivateMonster { id: String },
     DeactivateMonster { id: String },
+    ActivateItem { id: String },
+    DeactivateItem { id: String },
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -110,6 +112,8 @@ pub enum CompiledGameAction {
     DeactivateExplorationEvent { id: ExplorationEventId },
     ActivateMonster { id: MonsterId },
     DeactivateMonster { id: MonsterId },
+    ActivateItem { id: ItemId },
+    DeactivateItem { id: ItemId },
 }
 
 impl GameEvent {
@@ -226,6 +230,12 @@ impl GameAction {
             },
             GameAction::DeactivateMonster { id } => CompiledGameAction::DeactivateMonster {
                 id: *id_maps.monsters.get(&id).unwrap(),
+            },
+            GameAction::ActivateItem { id } => CompiledGameAction::ActivateItem {
+                id: *id_maps.items.get(&id).unwrap(),
+            },
+            GameAction::DeactivateItem { id } => CompiledGameAction::DeactivateItem {
+                id: *id_maps.items.get(&id).unwrap(),
             },
         }
     }
