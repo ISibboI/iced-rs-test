@@ -4,7 +4,8 @@ use crate::{GameState, RunConfiguration};
 use async_std::sync::Arc;
 use chrono::{DateTime, Duration, Utc};
 use iced::alignment::{Horizontal, Vertical};
-use iced::{Command, Element, Length, Text};
+use iced::{Command, Element, Length};
+use iced::widget::Text;
 use lazy_static::lazy_static;
 use log::{debug, info};
 

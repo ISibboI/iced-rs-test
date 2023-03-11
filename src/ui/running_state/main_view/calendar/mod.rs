@@ -6,14 +6,13 @@ use crate::ui::style::{ColoredFramedContainer, FramedContainer};
 use crate::ui::Message;
 use crate::GameState;
 use iced::alignment::{Horizontal, Vertical};
+use iced::widget::{Button,Column, Container,Row, Space, Text,};
 use iced::{
-    button, Alignment, Button, Color, Column, Command, Container, Element, Length, Row, Space, Text,
+    Alignment,  Color, Command,  Element, Length,
 };
 
 #[derive(Debug, Clone)]
 pub struct CalendarState {
-    minus_button_state: button::State,
-    plus_button_state: button::State,
     current_year: i128,
 }
 
@@ -26,8 +25,6 @@ pub enum CalendarMessage {
 impl CalendarState {
     pub fn new(game_state: &GameState) -> Self {
         Self {
-            minus_button_state: Default::default(),
-            plus_button_state: Default::default(),
             current_year: game_state.current_time.years(),
         }
     }
@@ -100,7 +97,6 @@ impl CalendarState {
             .padding(5)
             .push(
                 Button::new(
-                    &mut self.minus_button_state,
                     Text::new("-")
                         .size(plus_minus_size)
                         .horizontal_alignment(Horizontal::Center)
@@ -117,7 +113,6 @@ impl CalendarState {
             )
             .push(
                 Button::new(
-                    &mut self.plus_button_state,
                     Text::new("+")
                         .size(plus_minus_size)
                         .horizontal_alignment(Horizontal::Center)

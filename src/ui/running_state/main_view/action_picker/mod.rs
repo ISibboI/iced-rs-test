@@ -5,7 +5,8 @@ use crate::ui::style::{FramedContainer, RadioStyleSheet};
 use crate::ui::Message;
 use crate::GameState;
 use enum_iterator::all;
-use iced::{Column, Container, Element, Length, Radio, Row, Space, Text};
+use iced::{ Element, Length,};
+use iced::widget::{ Column, Container,Radio, Row, Space, Text};
 
 #[derive(Debug, Clone)]
 pub struct ActionPickerState {}
@@ -15,7 +16,7 @@ impl ActionPickerState {
         Self {}
     }
 
-    pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
+    pub fn view(&self, game_state: &GameState) -> Element<Message> {
         let mut rows = Row::new().spacing(5).padding(5);
         let mut action_picker_column = Column::new()
             .spacing(5)

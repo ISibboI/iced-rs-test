@@ -10,16 +10,11 @@ use crate::{GameState, TITLE};
 use event_trigger_action_system::CompiledTriggers;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{
-    scrollable, Alignment, Color, Column, Container, Element, Length, Row, Scrollable, Space, Text,
+    Alignment, Color, Element, Length,
 };
-use iced_native::widget::ProgressBar;
-use lazy_static::lazy_static;
+use iced::widget::{Column, Container, Row, Scrollable, Space, Text, ProgressBar};
 use std::cmp::Ordering;
 use std::collections::VecDeque;
-
-lazy_static! {
-    pub static ref ERROR_COLOR: Color = Color::from_rgb8(220, 10, 10);
-}
 
 pub fn title<'a, T: 'a>() -> Container<'a, T> {
     Container::new(
@@ -144,7 +139,6 @@ pub fn currency<'a, T: 'a>(currency: Currency, align_center: bool) -> Row<'a, T>
 pub fn scrollable_quest_column<'a, T: 'a>(
     story: &Story,
     triggers: &CompiledTriggers<CompiledGameEvent>,
-    scrollable_state: &'a mut scrollable::State,
 ) -> Scrollable<'a, T> {
     let mut quest_column = Column::new()
         .width(Length::Shrink)
@@ -172,14 +166,12 @@ pub fn scrollable_quest_column<'a, T: 'a>(
         };
     }
 
-    Scrollable::new(scrollable_state)
+    Scrollable::new(quest_column)
         .scrollbar_width(20)
-        .push(quest_column)
 }
 
 pub fn event_log<'a, T: 'a>(
     game_state: &GameState,
-    scrollable_state: &'a mut scrollable::State,
 ) -> Scrollable<'a, T> {
     let mut event_column = Column::new()
         .width(Length::Shrink)
@@ -199,9 +191,8 @@ pub fn event_log<'a, T: 'a>(
         event_column = event_column.push(date_without_era(last_date));
     }
 
-    Scrollable::new(scrollable_state)
+    Scrollable::new(event_column)
         .scrollbar_width(20)
-        .push(event_column)
 }
 
 pub fn event_string<'a, T: 'a>(event: &GameEvent, game_state: &GameState) -> Row<'a, T> {
@@ -333,17 +324,17 @@ pub fn completed_action_description<'a, T: 'a>(
     }
 }
 
-pub fn clock_time(time: GameTime) -> Text {
-    Text::new(&format!(
+pub fn clock_time(time: GameTime) -> Text<'static> {
+    Text::new(format!(
         "{:02}:{:02}",
         time.hour_of_day(),
         time.minute_of_hour(),
     ))
 }
 
-pub fn date(time: GameTime) -> Text {
+pub fn date(time: GameTime) -> Text<'static> {
     let year = time.year_of_era() + 1;
-    Text::new(&format!(
+    Text::new(format!(
         "{}, {} of {}, {}{} year of the {} era",
         time.day_of_week_str_common(),
         time.day_of_month_str_ord(),
@@ -354,9 +345,9 @@ pub fn date(time: GameTime) -> Text {
     ))
 }
 
-pub fn date_without_era(time: GameTime) -> Text {
+pub fn date_without_era(time: GameTime) -> Text<'static> {
     let year = time.year_of_era() + 1;
-    Text::new(&format!(
+    Text::new(format!(
         "{}, {} of {}, {}",
         time.day_of_week_str_common(),
         time.day_of_month_str_ord(),
@@ -365,11 +356,11 @@ pub fn date_without_era(time: GameTime) -> Text {
     ))
 }
 
-pub fn year_of_era(year: i128) -> Text {
+pub fn year_of_era(year: i128) -> Text<'static> {
     let date = GameTime::from_years(year);
     let year = date.year_of_era() + 1;
 
-    Text::new(&format!(
+    Text::new(format!(
         "{}{} year of the {} era",
         year,
         ordinal_suffix(year),

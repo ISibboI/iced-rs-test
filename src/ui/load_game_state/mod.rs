@@ -6,7 +6,8 @@ use crate::{GameState, RunConfiguration};
 use async_std::path::PathBuf;
 use async_std::sync::Arc;
 use iced::alignment::{Horizontal, Vertical};
-use iced::{Command, Element, Length, Text};
+use iced::{Command, Element, Length};
+use iced::widget::Text;
 use log::{info, warn};
 
 #[derive(Debug, Clone)]

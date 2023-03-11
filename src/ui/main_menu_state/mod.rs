@@ -6,28 +6,24 @@ use crate::RunConfiguration;
 use async_std::path::PathBuf;
 use iced::alignment::Horizontal;
 use iced::{
-    button, text_input, Alignment, Button, Color, Column, Command, Element, Length, Space, Text,
-    TextInput,
+    Alignment, Command, Element, Length,
 };
+use iced::widget::{Button,Column,Space, Text,
+                   TextInput,};
 use std::borrow::Borrow;
+use crate::ui::style::RedText;
 
 #[derive(Debug, Clone)]
 pub struct MainMenuState {
-    savegame_file_input: text_input::State,
     savegame_file: PathBuf,
     message: Option<String>,
-    load_game_button: button::State,
-    new_game_button: button::State,
 }
 
 impl MainMenuState {
     pub fn new(default_savegame_file: PathBuf, message: Option<String>) -> Self {
         Self {
-            savegame_file_input: Default::default(),
             savegame_file: default_savegame_file,
             message,
-            load_game_button: Default::default(),
-            new_game_button: Default::default(),
         }
     }
 
@@ -58,9 +54,8 @@ impl MainMenuState {
         Command::none()
     }
 
-    pub fn view(&mut self) -> Element<Message> {
+    pub fn view(&self) -> Element<Message> {
         let savegame_file_input = TextInput::new(
-            &mut self.savegame_file_input,
             "",
             self.savegame_file.to_string_lossy().borrow(),
             |input| MainMenuMessage::SavegameFileInputChanged(PathBuf::from(input)).into(),
@@ -68,14 +63,12 @@ impl MainMenuState {
         .padding(5)
         .width(Length::Units(200));
         let load_game_button = Button::new(
-            &mut self.load_game_button,
             Text::new("Load Game").horizontal_alignment(Horizontal::Center),
         )
         .on_press(MainMenuMessage::LoadGame.into())
         .padding(5)
         .width(Length::Units(100));
         let new_game_button = Button::new(
-            &mut self.new_game_button,
             Text::new("New Game").horizontal_alignment(Horizontal::Center),
         )
         .on_press(MainMenuMessage::NewGame.into())
@@ -95,7 +88,7 @@ impl MainMenuState {
         let column = if let Some(message) = &self.message {
             column
                 .push(Space::new(Length::Shrink, Length::Units(100)))
-                .push(Text::new(message).color(Color::from_rgb(0.9, 0.1, 0.1)))
+                .push(Text::new(message).style(RedText))
         } else {
             column
         };

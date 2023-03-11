@@ -6,7 +6,8 @@ use crate::ui::{do_nothing, ApplicationUiState, Message};
 use crate::RunConfiguration;
 use async_std::sync::Arc;
 use iced::alignment::{Horizontal, Vertical};
-use iced::{Command, Element, Length, Text};
+use iced::{Command, Element, Length};
+use iced::widget::Text;
 use log::{error, info};
 
 #[derive(Debug, Clone)]

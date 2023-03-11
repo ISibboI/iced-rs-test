@@ -1,20 +1,16 @@
 use crate::game_state::story::quests::quest_stages::{CompiledQuestStage, QuestStageState};
 use crate::game_state::story::quests::{CompiledQuest, CurrentQuestStage, QuestId};
-use crate::ui::elements::ERROR_COLOR;
 use crate::ui::running_state::main_view::MainViewMessage;
 use crate::ui::style::{ButtonStyleSheet, FramedContainer, SelectedButtonStyleSheet};
 use crate::ui::Message;
 use crate::GameState;
 use iced::{
-    button, scrollable, Button, Column, Command, Container, Element, Length, ProgressBar, Row,
-    Scrollable, Text,
+     Command,  Element, Length,
 };
-use std::ptr;
+use iced::widget::{Column, Button, Container, ProgressBar, Row, Scrollable, Text};
 
 #[derive(Debug, Clone)]
 pub struct StoryState {
-    quest_picker_state: scrollable::State,
-    quest_buttons: Vec<(bool, button::State)>,
     selected_quest: Option<QuestId>,
 }
 
@@ -25,18 +21,8 @@ pub enum StoryMessage {
 }
 
 impl StoryState {
-    pub fn new(game_state: &GameState) -> Self {
+    pub fn new() -> Self {
         Self {
-            quest_picker_state: Default::default(),
-            quest_buttons: game_state
-                .story
-                .iter_all_quests()
-                .enumerate()
-                .map(|(index, quest)| {
-                    debug_assert_eq!(index, quest.id.0);
-                    (false, Default::default())
-                })
-                .collect(),
             selected_quest: Default::default(),
         }
     }
@@ -70,13 +56,11 @@ impl StoryState {
         Command::none()
     }
 
-    pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
+    pub fn view(&self, game_state: &GameState) -> Element<Message> {
         let mut columns = Row::new().spacing(5).padding(5);
         columns = columns
             .push(view_quest_picker(
-                &mut self.quest_buttons,
                 self.selected_quest,
-                &mut self.quest_picker_state,
                 game_state,
             ))
             .push(view_quest(self.selected_quest, game_state));
@@ -164,15 +148,9 @@ fn view_quest_stage<'result>(
 }
 
 fn view_quest_picker<'result, 'quest_buttons: 'result, 'quest_picker_state: 'result>(
-    quest_buttons: &'quest_buttons mut [(bool, button::State)],
     selected_quest: Option<QuestId>,
-    quest_picker_state: &'quest_picker_state mut scrollable::State,
     game_state: &GameState,
 ) -> Element<'result, Message> {
-    quest_buttons
-        .iter_mut()
-        .for_each(|quest_button| quest_button.0 = false);
-
     let mut quest_picker = Column::new().spacing(5).padding(5);
 
     quest_picker = quest_picker.push(Text::new("Active quests").size(24));
@@ -181,7 +159,7 @@ fn view_quest_picker<'result, 'quest_buttons: 'result, 'quest_picker_state: 'res
         .iter_active_quests_by_activation_time()
         .rev()
     {
-        quest_picker = view_quest_button(quest_picker, quest_buttons, selected_quest, quest);
+        quest_picker = view_quest_button(quest_picker, selected_quest, quest);
     }
 
     quest_picker = quest_picker.push(Text::new("Completed quests").size(24));
@@ -190,32 +168,27 @@ fn view_quest_picker<'result, 'quest_buttons: 'result, 'quest_picker_state: 'res
         .iter_completed_quests_by_completion_time()
         .rev()
     {
-        quest_picker = view_quest_button(quest_picker, quest_buttons, selected_quest, quest);
+        quest_picker = view_quest_button(quest_picker, selected_quest, quest);
     }
 
     quest_picker = quest_picker.push(Text::new("Failed quests").size(24));
     for quest in game_state.story.iter_failed_quests_by_failure_time().rev() {
-        quest_picker = view_quest_button(quest_picker, quest_buttons, selected_quest, quest);
+        quest_picker = view_quest_button(quest_picker, selected_quest, quest);
     }
 
-    let quest_picker = Scrollable::new(quest_picker_state).push(quest_picker);
+    let quest_picker = Scrollable::new(quest_picker);
     let quest_picker = Container::new(quest_picker).style(FramedContainer);
     quest_picker.into()
 }
 
 fn view_quest_button<'a>(
     quest_picker: Column<'a, Message>,
-    quest_buttons: &mut [(bool, button::State)],
     selected_quest: Option<QuestId>,
     quest: &CompiledQuest,
 ) -> Column<'a, Message> {
-    let quest_button = &mut quest_buttons[quest.id.0];
-    assert!(!quest_button.0);
-    quest_button.0 = true;
-    let quest_button_state = unsafe { ptr::addr_of_mut!(quest_button.1).as_mut().unwrap() };
 
     quest_picker.push(
-        Button::new(quest_button_state, Text::new(quest.title.clone()))
+        Button::new( Text::new(quest.title.clone()))
             .on_press(StoryMessage::SelectQuest(quest.id).into())
             .style(if selected_quest == Some(quest.id) {
                 SelectedButtonStyleSheet::style_sheet()

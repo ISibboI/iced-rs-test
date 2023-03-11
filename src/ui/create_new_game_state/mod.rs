@@ -9,18 +9,14 @@ use async_std::path::PathBuf;
 use enum_iterator::all;
 use iced::alignment::{Horizontal, Vertical};
 use iced::{
-    button, pick_list, text_input, Alignment, Button, Color, Column, Command, Container, Element,
-    Length, PickList, Space, Text, TextInput,
+    Alignment,  Color, Command,Element,
+    Length,
 };
+use iced::widget::{Button, Column,PickList, Space, Text, TextInput, Container, };
 use std::borrow::Borrow;
 
 #[derive(Debug, Clone)]
 pub struct CreateNewGameState {
-    savegame_file_field: text_input::State,
-    name_field: text_input::State,
-    pronoun_field: text_input::State,
-    race_field: pick_list::State<CharacterRace>,
-    create_game_button: button::State,
     message: Option<String>,
     game_initialisation: GameStateInitialisation,
     game_template: Option<CompiledGameTemplate>,
@@ -45,11 +41,6 @@ impl CreateNewGameState {
             race: Default::default(),
         };
         Self {
-            savegame_file_field: Default::default(),
-            name_field: Default::default(),
-            pronoun_field: Default::default(),
-            race_field: Default::default(),
-            create_game_button: Default::default(),
             message: Default::default(),
             game_initialisation,
             game_template: Some(game_template),
@@ -97,11 +88,10 @@ impl CreateNewGameState {
         Command::none()
     }
 
-    pub fn view(&mut self) -> Element<Message> {
+    pub fn view(&self) -> Element<Message> {
         let label_column_width = 130;
 
         let savegame_file_field_input = TextInput::new(
-            &mut self.savegame_file_field,
             "",
             self.game_initialisation
                 .savegame_file
@@ -113,7 +103,6 @@ impl CreateNewGameState {
         .width(Length::Fill);
 
         let name_field_input = TextInput::new(
-            &mut self.name_field,
             "",
             &self.game_initialisation.name,
             |input| CreateNewGameMessage::NameChanged(input).into(),
@@ -122,7 +111,6 @@ impl CreateNewGameState {
         .width(Length::Fill);
 
         let pronoun_field_input = TextInput::new(
-            &mut self.pronoun_field,
             "",
             &self.game_initialisation.pronoun,
             |input| CreateNewGameMessage::PronounChanged(input).into(),
@@ -131,7 +119,6 @@ impl CreateNewGameState {
         .width(Length::Fill);
 
         let race_field_input = PickList::new(
-            &mut self.race_field,
             all::<CharacterRace>().collect::<Vec<_>>(),
             Some(self.game_initialisation.race),
             |race| CreateNewGameMessage::RaceChanged(race).into(),
@@ -177,7 +164,6 @@ impl CreateNewGameState {
             )
             .push(
                 Button::new(
-                    &mut self.create_game_button,
                     Text::new("Create Game")
                         .horizontal_alignment(Horizontal::Center)
                         .vertical_alignment(Vertical::Center),

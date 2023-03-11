@@ -9,7 +9,8 @@ use crate::ui::style::{ButtonStyleSheet, FramedContainer, SelectedButtonStyleShe
 use crate::ui::Message;
 use crate::{GameState, RunConfiguration};
 use async_std::sync::Arc;
-use iced::{button, Button, Column, Command, Container, Element, Length, ProgressBar, Row, Text};
+use iced::{Command,  Element, Length};
+use iced::widget::{Button, Column, Container, ProgressBar, Row, Text};
 
 mod action_picker;
 mod calendar;
@@ -25,12 +26,6 @@ pub struct MainViewState {
     action_picker_state: ActionPickerState,
     story_state: StoryState,
     calendar_state: CalendarState,
-
-    overview_button: button::State,
-    location_button: button::State,
-    action_picker_button: button::State,
-    story_button: button::State,
-    calendar_button: button::State,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -58,14 +53,8 @@ impl MainViewState {
             overview_state: OverviewState::new(),
             location_state: LocationState::new(game_state),
             action_picker_state: ActionPickerState::new(),
-            story_state: StoryState::new(game_state),
+            story_state: StoryState::new(),
             calendar_state: CalendarState::new(game_state),
-
-            overview_button: Default::default(),
-            location_button: Default::default(),
-            action_picker_button: Default::default(),
-            story_button: Default::default(),
-            calendar_button: Default::default(),
         }
     }
 
@@ -108,7 +97,7 @@ impl MainViewState {
             .update_game_state(configuration, game_state, message)])
     }
 
-    pub fn view(&mut self, game_state: &GameState) -> Element<Message> {
+    pub fn view(&self, game_state: &GameState) -> Element<Message> {
         Container::new(
             Column::new()
                 .spacing(5)
@@ -120,7 +109,7 @@ impl MainViewState {
                             .padding(5)
                             .spacing(5)
                             .push(
-                                Button::new(&mut self.overview_button, Text::new("Overview"))
+                                Button::new( Text::new("Overview"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::Overview).into(),
                                     )
@@ -131,7 +120,7 @@ impl MainViewState {
                                     }),
                             )
                             .push(
-                                Button::new(&mut self.location_button, Text::new("Location"))
+                                Button::new( Text::new("Location"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::Location).into(),
                                     )
@@ -142,7 +131,7 @@ impl MainViewState {
                                     }),
                             )
                             .push(
-                                Button::new(&mut self.action_picker_button, Text::new("Actions"))
+                                Button::new( Text::new("Actions"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::ActionPicker)
                                             .into(),
@@ -154,7 +143,7 @@ impl MainViewState {
                                     }),
                             )
                             .push(
-                                Button::new(&mut self.story_button, Text::new("Quests"))
+                                Button::new( Text::new("Quests"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::Story).into(),
                                     )
@@ -165,7 +154,7 @@ impl MainViewState {
                                     }),
                             )
                             .push(
-                                Button::new(&mut self.calendar_button, Text::new("Calendar"))
+                                Button::new( Text::new("Calendar"))
                                     .on_press(
                                         MainViewMessage::SelectView(SelectedView::Calendar).into(),
                                     )

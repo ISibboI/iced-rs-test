@@ -10,8 +10,8 @@ rust-version = "1.63.0"
 event-trigger-action-system = { version = "0.7.6", features = ["serde"] }
 section_parser_derive = "0.1.1"
 
-iced = {version = "0.4.2", features = ["async-std", "image"]}
-iced_native = "0.5.1"
+iced = {version = "0.5.1", features = ["async-std", "image"]}
+iced_native = "0.6.0"
 serde = {version = "1.0.136", features = ["derive"]}
 pot = "1.0.2"
 base64 = "0.13.0"

@@ -54,6 +54,7 @@ pub enum Message {
 impl Application for ApplicationState {
     type Executor = iced::executor::Default;
     type Message = Message;
+    type Theme = iced::theme::Theme;
     type Flags = RunConfiguration;
 
     fn new(flags: Self::Flags) -> (Self, Command<Self::Message>) {
@@ -143,21 +144,8 @@ impl Application for ApplicationState {
         }
     }
 
-    fn subscription(&self) -> Subscription<Self::Message> {
-        let mut subscriptions = vec![iced_native::subscription::events().map(Message::NativeEvent)];
-        if let ApplicationUiState::Running(_) = &self.ui_state {
-            subscriptions.push(
-                iced::time::every(std::time::Duration::from_nanos(
-                    (1e9 / self.configuration.target_fps) as u64,
-                ))
-                .map(|_| Message::Running(RunningMessage::Update)),
-            );
-        }
-        Subscription::batch(subscriptions)
-    }
-
-    fn view(&mut self) -> Element<Self::Message> {
-        match &mut self.ui_state {
+    fn view(&self) -> Element<Self::Message> {
+        match &self.ui_state {
             ApplicationUiState::Invalid => panic!("Cannot view invalid UI state"),
             ApplicationUiState::MainMenu(main_menu_state) => main_menu_state.view(),
             ApplicationUiState::Loading(load_game_state) => load_game_state.view(),
@@ -170,6 +158,19 @@ impl Application for ApplicationState {
             }
             ApplicationUiState::Running(running_state) => running_state.view(),
         }
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
+        let mut subscriptions = vec![iced_native::subscription::events().map(Message::NativeEvent)];
+        if let ApplicationUiState::Running(_) = &self.ui_state {
+            subscriptions.push(
+                iced::time::every(std::time::Duration::from_nanos(
+                    (1e9 / self.configuration.target_fps) as u64,
+                ))
+                .map(|_| Message::Running(RunningMessage::Update)),
+            );
+        }
+        Subscription::batch(subscriptions)
     }
 
     fn should_exit(&self) -> bool {

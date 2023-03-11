@@ -5,8 +5,9 @@ use crate::ui::style::FramedContainer;
 use crate::ui::Message;
 use crate::{GameState, RunConfiguration};
 use async_std::sync::Arc;
-use iced::{Command, Container, Element, Image, Length, Space};
-use iced_native::image::Handle;
+use iced::{Command,  Element,  Length};
+use iced::widget::{Container, Image, Space};
+use iced::widget::image::Handle;
 use log::{debug, error, info, warn};
 
 #[derive(Debug, Clone)]
